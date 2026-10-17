@@ -496,6 +496,7 @@ private class AerioMediaCodecVideoRenderer(
         requiresSecureDecoder: Boolean,
     ): List<MediaCodecInfo> {
         val infos = super.getDecoderInfos(mediaCodecSelector, format, requiresSecureDecoder)
+        softwareFirstOnTensor(format, infos)?.let { return it }
         if (infos.isNotEmpty()) {
             if (!isDolbyVisionProfile7(format)) return infos
             val p7BaseLayer = baseLayerFormatOrNull(format) ?: return infos
@@ -551,6 +552,26 @@ private class AerioMediaCodecVideoRenderer(
      * had -- while the Chromecast decoded the same bytes cleanly. A fresh decoder costs a moment
      * of black and the wait for the next key frame, never minutes.
      */
+    /**
+     * H.264 up to 1080p in software on Google's Tensor phones. Their hardware decoder
+     * (c2.exynos.h264.decoder, three output buffers) broke down on a channel that predicts
+     * from two reference pictures (TF1: Main profile, max_dec_frame_buffering 2): "input is
+     * corrupted" a few times a second, a black frame with a smeared band, 4 fps -- while the
+     * Shield, the Chromecast and ffmpeg decoded the same bytes cleanly and a one-reference
+     * channel (TFX) played on the same phone without a single error (Pixel 9, 2026-10-17).
+     * The platform's software decoder has no such pool and a Tensor decodes 1080p H.264
+     * with room to spare. The hardware decoder stays behind it, for anything larger.
+     */
+    private fun softwareFirstOnTensor(format: Format, infos: List<MediaCodecInfo>): List<MediaCodecInfo>? {
+        if (format.sampleMimeType != androidx.media3.common.MimeTypes.VIDEO_H264) return null
+        if (android.os.Build.VERSION.SDK_INT < 31 || !android.os.Build.SOC_MANUFACTURER.equals("Google", ignoreCase = true)) return null
+        if (format.width > 1920 || format.height > 1088) return null
+        if (infos.firstOrNull()?.name?.lowercase()?.startsWith("c2.exynos.") != true) return null
+        val software = infos.filter { it.softwareOnly }
+        if (software.isEmpty()) return null
+        return software + infos.filterNot { it in software }
+    }
+
     override fun codecNeedsSetOutputSurfaceWorkaround(name: String): Boolean =
         isExynos(name) || super.codecNeedsSetOutputSurfaceWorkaround(name)
 

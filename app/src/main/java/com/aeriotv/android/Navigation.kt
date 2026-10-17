@@ -717,7 +717,15 @@ fun AerioTVNavHost(
                         },
                     )
                 } else WelcomeScreen(
-                    onConnectServer = { navController.navigate(Routes.CHOOSE_TYPE) },
+                    // The main way in: straight to the Dispatcharr login.
+                    onConnectServer = {
+                        vm.startNewSource(SourceType.DispatcharrUserPass)
+                        navController.navigate(Routes.configure(SourceType.DispatcharrUserPass))
+                    },
+                    onChooseSource = { type ->
+                        vm.startNewSource(type)
+                        navController.navigate(Routes.configure(type))
+                    },
                     // A Dispatcharr server found on the local network: straight
                     // to its login with the address (and a name) filled in.
                     onPickDiscoveredServer = { server ->

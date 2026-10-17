@@ -298,7 +298,7 @@ class DispatchMoreLinks @Inject constructor(
                     androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.currentState
                         .isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)
                 }
-                if (inFront && target() != null) state()
+                if (inFront && target() != null) state()?.let { onGroupChannel(it) }
                 kotlinx.coroutines.delay(STATUS_EVERY_MS)
             }
         }
@@ -359,6 +359,36 @@ class DispatchMoreLinks @Inject constructor(
         }
     }
 
+    /** Since when this device has been linked but on another channel than the group's. */
+    private var offGroupSince = 0L
+
+    /**
+     * Linked, yet on another channel than the group's for a while, with no question up: tune the
+     * group's channel. A "follow" the socket never delivered (a device whose socket was down)
+     * would otherwise leave it joined on the server and on its own channel on screen.
+     */
+    private suspend fun onGroupChannel(state: DispatcharrClient.LinkState) {
+        val group = state.channel
+        val mine = withContext(Dispatchers.Main) {
+            holder.currentChannelId?.takeIf { it.startsWith("disp:") && !holder.isCatchup }?.removePrefix("disp:")
+        }
+        val asked = WatchTogether.followRequest.value != null || WatchTogether.joinRequest.value != null ||
+            WatchTogether.asking != null
+        if (!state.linked || group == null || mine == null || mine == group || asked) {
+            offGroupSince = 0L
+            return
+        }
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (offGroupSince == 0L) {
+            offGroupSince = now
+            return
+        }
+        if (now - offGroupSince < OFF_GROUP_MS) return
+        offGroupSince = 0L
+        Log.i(TAG, "linked, but on $mine and the group on $group: following")
+        WatchTogether.followChannel(group)
+    }
+
     /** The active playlist's server, when it is a Dispatch More server that offers it. */
     private suspend fun target(): Triple<String, String, String>? {
         val playlist = dao.firstActive()?.takeIf { !it.apiKey.isNullOrBlank() } ?: return null
@@ -402,7 +432,18 @@ class DispatchMoreLinks @Inject constructor(
             WatchTogether.asking = who
             WatchTogether.notify(com.aeriotv.android.R.string.watch_together_asked, who)
             scope.launch {
-                kotlinx.coroutines.delay(ASK_WAIT_MS)
+                // The answer comes on the socket; asking the server meanwhile means a join never
+                // waits on it (the Shield's socket was refused at login, 2026-10-18: let in, it
+                // never heard, and played on its own channel while the list said "together")
+                val until = android.os.SystemClock.elapsedRealtime() + ASK_WAIT_MS
+                while (WatchTogether.asking == who && android.os.SystemClock.elapsedRealtime() < until) {
+                    kotlinx.coroutines.delay(ASK_POLL_MS)
+                    val now = state() ?: continue
+                    if (now.linked && WatchTogether.asking == who) {
+                        Log.i(TAG, "let in (seen from the server)")
+                        now.channel?.let { WatchTogether.accepted(it) } ?: run { WatchTogether.asking = null }
+                    }
+                }
                 if (WatchTogether.asking == who) {
                     WatchTogether.asking = null
                     WatchTogether.notify(com.aeriotv.android.R.string.watch_together_no_answer, who)
@@ -475,5 +516,9 @@ class DispatchMoreLinks @Inject constructor(
         const val STATUS_EVERY_MS = 20_000L
         // How long another person's answer is waited for (the server keeps the request 30 s)
         const val ASK_WAIT_MS = 25_000L
+        // How often the server is asked while waiting for that answer
+        const val ASK_POLL_MS = 3_000L
+        // Linked but on another channel than the group's this long: follow it
+        const val OFF_GROUP_MS = 15_000L
     }
 }

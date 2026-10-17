@@ -510,6 +510,72 @@ class AppPreferences @Inject constructor(
     }
 
     /**
+     * "Compact modern layout" (TV, Settings > Appearance): a TiviMate-style
+     * guide with a left navigation rail. Off by default; see
+     * [CompactModernLayout] for what it changes.
+     */
+    val compactModernLayout: Flow<Boolean> = store.data.map { it[KEY_COMPACT_MODERN_LAYOUT] ?: false }
+
+    /**
+     * Turn the compact modern layout on or off in ONE DataStore transaction,
+     * so a crash can never leave the preset half applied. On: the current
+     * values of the settings the preset changes are saved, then the preset is
+     * written. Off: the saved values are put back exactly, keys that were
+     * never set are removed again. A setting changed by hand while the layout
+     * was on is overwritten by the saved value when it is turned off.
+     */
+    /**
+     * ArrTV look, one press (the button above Settings): Slate theme, dark
+     * appearance, text and subtext size 1.15, the compact modern layout (its
+     * own switch, so the previous values are saved and turning the layout off
+     * later restores them) and the player's info bar overlay. The info bar key
+     * is written by name: its setting lives on another branch.
+     */
+    suspend fun applyArrTvLook() {
+        setSelectedTheme(AppTheme.Slate)
+        setAppearanceMode(AppearanceMode.Dark)
+        setTextScale(1.15f)
+        setSubtextScale(1.15f)
+        if (!compactModernLayout.first()) setCompactModernLayout(true)
+        store.edit { it[booleanPreferencesKey("player_info_bar_style")] = true }
+    }
+
+    suspend fun setCompactModernLayout(enabled: Boolean) {
+        store.edit { prefs ->
+            val on = prefs[KEY_COMPACT_MODERN_LAYOUT] ?: false
+            if (enabled == on) return@edit
+            if (enabled) {
+                prefs[KEY_COMPACT_MODERN_SNAPSHOT] = CompactModernLayout.Snapshot(
+                    liveTvLayout = prefs[KEY_LIVE_TV_LAYOUT],
+                    guideGroupSelector = prefs[KEY_GUIDE_GROUP_SELECTOR],
+                    guideSidebarLayout = prefs[KEY_GUIDE_SIDEBAR_LAYOUT],
+                    displayScaleLiveTv = prefs[KEY_DISPLAY_SCALE_LIVE_TV],
+                    remoteControlMap = prefs[KEY_REMOTE_CONTROL_MAP],
+                ).toJson()
+                prefs[KEY_LIVE_TV_LAYOUT] = CompactModernLayout.LIVE_TV_LAYOUT
+                prefs[KEY_GUIDE_GROUP_SELECTOR] = CompactModernLayout.GUIDE_GROUP_SELECTOR
+                prefs[KEY_GUIDE_SIDEBAR_LAYOUT] = CompactModernLayout.GUIDE_SIDEBAR_LAYOUT
+                prefs[KEY_DISPLAY_SCALE_LIVE_TV] = CompactModernLayout.DISPLAY_SCALE_LIVE_TV
+                prefs[KEY_REMOTE_CONTROL_MAP] = CompactModernLayout.remoteMapWithPreset(prefs[KEY_REMOTE_CONTROL_MAP])
+                prefs[KEY_COMPACT_MODERN_LAYOUT] = true
+            } else {
+                CompactModernLayout.Snapshot.fromJson(prefs[KEY_COMPACT_MODERN_SNAPSHOT])?.let { snap ->
+                    fun <T> restore(key: Preferences.Key<T>, value: T?) {
+                        if (value == null) prefs.remove(key) else prefs[key] = value
+                    }
+                    restore(KEY_LIVE_TV_LAYOUT, snap.liveTvLayout)
+                    restore(KEY_GUIDE_GROUP_SELECTOR, snap.guideGroupSelector)
+                    restore(KEY_GUIDE_SIDEBAR_LAYOUT, snap.guideSidebarLayout)
+                    restore(KEY_DISPLAY_SCALE_LIVE_TV, snap.displayScaleLiveTv)
+                    restore(KEY_REMOTE_CONTROL_MAP, snap.remoteControlMap)
+                }
+                prefs.remove(KEY_COMPACT_MODERN_SNAPSHOT)
+                prefs[KEY_COMPACT_MODERN_LAYOUT] = false
+            }
+        }
+    }
+
+    /**
      * Phone / tablet Live TV group selector (Logan 2026-09-05, Apple parity
      * with `phoneGroupSelectorKey`): "sidebar" (default) = a slide-in group
      * drawer opened from the header's groups button, "pills" = the group pill
@@ -1426,6 +1492,13 @@ class AppPreferences @Inject constructor(
         store.edit { it[KEY_CREDS_ENCRYPTED_V1] = value }
     }
 
+    /** True once the ArrTV look was applied by default (BuildConfig.ARRTV_LOOK_BY_DEFAULT). */
+    suspend fun arrTvLookAppliedOnce(): Boolean =
+        store.data.first()[KEY_ARRTV_LOOK_APPLIED_V1] ?: false
+    suspend fun setArrTvLookApplied() {
+        store.edit { it[KEY_ARRTV_LOOK_APPLIED_V1] = true }
+    }
+
     /**
      * Whether the one-time "your server credentials sync to your Drive in
      * cleartext" disclosure has been shown (audit task #53). Server credentials
@@ -2017,6 +2090,8 @@ class AppPreferences @Inject constructor(
         val KEY_SYNC_REMOTE_CONTROL_MAP = booleanPreferencesKey("sync_remote_control_map")
         val KEY_GUIDE_GROUP_SELECTOR = stringPreferencesKey("guide_group_selector")
         val KEY_GUIDE_SIDEBAR_LAYOUT = stringPreferencesKey("guide_sidebar_layout")
+        val KEY_COMPACT_MODERN_LAYOUT = booleanPreferencesKey("compact_modern_layout")
+        val KEY_COMPACT_MODERN_SNAPSHOT = stringPreferencesKey("compact_modern_snapshot")
         val KEY_PHONE_GROUP_SELECTOR = stringPreferencesKey("phone_group_selector")
         val KEY_GUIDE_TUNE_IN_MINI = booleanPreferencesKey("guide_tune_in_mini")
         val KEY_SHOW_REMOTE_HINTS = booleanPreferencesKey("show_remote_hints")
@@ -2128,6 +2203,7 @@ class AppPreferences @Inject constructor(
         val KEY_SYNC_ACCESS_TOKEN = stringPreferencesKey("sync_access_token")
         val KEY_SYNC_TOKEN_EXPIRY = longPreferencesKey("sync_token_expiry")
         val KEY_CREDS_ENCRYPTED_V1 = booleanPreferencesKey("creds_encrypted_v1")
+        val KEY_ARRTV_LOOK_APPLIED_V1 = booleanPreferencesKey("arrtv_look_applied_v1")
         val KEY_CREDENTIALS_SYNC_DISCLOSED = booleanPreferencesKey("credentials_sync_disclosed")
         val KEY_BG_REFRESH_ENABLED = booleanPreferencesKey("background_refresh_enabled")
         val KEY_BG_REFRESH_INTERVAL_MINS = intPreferencesKey("background_refresh_interval_mins")

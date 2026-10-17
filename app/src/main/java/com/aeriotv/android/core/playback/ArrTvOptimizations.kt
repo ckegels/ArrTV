@@ -1,5 +1,8 @@
 package com.aeriotv.android.core.playback
 
+import androidx.annotation.StringRes
+import com.aeriotv.android.R
+
 /**
  * The switches for arrTV's own playback and server optimizations (Settings >
  * General > arrTV optimizations). Each one on by default; switched off, the
@@ -80,24 +83,32 @@ enum class ArrTvOptimization(
     val prefKey: String,
     val title: String,
     val subtitle: String,
+    @StringRes val titleRes: Int,
+    @StringRes val subtitleRes: Int,
     val apply: (Boolean) -> Unit,
 ) {
     IDENTIFY_DEVICE(
         "arrtv_opt_identify_device",
         "Tell Dispatch More which TV this is",
         "Device id and name, the channel being left, the Multiview session. Off: nothing below that needs it works.",
+        R.string.player_arrtv_opt_identify_device_title,
+        R.string.player_arrtv_opt_identify_device_subtitle,
         { ArrTvOptimizations.identifyDevice = it },
     ),
     SEND_MAX_VIDEO(
         "arrtv_opt_send_max_video",
         "Only start streams this TV can play",
         "Tells the server the tallest picture this TV decodes, so it never starts it on a 4K stream it cannot play.",
+        R.string.player_arrtv_opt_send_max_video_title,
+        R.string.player_arrtv_opt_send_max_video_subtitle,
         { ArrTvOptimizations.sendMaxVideo = it },
     ),
     FAST_FAILOVER(
         "arrtv_opt_fast_failover",
         "Faster switch to the next stream",
         "Waits about 6 s instead of 28 s for a stream that sends nothing, and 6 s instead of 15 s for one it cannot play.",
+        R.string.player_arrtv_opt_fast_failover_title,
+        R.string.player_arrtv_opt_fast_failover_subtitle,
         { ArrTvOptimizations.fastFailover = it },
     ),
     SLOW_START(
@@ -105,6 +116,8 @@ enum class ArrTvOptimization(
         "Leave a stream that is slow to start",
         "No picture within the wait below: the channel's next stream is tried. A stream that sends nothing at all " +
             "is left to the server when its own faster failover is on.",
+        R.string.player_arrtv_opt_slow_start_title,
+        R.string.player_arrtv_opt_slow_start_subtitle,
         { ArrTvOptimizations.slowStart = it },
     ),
     ADAPTIVE_WAIT(
@@ -112,24 +125,32 @@ enum class ArrTvOptimization(
         "Wait less when a channel has more streams",
         "The wait for a picture follows how many other streams the server can switch to right now " +
             "(its \"Tell arrTV how many other streams a channel has\" switch). Off: the \"one other stream\" wait everywhere.",
+        R.string.player_arrtv_opt_adaptive_wait_title,
+        R.string.player_arrtv_opt_adaptive_wait_subtitle,
         { ArrTvOptimizations.adaptiveWait = it },
     ),
     SKIP_UNPLAYABLE(
         "arrtv_opt_skip_unplayable",
         "Skip streams this TV cannot play",
         "When data arrives but no picture comes, asks the server for the channel's next stream.",
+        R.string.player_arrtv_opt_skip_unplayable_title,
+        R.string.player_arrtv_opt_skip_unplayable_subtitle,
         { ArrTvOptimizations.skipUnplayable = it },
     ),
     FREEZE_RESCUE(
         "arrtv_opt_freeze_rescue",
         "Reopen a frozen stream",
         "When the picture stops after it started while data keeps arriving, opens the channel again on a new connection.",
+        R.string.player_arrtv_opt_freeze_rescue_title,
+        R.string.player_arrtv_opt_freeze_rescue_subtitle,
         { ArrTvOptimizations.freezeRescue = it },
     ),
     REPORT_STALLS(
         "arrtv_opt_report_stalls",
         "Tell the server when the picture stutters",
         "So Dispatch More can move the channel to another stream at once (its own switch has to be on too).",
+        R.string.player_arrtv_opt_report_stalls_title,
+        R.string.player_arrtv_opt_report_stalls_subtitle,
         { ArrTvOptimizations.reportStalls = it },
     ),
 }
@@ -138,11 +159,12 @@ enum class ArrTvOptimization(
 enum class ArrTvWait(
     val prefKey: String,
     val title: String,
+    @StringRes val titleRes: Int,
     val default: Int,
     val range: IntRange,
     val apply: (Int) -> Unit,
 ) {
-    MANY("arrtv_wait_many", "Wait with 2 or more other streams", 3, 1..20, { ArrTvOptimizations.waitManySecs = it }),
-    ONE("arrtv_wait_one", "Wait with 1 other stream", 5, 1..20, { ArrTvOptimizations.waitOneSecs = it }),
-    MAX("arrtv_wait_max", "Longest wait for a slow channel", 10, 2..30, { ArrTvOptimizations.waitMaxSecs = it }),
+    MANY("arrtv_wait_many", "Wait with 2 or more other streams", R.string.player_arrtv_wait_many, 3, 1..20, { ArrTvOptimizations.waitManySecs = it }),
+    ONE("arrtv_wait_one", "Wait with 1 other stream", R.string.player_arrtv_wait_one, 5, 1..20, { ArrTvOptimizations.waitOneSecs = it }),
+    MAX("arrtv_wait_max", "Longest wait for a slow channel", R.string.player_arrtv_wait_max, 10, 2..30, { ArrTvOptimizations.waitMaxSecs = it }),
 }

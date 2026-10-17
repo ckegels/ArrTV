@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.dvr
 
+import com.aeriotv.android.core.locale.AppText
+import com.aeriotv.android.R
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -716,7 +718,7 @@ class DvrViewModel @Inject constructor(
             deleteRecording(rec).onFailure { failures++ }
         }
         if (failures > 0) {
-            throw IllegalStateException("Failed to delete $failures of ${targets.size}")
+            throw IllegalStateException(AppText.get(R.string.media_err_failed_to_delete_n_of, failures, targets.size))
         }
         targets.size
     }
@@ -795,7 +797,7 @@ class DvrViewModel @Inject constructor(
         if (recording.source == Source.Local) {
             return runCatching {
                 val rowId = recording.id.removePrefix("local-").toLongOrNull()
-                    ?: throw IllegalStateException("Invalid local recording id: ${recording.id}")
+                    ?: throw IllegalStateException(AppText.get(R.string.media_err_invalid_local_id, recording.id))
                 val rows = localRecordingDao.observeAll().first()
                 val match = rows.firstOrNull { it.id == rowId }
                 if (match != null) {
@@ -808,12 +810,12 @@ class DvrViewModel @Inject constructor(
             when (recording.source) {
                 Source.Server -> {
                     val playlist = playlistRepository.activePlaylist()
-                        ?: throw IllegalStateException("No playlist loaded.")
+                        ?: throw IllegalStateException(AppText.get(R.string.media_err_no_playlist))
                     if (playlist.apiKey.isNullOrBlank()) {
-                        throw IllegalStateException("Active source is not Dispatcharr-backed.")
+                        throw IllegalStateException(AppText.get(R.string.media_err_not_dispatcharr))
                     }
                     val intId = recording.id.removePrefix("server-").toIntOrNull()
-                        ?: throw IllegalStateException("Invalid server recording id: ${recording.id}")
+                        ?: throw IllegalStateException(AppText.get(R.string.media_err_invalid_server_id, recording.id))
                     val base = playlistRepository.effectiveBaseUrl(playlist)
                     dispatcharrAuth.withApiKeyRetry(playlist.id) { key ->
                         dispatcharrClient.deleteRecording(base, key, intId)
@@ -847,9 +849,9 @@ class DvrViewModel @Inject constructor(
         channelDispatcharrId: Int?,
     ): Result<Int> {
         val playlist = playlistRepository.activePlaylist()
-            ?: return Result.failure(IllegalStateException("No playlist loaded."))
+            ?: return Result.failure(IllegalStateException(AppText.get(R.string.media_err_no_playlist)))
         if (playlist.apiKey.isNullOrBlank()) {
-            return Result.failure(IllegalStateException("Active source is not Dispatcharr-backed."))
+            return Result.failure(IllegalStateException(AppText.get(R.string.media_err_not_dispatcharr)))
         }
         val base = playlistRepository.effectiveBaseUrl(playlist)
         return runCatching {
@@ -892,9 +894,9 @@ class DvrViewModel @Inject constructor(
         comskip: Boolean,
     ): Result<DispatcharrRecording> {
         val playlist = playlistRepository.activePlaylist()
-            ?: return Result.failure(IllegalStateException("No playlist loaded."))
+            ?: return Result.failure(IllegalStateException(AppText.get(R.string.media_err_no_playlist)))
         if (playlist.apiKey.isNullOrBlank()) {
-            return Result.failure(IllegalStateException("Active source is not Dispatcharr-backed."))
+            return Result.failure(IllegalStateException(AppText.get(R.string.media_err_not_dispatcharr)))
         }
         val base = playlistRepository.effectiveBaseUrl(playlist)
         return withCapability(Capability.CanManageDvr) {
@@ -943,9 +945,9 @@ class DvrViewModel @Inject constructor(
         description: String,
     ): Result<DispatcharrRecording> {
         val playlist = playlistRepository.activePlaylist()
-            ?: return Result.failure(IllegalStateException("No playlist loaded."))
+            ?: return Result.failure(IllegalStateException(AppText.get(R.string.media_err_no_playlist)))
         if (playlist.apiKey.isNullOrBlank()) {
-            return Result.failure(IllegalStateException("Active source is not Dispatcharr-backed."))
+            return Result.failure(IllegalStateException(AppText.get(R.string.media_err_not_dispatcharr)))
         }
         val base = playlistRepository.effectiveBaseUrl(playlist)
         // PATCH /api/channels/recordings/<id>/ is IsAdminOrDVRManager: route it
@@ -977,15 +979,15 @@ class DvrViewModel @Inject constructor(
      */
     suspend fun applyComskip(recording: Recording): Result<Unit> {
         if (recording.source != Source.Server) {
-            return Result.failure(IllegalStateException("Remove Commercials is server-only."))
+            return Result.failure(IllegalStateException(AppText.get(R.string.media_err_comskip_server_only)))
         }
         val playlist = playlistRepository.activePlaylist()
-            ?: return Result.failure(IllegalStateException("No playlist loaded."))
+            ?: return Result.failure(IllegalStateException(AppText.get(R.string.media_err_no_playlist)))
         if (playlist.apiKey.isNullOrBlank()) {
-            return Result.failure(IllegalStateException("Active source is not Dispatcharr-backed."))
+            return Result.failure(IllegalStateException(AppText.get(R.string.media_err_not_dispatcharr)))
         }
         val intId = recording.id.removePrefix("server-").toIntOrNull()
-            ?: return Result.failure(IllegalStateException("Invalid recording id."))
+            ?: return Result.failure(IllegalStateException(AppText.get(R.string.media_invalid_recording_id)))
         val base = playlistRepository.effectiveBaseUrl(playlist)
         // Comskip is a server-side write (IsAdminOrDVRManager), so a 403 must
         // reach the capability self-correction path like every other one.
@@ -1004,15 +1006,15 @@ class DvrViewModel @Inject constructor(
      */
     suspend fun stopRecording(recording: Recording): Result<Unit> {
         if (recording.source != Source.Server) {
-            return Result.failure(IllegalStateException("Stop Recording is server-only."))
+            return Result.failure(IllegalStateException(AppText.get(R.string.media_err_stop_server_only)))
         }
         val playlist = playlistRepository.activePlaylist()
-            ?: return Result.failure(IllegalStateException("No playlist loaded."))
+            ?: return Result.failure(IllegalStateException(AppText.get(R.string.media_err_no_playlist)))
         if (playlist.apiKey.isNullOrBlank()) {
-            return Result.failure(IllegalStateException("Active source is not Dispatcharr-backed."))
+            return Result.failure(IllegalStateException(AppText.get(R.string.media_err_not_dispatcharr)))
         }
         val intId = recording.id.removePrefix("server-").toIntOrNull()
-            ?: return Result.failure(IllegalStateException("Invalid recording id."))
+            ?: return Result.failure(IllegalStateException(AppText.get(R.string.media_invalid_recording_id)))
         val base = playlistRepository.effectiveBaseUrl(playlist)
         return withCapability(Capability.CanManageDvr) {
             dispatcharrAuth.withApiKeyRetry(playlist.id) { key ->
@@ -1032,14 +1034,14 @@ class DvrViewModel @Inject constructor(
      */
     suspend fun saveToDevice(recording: Recording): Result<Unit> {
         if (recording.source != Source.Server) {
-            return Result.failure(IllegalStateException("Save to Device is for server recordings."))
+            return Result.failure(IllegalStateException(AppText.get(R.string.media_err_save_server_only)))
         }
         val url = recording.playbackUrl
-            ?: return Result.failure(IllegalStateException("This recording has no file to download yet."))
+            ?: return Result.failure(IllegalStateException(AppText.get(R.string.media_err_no_file_to_download)))
         val playlist = playlistRepository.activePlaylist()
-            ?: return Result.failure(IllegalStateException("No playlist loaded."))
+            ?: return Result.failure(IllegalStateException(AppText.get(R.string.media_err_no_playlist)))
         val key = playlist.apiKey?.takeIf { it.isNotBlank() }
-            ?: return Result.failure(IllegalStateException("Active source is not Dispatcharr-backed."))
+            ?: return Result.failure(IllegalStateException(AppText.get(R.string.media_err_not_dispatcharr)))
         return runCatching {
             LocalRecordingService.download(
                 context = appContext,

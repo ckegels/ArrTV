@@ -4,6 +4,8 @@ import com.aeriotv.android.core.data.ChannelCollection
 import com.aeriotv.android.core.data.M3UChannel
 import com.aeriotv.android.feature.playlist.PlaylistViewModel
 import com.aeriotv.android.feature.playlist.SortMode
+import androidx.annotation.StringRes
+import com.aeriotv.android.R
 
 /**
  * E-1 stage 2 (perf campaign 2026-08-19): the ONE filter+sort pipeline behind
@@ -135,3 +137,12 @@ private class DisplaySortKey(
     val number: Double,
     val favorite: Boolean,
 )
+
+/** [SortMode.label] in the app's language, for display. */
+@get:StringRes
+internal val SortMode.labelRes: Int
+    get() = when (this) {
+        SortMode.ByNumber -> R.string.livetv_sort_by_number
+        SortMode.ByName -> R.string.livetv_sort_by_name
+        SortMode.FavoritesFirst -> R.string.livetv_sort_favorites_first
+    }

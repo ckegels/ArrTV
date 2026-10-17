@@ -59,6 +59,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.aeriotv.android.R
 import com.aeriotv.android.ui.TmdbAttribution
@@ -96,6 +97,7 @@ fun LicensesScreen(onBack: () -> Unit) {
     var qrLink by remember { mutableStateOf<TvQrLink?>(null) }
     val isTv = rememberIsTvDevice()
     val context = LocalContext.current
+    val qrCaption = stringResource(R.string.settings2_qr_scan_caption)
 
     // BACK closes the open text first, then leaves the screen. Without this the
     // remote's BACK would pop straight out of Settings from inside a license.
@@ -105,7 +107,7 @@ fun LicensesScreen(onBack: () -> Unit) {
         if (isTv) {
             qrLink = TvQrLink(
                 title = title,
-                caption = "Scan with your phone to open this page.",
+                caption = qrCaption,
                 url = url,
             )
         } else {
@@ -122,7 +124,7 @@ fun LicensesScreen(onBack: () -> Unit) {
 
     Column(modifier = Modifier.fillMaxSize()) {
         SettingsDetailTopBar(
-            title = viewing?.title ?: "Open Source Licenses",
+            title = viewing?.title ?: stringResource(R.string.settings2_about_licenses),
             onBack = { if (viewing != null) viewing = null else onBack() },
         )
 
@@ -183,18 +185,19 @@ private fun LicenseIndex(
             )
         }
         item("aerio-rows") {
+            val sourceCodeTitle = stringResource(R.string.settings2_licenses_source_code)
             LicenseCard {
                 SettingsNavRow(
                     title = "GNU General Public License v3.0",
-                    subtitle = "The license this app is distributed under",
+                    subtitle = stringResource(R.string.settings2_licenses_app_license_subtitle),
                     icon = Icons.Outlined.Description,
                     onClick = { onOpenLicense(BundledLicense.Gpl3) },
                 )
                 SettingsNavRow(
-                    title = "Source Code",
+                    title = sourceCodeTitle,
                     subtitle = SOURCE_URL.removePrefix("https://"),
                     icon = Icons.AutoMirrored.Outlined.OpenInNew,
-                    onClick = { onOpenUrl("Source Code", SOURCE_URL) },
+                    onClick = { onOpenUrl(sourceCodeTitle, SOURCE_URL) },
                     trailingChevron = false,
                 )
             }
@@ -212,7 +215,7 @@ private fun LicenseIndex(
         // MARK: FFmpeg. The one bundled component with real LGPL obligations,
         // so the build configuration and the relink route are spelled out
         // rather than reduced to a license name.
-        item("ffmpeg-header") { SettingsSectionHeader("Playback") }
+        item("ffmpeg-header") { SettingsSectionHeader(stringResource(R.string.settings2_licenses_playback)) }
         item("ffmpeg-body") {
             LicenseBlurb(
                 "This app includes FFmpeg (release/6.0, libavcodec 60.3.100), used " +
@@ -238,18 +241,19 @@ private fun LicenseIndex(
             )
         }
         item("ffmpeg-rows") {
+            val ffmpegSourceTitle = stringResource(R.string.settings2_licenses_ffmpeg_source)
             LicenseCard {
                 SettingsNavRow(
                     title = "GNU Lesser General Public License v2.1",
-                    subtitle = "The license FFmpeg is distributed under",
+                    subtitle = stringResource(R.string.settings2_licenses_ffmpeg_license_subtitle),
                     icon = Icons.Outlined.Description,
                     onClick = { onOpenLicense(BundledLicense.Lgpl21) },
                 )
                 SettingsNavRow(
-                    title = "FFmpeg Source",
+                    title = ffmpegSourceTitle,
                     subtitle = "github.com/FFmpeg/FFmpeg (release/6.0)",
                     icon = Icons.AutoMirrored.Outlined.OpenInNew,
-                    onClick = { onOpenUrl("FFmpeg Source", FFMPEG_SOURCE_URL) },
+                    onClick = { onOpenUrl(ffmpegSourceTitle, FFMPEG_SOURCE_URL) },
                     trailingChevron = false,
                 )
             }
@@ -258,7 +262,7 @@ private fun LicenseIndex(
         item("gap-2") { Spacer(Modifier.height(18.dp)) }
 
         // MARK: Apache-2.0 bulk
-        item("apache-header") { SettingsSectionHeader("Libraries") }
+        item("apache-header") { SettingsSectionHeader(stringResource(R.string.settings2_licenses_libraries)) }
         item("apache-body") {
             LicenseBlurb(
                 "The following are used under the Apache License, Version 2.0:\n\n" +
@@ -269,7 +273,7 @@ private fun LicenseIndex(
             LicenseCard {
                 SettingsNavRow(
                     title = "Apache License 2.0",
-                    subtitle = "The license the above are distributed under",
+                    subtitle = stringResource(R.string.settings2_licenses_apache_subtitle),
                     icon = Icons.Outlined.Description,
                     onClick = { onOpenLicense(BundledLicense.Apache2) },
                 )

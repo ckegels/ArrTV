@@ -27,6 +27,8 @@ import com.aeriotv.android.Routes
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * Live Rewind one-time feature prompt (task #145 P2).
@@ -78,20 +80,16 @@ fun LiveRewindPromptGate(currentRoute: String?) {
     val enableFocus = remember { FocusRequester() }
     AlertDialog(
         onDismissRequest = { /* explicit choice required; both write the seen flag */ },
-        title = { Text("New: Live Rewind") },
+        title = { Text(stringResource(R.string.main_live_rewind_prompt_title)) },
         text = {
             Column {
                 Text(
-                    "Pause and rewind live TV. While you watch a channel " +
-                        "fullscreen, AerioTV keeps a rolling buffer on this " +
-                        "device so you can skip back, scrub the timeline, or " +
-                        "pause and pick up where you left off.",
+                    stringResource(R.string.main_live_rewind_prompt_body),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Buffered video is deleted automatically. You can change " +
-                        "this anytime in Settings > App Behaviors > Live Rewind.",
+                    stringResource(R.string.main_live_rewind_prompt_footer),
                     style = MaterialTheme.typography.bodySmall.subtext(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -107,7 +105,7 @@ fun LiveRewindPromptGate(currentRoute: String?) {
                     }
                 },
                 modifier = Modifier.focusRequester(enableFocus),
-            ) { Text("Enable") }
+            ) { Text(stringResource(R.string.main_live_rewind_prompt_enable)) }
         },
         dismissButton = {
             TextButton(
@@ -115,7 +113,7 @@ fun LiveRewindPromptGate(currentRoute: String?) {
                     visible = false
                     scope.launch { prefs.setLiveRewindPromptSeen(true) }
                 },
-            ) { Text("Not Now") }
+            ) { Text(stringResource(R.string.main_not_now_caps)) }
         },
     )
     // TV: land D-pad focus on Enable (WhatsNewSheet retry pattern; the

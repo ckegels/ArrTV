@@ -21,6 +21,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
 import javax.inject.Inject
+import androidx.annotation.StringRes
+import com.aeriotv.android.R
 
 /**
  * Global Search (parity task #41, iOS Features/Search/SearchView.swift). A
@@ -46,7 +48,12 @@ class SearchViewModel @Inject constructor(
     private val dispatcharrAuth: DispatcharrAuthBroker,
 ) : ViewModel() {
 
-    enum class Scope(val label: String) { All("All"), Movies("Movies"), Series("TV Shows"), Epg("EPG") }
+    enum class Scope(val label: String, @StringRes val labelRes: Int) {
+        All("All", R.string.common_all),
+        Movies("Movies", R.string.livetv_search_scope_movies),
+        Series("TV Shows", R.string.livetv_search_scope_tv_shows),
+        Epg("EPG", R.string.livetv_search_scope_epg),
+    }
 
     sealed interface Result {
         val key: String

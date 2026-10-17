@@ -1,5 +1,9 @@
 package com.aeriotv.android.feature.settings
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -100,7 +104,7 @@ fun PlayerSettingsScreen(
     val matchContentResolution by viewModel.matchContentResolution.collectAsStateWithLifecycle(initialValue = false)
 
     Column(modifier = Modifier.fillMaxSize()) {
-        SettingsDetailTopBar(title = "Player", onBack = onBack)
+        SettingsDetailTopBar(title = stringResource(R.string.settings_player_title), onBack = onBack)
 
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             Column(
@@ -119,28 +123,23 @@ fun PlayerSettingsScreen(
                 // MARK: Overlay style (TV)
                 if (isTv) {
                     SettingsSection(
-                        header = "Overlay Style",
-                        footer = "Info bar: changing channel shows a full-width bar along the " +
-                            "bottom with the channel logo and program details. OK adds a row " +
-                            "with TV guide, History and the next channels; hold OK for the " +
-                            "options menu (record, audio, subtitles and more).",
+                        header = stringResource(R.string.settings_player_overlay_header),
+                        footer = stringResource(R.string.settings_player_overlay_footer),
                     ) {
                         SettingsToggleRow(
-                            title = "Info bar",
-                            subtitle = "Replaces the info card and control buttons",
+                            title = stringResource(R.string.settings_player_info_bar),
+                            subtitle = stringResource(R.string.settings_player_info_bar_subtitle),
                             checked = infoBarStyle,
                             onCheckedChange = viewModel::setPlayerInfoBarStyle,
                         )
                     }
                     SettingsSection(
-                        header = "Channel list from the side",
-                        footer = "Left in the player opens a list of the channels, with what is on " +
-                            "each, sliding in from the side. Off, the same press goes to the main " +
-                            "guide, with the channel playing in the corner.",
+                        header = stringResource(R.string.settings_player_side_list),
+                        footer = stringResource(R.string.settings_player_side_list_footer),
                     ) {
                         SettingsToggleRow(
-                            title = "Channel list from the side",
-                            subtitle = "Off: the main guide instead",
+                            title = stringResource(R.string.settings_player_side_list),
+                            subtitle = stringResource(R.string.settings_player_side_list_subtitle),
                             checked = sideChannelList,
                             onCheckedChange = viewModel::setPlayerSideChannelList,
                         )
@@ -149,37 +148,36 @@ fun PlayerSettingsScreen(
 
                 // MARK: Info Card
                 SettingsSection(
-                    header = "Info Card",
-                    footer = "Choose what appears on the program info card in the " +
-                        "player while the controls are showing.",
+                    header = stringResource(R.string.settings_player_info_card_header),
+                    footer = stringResource(R.string.settings_player_info_card_footer),
                 ) {
                     SettingsToggleRow(
-                        title = "Channel Logo",
+                        title = stringResource(R.string.settings_player_card_channel_logo),
                         checked = cardChannelLogo,
                         onCheckedChange = viewModel::setPlayerCardShowChannelLogo,
                     )
                     SettingsToggleRow(
-                        title = "Channel Name",
+                        title = stringResource(R.string.settings_player_card_channel_name),
                         checked = cardChannelName,
                         onCheckedChange = viewModel::setPlayerCardShowChannelName,
                     )
                     SettingsToggleRow(
-                        title = "Program Name",
+                        title = stringResource(R.string.settings_player_card_program_name),
                         checked = cardProgramName,
                         onCheckedChange = viewModel::setPlayerCardShowProgramName,
                     )
                     SettingsToggleRow(
-                        title = "Program Time",
+                        title = stringResource(R.string.settings_player_card_program_time),
                         checked = cardProgramTime,
                         onCheckedChange = viewModel::setPlayerCardShowProgramTime,
                     )
                     SettingsToggleRow(
-                        title = "Program Subtitle",
+                        title = stringResource(R.string.settings_player_card_program_subtitle),
                         checked = cardProgramSubtitle,
                         onCheckedChange = viewModel::setPlayerCardShowProgramSubtitle,
                     )
                     SettingsToggleRow(
-                        title = "Program Description",
+                        title = stringResource(R.string.settings_player_card_program_description),
                         checked = cardProgramDescription,
                         onCheckedChange = viewModel::setPlayerCardShowProgramDescription,
                     )
@@ -187,28 +185,23 @@ fun PlayerSettingsScreen(
 
                 // MARK: Live Rewind
                 SettingsSection(
-                    header = "Live Rewind",
-                    footer = "Buffers the channel you are watching so you can pause and " +
-                        "rewind live TV. Uses device storage while you watch; buffered " +
-                        "video is removed automatically.",
+                    header = stringResource(R.string.settings_player_rewind_header),
+                    footer = stringResource(R.string.settings_player_rewind_footer),
                 ) {
                     SettingsToggleRow(
-                        title = "Pause & rewind live TV",
-                        subtitle = "Buffer fullscreen live playback on this device",
+                        title = stringResource(R.string.settings_player_rewind_toggle),
+                        subtitle = stringResource(R.string.settings_player_rewind_toggle_subtitle),
                         checked = liveRewindEnabled,
                         onCheckedChange = viewModel::setLiveRewindEnabled,
                     )
                 }
                 if (liveRewindEnabled) {
                     SettingsSection(
-                        header = "Keep Available",
-                        footer = "How far back you can rewind the channel you are " +
-                            "watching. Buffered video is released as soon as you " +
-                            "leave the channel. " +
-                            depthEstimateText(liveRewindDepth),
+                        header = stringResource(R.string.settings_player_keep_available_header),
+                        footer = depthEstimateText(liveRewindDepth),
                     ) {
                         SteppedSliderRow(
-                            label = "Rewind up to",
+                            label = stringResource(R.string.settings_player_rewind_up_to),
                             values = REWIND_DEPTH_MINUTES,
                             selected = liveRewindDepth,
                             format = ::formatDepthMinutes,
@@ -216,27 +209,22 @@ fun PlayerSettingsScreen(
                         )
                     }
                     SettingsSection(
-                        header = "Keep Recent Channels Live",
+                        header = stringResource(R.string.settings_player_keep_recent_header),
                         footer = if (keepRecent) {
-                            "Channels you flip away from keep buffering so you can flip " +
-                                "back and rewind across the time you were away. Each kept " +
-                                "channel uses an extra connection to your provider; accounts " +
-                                "limited to one connection should leave this off. Oldest " +
-                                "channels stop first, and all stop when the app leaves the screen."
+                            stringResource(R.string.settings_player_keep_recent_footer_on)
                         } else {
-                            "Keep buffering the channels you most recently flipped away " +
-                                "from. Uses one extra provider connection per kept channel."
+                            stringResource(R.string.settings_player_keep_recent_footer_off)
                         },
                     ) {
                         SettingsToggleRow(
-                            title = "Keep recent channels live",
-                            subtitle = "Buffer flipped-away channels in the background",
+                            title = stringResource(R.string.settings_player_keep_recent_toggle),
+                            subtitle = stringResource(R.string.settings_player_keep_recent_subtitle),
                             checked = keepRecent,
                             onCheckedChange = viewModel::setLiveRewindKeepRecent,
                         )
                         if (keepRecent) {
                             SteppedSliderRow(
-                                label = "Channels to keep",
+                                label = stringResource(R.string.settings_player_channels_to_keep),
                                 values = listOf(1, 2, 3, 4, 5),
                                 selected = keepCount,
                                 format = { it.toString() },
@@ -251,33 +239,24 @@ fun PlayerSettingsScreen(
                 // Apple phase 1 parity: skip intervals, buffer size and stream
                 // recovery share one section.
                 SettingsSection(
-                    header = "Playback",
+                    header = stringResource(R.string.settings_player_playback_header),
                     footer = (
                         if (isTv) {
-                            "How far the skip buttons and a single left or right press move " +
-                                "in live rewind, catch-up, recordings, movies, and TV shows. " +
-                                "Holding left or right still scrubs faster the longer you hold."
+                            stringResource(R.string.settings_player_playback_footer_tv)
                         } else {
-                            "How far the skip buttons move in live rewind, catch-up, " +
-                                "recordings, movies, and TV shows, including the cast remote " +
-                                "and the playback notification."
+                            stringResource(R.string.settings_player_playback_footer_phone)
                         }
-                        ) + " Buffer Size controls how much stream data is pre-loaded: larger " +
-                        "buffers reduce stuttering on poor connections but add startup delay. " +
-                        "If a live stream stops sending video, Auto-Recover reloads it; turn " +
-                        "that off if live channels restart or stutter during commercial " +
-                        "breaks, and a brief freeze may show instead. Recovery applies to the " +
-                        "next channel you tune.",
+                        ) + " " + stringResource(R.string.settings_player_playback_footer_buffer),
                 ) {
                     SteppedSliderRow(
-                        label = "Skip back",
+                        label = stringResource(R.string.settings_player_skip_back),
                         values = SkipIntervals.CHOICES,
                         selected = skipBackSeconds,
                         format = ::formatSkipSeconds,
                         onSelect = viewModel::setSkipBackSeconds,
                     )
                     SteppedSliderRow(
-                        label = "Skip forward",
+                        label = stringResource(R.string.settings_player_skip_forward),
                         values = SkipIntervals.CHOICES,
                         selected = skipForwardSeconds,
                         format = ::formatSkipSeconds,
@@ -285,27 +264,27 @@ fun PlayerSettingsScreen(
                     )
                     BUFFER_OPTIONS.forEach { opt ->
                         SettingsSelectionRow(
-                            label = opt.label,
-                            subtitle = opt.detail,
+                            label = stringResource(opt.labelRes),
+                            subtitle = stringResource(opt.detailRes),
                             selected = opt.id == bufferSize,
                             onClick = { viewModel.setStreamBufferSize(opt.id) },
                         )
                     }
                     SettingsToggleRow(
-                        title = "Auto-Recover Frozen Streams",
-                        subtitle = "Reload a live stream that stops sending video. Off keeps the stream as-is through commercial-break stutters.",
+                        title = stringResource(R.string.settings_player_auto_recover),
+                        subtitle = stringResource(R.string.settings_player_auto_recover_subtitle),
                         checked = autoRecoverFrozenStreams,
                         onCheckedChange = viewModel::setAutoRecoverFrozenStreams,
                     )
                     SettingsToggleRow(
-                        title = "Teletext Subtitles",
-                        subtitle = "Offer the teletext subtitles many European channels send (page 888, 777, 150) under Subtitles. Takes effect on the next channel.",
+                        title = stringResource(R.string.settings_player_teletext),
+                        subtitle = stringResource(R.string.settings_player_teletext_subtitle),
                         checked = teletextSubtitles,
                         onCheckedChange = viewModel::setTeletextSubtitles,
                     )
                     SettingsToggleRow(
-                        title = "Generated Captions",
-                        subtitle = "On a Dispatch More server with its caption worker, Subtitles offers captions made from the sound for channels without their own. Takes effect on the next channel.",
+                        title = stringResource(R.string.settings_player_generated_captions),
+                        subtitle = stringResource(R.string.settings_player_generated_captions_subtitle),
                         checked = generatedCaptions,
                         onCheckedChange = viewModel::setGeneratedCaptions,
                     )
@@ -315,22 +294,21 @@ fun PlayerSettingsScreen(
                         val choices = com.aeriotv.android.core.playback.CaptionLanguage.CHOICES
                         val at = choices.indexOfFirst { it.first == captionLanguage }.coerceAtLeast(0)
                         SettingsActionRow(
-                            label = "Caption Language: ${com.aeriotv.android.core.playback.CaptionLanguage.label(captionLanguage)}",
+                            label = stringResource(R.string.settings_player_caption_language, com.aeriotv.android.core.playback.CaptionLanguage.label(captionLanguage)),
                             leadingIcon = androidx.compose.material.icons.Icons.Outlined.Translate,
                             onClick = { viewModel.setCaptionLanguage(choices[(at + 1) % choices.size].first) },
-                            subtitle = "Generated captions in this language, translated by the server when the programme speaks another. Original shows them as spoken." +
-                                if (generatedCaptions) "" else " Needs Generated Captions on.",
+                            subtitle = stringResource(if (generatedCaptions) R.string.settings_player_caption_language_subtitle else R.string.settings_player_caption_language_subtitle_off),
                         )
                     }
                 }
 
                 SettingsSection(
-                    header = "Audio",
-                    footer = "Passthrough sends surround sound audio as a bitstream for your TV or receiver to decode. Some TVs decode it late, which shows up as voices out of sync with lips on live TV. Off, AerioTV decodes audio itself and stays in sync. Takes effect on the next playback.",
+                    header = stringResource(R.string.settings_player_audio_header),
+                    footer = stringResource(R.string.settings_player_audio_footer),
                 ) {
                     SettingsToggleRow(
-                        title = "Surround sound passthrough",
-                        subtitle = "Send AC-3 and E-AC-3 audio to your receiver untouched. Leave off if lip sync drifts.",
+                        title = stringResource(R.string.settings_player_passthrough),
+                        subtitle = stringResource(R.string.settings_player_passthrough_subtitle),
                         checked = audioPassthrough,
                         onCheckedChange = viewModel::setAudioPassthroughEnabled,
                     )
@@ -338,45 +316,43 @@ fun PlayerSettingsScreen(
 
                 // MARK: Gestures
                 SettingsSection(
-                    header = "Gestures",
+                    header = stringResource(R.string.settings_player_gestures_header),
                     // tvOS / Android TV flip channels with D-pad up/down, not a
                     // swipe, so the "accidental swipes" caution is meaningless on
                     // a remote (user request: drop the note on TV). Phones keep it.
                     footer = if (isTv) {
                         null
                     } else {
-                        "Turn off if accidental swipes during playback flip channels by mistake. " +
-                            "Brightness and volume slides are recognized only inside a narrow band at the very edge of the screen, " +
-                            "so they stay clear of the channel flip and of swiping down to minimize."
+                        stringResource(R.string.settings_player_gestures_footer)
                     },
                 ) {
                     SettingsToggleRow(
-                        title = "Up / Down channel change",
+                        title = stringResource(R.string.settings_player_channel_flip),
                         subtitle = if (isTv) {
-                            "While the player chrome is visible, press up for the next channel and down for the previous. Live single-stream playback only."
+                            stringResource(R.string.settings_player_channel_flip_tv)
                         } else {
-                            "While the player chrome is visible, swipe up for the next channel and down for the previous. Live single-stream playback only."
+                            stringResource(R.string.settings_player_channel_flip_phone)
                         },
                         checked = appleTVChannelFlip,
                         onCheckedChange = viewModel::setAppleTVChannelFlip,
                     )
                     if (!isTv) {
                         SettingsToggleRow(
-                            title = "Brightness edge slide",
-                            subtitle = "Slide a finger up or down the brightness edge to dim or brighten the screen. Applies to this app only and is restored when you leave the player.",
+                            title = stringResource(R.string.settings_player_brightness_gesture),
+                            subtitle = stringResource(R.string.settings_player_brightness_gesture_subtitle),
                             checked = playerBrightnessGesture,
                             onCheckedChange = viewModel::setPlayerBrightnessGesture,
                         )
                         SettingsToggleRow(
-                            title = "Volume edge slide",
-                            subtitle = "Slide a finger up or down the other edge to change the media volume.",
+                            title = stringResource(R.string.settings_player_volume_gesture),
+                            subtitle = stringResource(R.string.settings_player_volume_gesture_subtitle),
                             checked = playerVolumeGesture,
                             onCheckedChange = viewModel::setPlayerVolumeGesture,
                         )
                         if (playerBrightnessGesture || playerVolumeGesture) {
                             listOf(
-                                PLAYER_EDGE_LEFT to "Brightness: Left, Volume: Right",
-                                PLAYER_EDGE_RIGHT to "Brightness: Right, Volume: Left",
+                                PLAYER_EDGE_LEFT to stringResource(R.string.settings_player_edge_brightness_left),
+                                PLAYER_EDGE_RIGHT to stringResource(R.string.settings_player_edge_brightness_right),
                             ).forEach { (wire, label) ->
                                 SettingsSelectionRow(
                                     label = label,
@@ -394,30 +370,30 @@ fun PlayerSettingsScreen(
                 // share one section. tvOS presents corners as a Square /
                 // Rounded selection (s_09); same underlying Boolean.
                 SettingsSection(
-                    header = "Multiview",
-                    footer = "How the grid shows which tile is unmuted. Center Icon fades with the chrome, Gray Outline stays visible, Accent Outline appears on switch and fades after 5 seconds. Padding inserts a small gap between tiles so each stream stands on its own.",
+                    header = stringResource(R.string.settings_player_multiview_header),
+                    footer = stringResource(R.string.settings_player_multiview_footer),
                 ) {
                     AUDIO_FOCUS_OPTIONS.forEach { opt ->
                         SettingsSelectionRow(
-                            label = opt.label,
-                            subtitle = opt.detail,
+                            label = stringResource(opt.labelRes),
+                            subtitle = stringResource(opt.detailRes),
                             selected = multiviewStyle == opt.id,
                             onClick = { viewModel.setMultiviewAudioFocusStyle(opt.id) },
                         )
                     }
                     SettingsToggleRow(
-                        title = "Padding Between Tiles",
-                        subtitle = "Add a small gap between tiles for visual separation.",
+                        title = stringResource(R.string.settings_player_tile_padding),
+                        subtitle = stringResource(R.string.settings_player_tile_padding_subtitle),
                         checked = multiviewPadding,
                         onCheckedChange = viewModel::setMultiviewTilePadding,
                     )
                     SettingsSelectionRow(
-                        label = "Square",
+                        label = stringResource(R.string.settings_player_tile_square),
                         selected = !multiviewRounded,
                         onClick = { viewModel.setMultiviewTileCornersRounded(false) },
                     )
                     SettingsSelectionRow(
-                        label = "Rounded",
+                        label = stringResource(R.string.settings_player_tile_rounded),
                         selected = multiviewRounded,
                         onClick = { viewModel.setMultiviewTileCornersRounded(true) },
                     )
@@ -429,17 +405,17 @@ fun PlayerSettingsScreen(
                 // black screen), deliberate and user-opted.
                 if (isTv) {
                     SettingsSection(
-                        header = "Display",
-                        footer = "Startup Refresh Rate switches the display once at app launch so it is already on your main content rate before the first channel (changes apply on next launch). Match Content Resolution outputs at the stream's resolution so your TV does the upscaling; the screen blinks briefly on each switch.",
+                        header = stringResource(R.string.settings_player_display_header),
+                        footer = stringResource(R.string.settings_player_display_footer),
                     ) {
                         SettingsToggleRow(
-                            title = "Match content resolution",
-                            subtitle = "Output 1080p streams at 1080p and let the TV upscale. Off keeps the display at its native mode.",
+                            title = stringResource(R.string.settings_player_match_resolution),
+                            subtitle = stringResource(R.string.settings_player_match_resolution_subtitle),
                             checked = matchContentResolution,
                             onCheckedChange = viewModel::setMatchContentResolution,
                         )
                         listOf(
-                            "off" to "Off (system default)",
+                            "off" to stringResource(R.string.settings_player_refresh_rate_off),
                             "50" to "50 Hz",
                             "59.94" to "59.94 Hz",
                             "60" to "60 Hz",
@@ -457,15 +433,15 @@ fun PlayerSettingsScreen(
     }
 }
 
-private data class AudioFocusOption(val id: String, val label: String, val detail: String)
+private data class AudioFocusOption(val id: String, @StringRes val labelRes: Int, @StringRes val detailRes: Int)
 
 private val AUDIO_FOCUS_OPTIONS: List<AudioFocusOption> = listOf(
-    AudioFocusOption("centerIcon", "Center Icon", "Speaker icon centered on the active tile. Default."),
-    AudioFocusOption("grayPersistent", "Gray Outline", "Subtle gray border always around the active tile."),
-    AudioFocusOption("themeFading", "Accent Outline (Fading)", "Accent-tinted border that auto-hides after 5 seconds."),
+    AudioFocusOption("centerIcon", R.string.settings_player_focus_center_icon, R.string.settings_player_focus_center_icon_detail),
+    AudioFocusOption("grayPersistent", R.string.settings_player_focus_gray, R.string.settings_player_focus_gray_detail),
+    AudioFocusOption("themeFading", R.string.settings_player_focus_accent, R.string.settings_player_focus_accent_detail),
 )
 
-data class BufferOption(val id: String, val label: String, val detail: String, val cachingMs: Int)
+data class BufferOption(val id: String, @StringRes val labelRes: Int, @StringRes val detailRes: Int, val cachingMs: Int)
 
 /**
  * Discord (di5cord20, Formuler Z11, 2026-08-09): "Default -> Small made
@@ -490,9 +466,9 @@ data class BufferOption(val id: String, val label: String, val detail: String, v
  * claimed.
  */
 internal val BUFFER_OPTIONS: List<BufferOption> = listOf(
-    BufferOption("default", "Default", "4 seconds - recommended", 4_000),
-    BufferOption("large", "Large", "8 seconds - unstable connections", 8_000),
-    BufferOption("xlarge", "Extra Large", "16 seconds - very poor networks", 16_000),
+    BufferOption("default", R.string.common_default, R.string.settings_player_buffer_default_detail, 4_000),
+    BufferOption("large", R.string.settings_player_buffer_large, R.string.settings_player_buffer_large_detail, 8_000),
+    BufferOption("xlarge", R.string.settings_player_buffer_xlarge, R.string.settings_player_buffer_xlarge_detail, 16_000),
 )
 
 /** Unknown ids (including the retired "small") resolve to Default. */
@@ -505,14 +481,13 @@ internal fun bufferMillisFor(id: String): Int =
 private val REWIND_DEPTH_MINUTES = listOf(15, 30, 60, 90, 120, 180)
 
 private fun formatDepthMinutes(mins: Int): String = when {
-    mins < 60 -> "$mins minutes"
-    mins == 60 -> "1 hour"
-    mins % 60 == 0 -> "${mins / 60} hours"
-    else -> "${mins / 60}h ${mins % 60}m"
+    mins < 60 -> AppText.plural(R.plurals.settings_player_minutes, mins, mins)
+    mins % 60 == 0 -> AppText.plural(R.plurals.settings_player_hours, mins / 60, mins / 60)
+    else -> AppText.get(R.string.settings_player_hours_minutes, mins / 60, mins % 60)
 }
 
 /** Skip Intervals value readout: "10 seconds". */
-private fun formatSkipSeconds(seconds: Int): String = "$seconds seconds"
+private fun formatSkipSeconds(seconds: Int): String = AppText.plural(R.plurals.settings_player_seconds, seconds, seconds)
 
 /**
  * Storage estimate under the Keep Available slider: scales with the
@@ -520,12 +495,13 @@ private fun formatSkipSeconds(seconds: Int): String = "$seconds seconds"
  * fixed short window) at typical stream bitrates - HD ~4 Mbps, FHD ~8,
  * UHD ~20 - so the user can pick what fits their streams and disk.
  */
+@Composable
 private fun depthEstimateText(mins: Int): String {
     fun gb(mbps: Int): String {
         val v = mbps * 7.5 * mins / 1024.0
-        return if (v < 10) String.format("~%.1f GB", v) else "~${v.roundToInt()} GB"
+        return AppText.get(R.string.settings_player_gb_approx, if (v < 10) String.format("%.1f", v) else v.roundToInt().toString())
     }
-    return "Uses up to ${gb(4)} in HD, ${gb(8)} in FHD, or ${gb(20)} in UHD while you watch."
+    return stringResource(R.string.settings_player_keep_available_footer, gb(4), gb(8), gb(20))
 }
 
 /**

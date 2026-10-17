@@ -25,6 +25,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -106,7 +108,7 @@ fun MiniPlayerRow(
                 )
             } else {
                 Text(
-                    text = "Tap to resume",
+                    text = stringResource(R.string.player_mini_tap_to_resume),
                     style = MaterialTheme.typography.bodySmall.subtext(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -115,21 +117,23 @@ fun MiniPlayerRow(
         IconButton(onClick = onTogglePause) {
             Icon(
                 imageVector = if (isPaused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                contentDescription = if (isPaused) "Resume audio" else "Pause audio",
+                contentDescription = stringResource(
+                    if (isPaused) R.string.player_mini_resume_audio else R.string.player_mini_pause_audio,
+                ),
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
         IconButton(onClick = onResume) {
             Icon(
                 imageVector = Icons.Filled.PlayArrow,
-                contentDescription = "Return to player",
+                contentDescription = stringResource(R.string.player_mini_return_to_player),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         IconButton(onClick = onDismiss) {
             Icon(
                 imageVector = Icons.Filled.Close,
-                contentDescription = "Dismiss",
+                contentDescription = stringResource(R.string.player_dismiss),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

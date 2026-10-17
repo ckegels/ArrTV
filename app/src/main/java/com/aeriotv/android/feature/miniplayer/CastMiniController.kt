@@ -27,6 +27,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -66,7 +68,7 @@ fun CastMiniController(
     transportIcon: ImageVector = Icons.Filled.Cast,
     /** Hidden while nothing is playing yet (there is nothing to pause). */
     showTransport: Boolean = true,
-    stopDescription: String = "Stop casting",
+    stopDescription: String = stringResource(R.string.player_cast_stop_casting),
 ) {
     Row(
         modifier = modifier
@@ -103,7 +105,7 @@ fun CastMiniController(
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = title.ifBlank { "Now casting" },
+                text = title.ifBlank { stringResource(R.string.player_cast_now_casting) },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.SemiBold,
@@ -121,7 +123,8 @@ fun CastMiniController(
             }
             Text(
                 text = subtitle
-                    ?: if (!deviceName.isNullOrBlank()) "Casting to $deviceName" else "Tap to control",
+                    ?: if (!deviceName.isNullOrBlank()) stringResource(R.string.player_cast_casting_to, deviceName)
+                    else stringResource(R.string.player_cast_tap_to_control),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.textAccent,
                 maxLines = 1,
@@ -132,7 +135,7 @@ fun CastMiniController(
             IconButton(onClick = onTogglePlayPause) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    contentDescription = stringResource(if (isPlaying) R.string.common_pause else R.string.common_play),
                     tint = MaterialTheme.colorScheme.primary,
                 )
             }

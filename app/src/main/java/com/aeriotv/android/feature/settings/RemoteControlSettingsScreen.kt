@@ -150,7 +150,7 @@ private val RemoteSlot.labelRes: Int
     }
 
 @get:StringRes
-private val PlayerRemoteAction.labelRes: Int
+internal val PlayerRemoteAction.labelRes: Int
     get() = when (this) {
         PlayerRemoteAction.CHANNEL_UP -> R.string.settings2_remote_action_channel_up
         PlayerRemoteAction.CHANNEL_DOWN -> R.string.settings2_remote_action_channel_down
@@ -180,14 +180,14 @@ private val PlayerRemoteAction.labelRes: Int
 
 /** Guide action name; the group menu is named for the selector it opens. */
 @StringRes
-private fun GuideRemoteAction.labelRes(sidebarGroups: Boolean): Int = when (this) {
+internal fun GuideRemoteAction.labelRes(sidebarGroups: Boolean): Int = when (this) {
     GuideRemoteAction.FOCUS_GROUP_PILLS ->
         if (sidebarGroups) R.string.settings2_remote_action_open_sidebar else R.string.settings2_remote_action_group_pills
     else -> labelRes
 }
 
 @get:StringRes
-private val GuideRemoteAction.labelRes: Int
+internal val GuideRemoteAction.labelRes: Int
     get() = when (this) {
         GuideRemoteAction.PAGE_UP -> R.string.settings2_remote_action_page_up
         GuideRemoteAction.PAGE_DOWN -> R.string.settings2_remote_action_page_down
@@ -230,6 +230,8 @@ fun RemoteControlSettingsScreen(
         initialValue = true,
     )
     val menuGuard = rememberTvMenuGuard()
+    var showTutorial by remember { mutableStateOf(false) }
+    if (showTutorial) com.aeriotv.android.feature.tutorial.RemoteTutorial(onClose = { showTutorial = false })
 
     fun saveEdited(newMap: RemoteControlMap) {
         viewModel.setRemoteControlMap(newMap.copy(preset = RemotePreset.CUSTOM))
@@ -246,6 +248,25 @@ fun RemoteControlSettingsScreen(
                     .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = LocalTabBarBottomInset.current),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
+                SettingsSection(
+                    header = stringResource(R.string.tutorial_settings_header),
+                    footer = stringResource(R.string.tutorial_settings_open_subtitle),
+                ) {
+                    SlotRow(
+                        slotName = stringResource(R.string.tutorial_settings_open),
+                        valueName = "",
+                        onClick = {
+                            // With channels: the live tour over the real guide
+                            // and player; without (nothing loaded yet): the pages.
+                            if (com.aeriotv.android.feature.tutorial.TutorialDirector.demoAvailable.value) {
+                                com.aeriotv.android.feature.tutorial.TutorialDirector.requestStart()
+                            } else {
+                                showTutorial = true
+                            }
+                        },
+                    )
+                }
+
                 SettingsSection(
                     header = stringResource(R.string.settings2_remote_hints_header),
                     footer = stringResource(R.string.settings2_remote_hints_footer),

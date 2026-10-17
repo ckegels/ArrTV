@@ -104,8 +104,28 @@ class GuideMatchMaps private constructor(
         return out
     }
 
+    /**
+     * Canonical ids of every channel a GRID row keyed by any of [rawKeys]
+     * lands on. Grid keys are shared one-to-many, so replacing a key's rows
+     * for one channel replaces them for all of these.
+     */
+    fun channelsForGridKeys(rawKeys: Collection<String>): Set<String> =
+        rawKeys.flatMapTo(HashSet()) { key -> resolve(key, GuideSource.GRID).map { it.value } }
+
     companion object {
         fun normalize(raw: String): String = raw.trim().lowercase()
+
+        /**
+         * The normalized raw keys that can resolve to [channel], mirroring
+         * [build]: bound guide key and declared tvg-id, the Dispatcharr uuid,
+         * and (XMLTV rows only) the channel number when [withNumber].
+         */
+        fun rawKeysOf(channel: M3UChannel, withNumber: Boolean): List<String> = listOfNotNull(
+            normalize(channel.tvgID),
+            normalize(channel.rawAttributes["tvg-id"].orEmpty()),
+            channel.id.takeIf { it.startsWith("disp:") }?.let { normalize(it.removePrefix("disp:")) },
+            if (withNumber) normalize(channel.channelNumber.orEmpty()) else null,
+        ).filter { it.isNotEmpty() }.distinct()
 
         fun build(channels: List<M3UChannel>): GuideMatchMaps {
             val byTvg = HashMap<String, MutableSet<GuideChannelId>>(channels.size * 2)

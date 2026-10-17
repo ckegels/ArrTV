@@ -205,6 +205,9 @@ fun GuideScreen(
     val collections by collectionsVm.collections.collectAsStateWithLifecycle()
     val stagedMultiview by multiviewStore.selected.collectAsStateWithLifecycle(initialValue = emptyList())
     val groupSelector by settingsVm.guideGroupSelector.collectAsStateWithLifecycle()
+    // Compact modern layout (Settings > Appearance, TV): TiviMate-style rows.
+    val compactModern by settingsVm.compactModernLayout.collectAsStateWithLifecycle(initialValue = false)
+    val modernRows = isTv && compactModern
     val sidebarGroupMode = isTv && groupSelector == "sidebar" && !favoritesOnly
     // Sidebar layout (Logan 2026-09-14): "shift" docks the pane beside the
     // grid, which narrows instead of being covered; "overlay" keeps the scrim.
@@ -248,8 +251,15 @@ fun GuideScreen(
     // Phone / tablet rows keep their fixed canon heights at 100% and grow only
     // with the app Text Size (not the system font size, unchanged from before).
     val appTextScale = com.aeriotv.android.ui.scale.LocalAppTextScale.current
-    val hourWidth = if (isTv) 300.dp * guideScale * tvComfortScale else 320.dp * guideScale
-    val railWidth = if (isTv) 120.dp * tvComfortScale else 78.dp
+    val stockHourWidth = if (isTv) 300.dp * guideScale * tvComfortScale else 320.dp * guideScale
+    // Compact modern (TiviMate): the channel column is a fixed share of the
+    // screen. It used to be 405 dp x the Live TV display scale, which took a
+    // third of a 960 dp TV at 0.85 and half of it at about 1.15; names that
+    // do not fit are ellipsized instead.
+    val screenWidthDp = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
+    val railWidth = if (modernRows) (screenWidthDp * MODERN_RAIL_FRACTION).dp else if (isTv) 120.dp * tvComfortScale else 78.dp
+    // Compact modern (TiviMate): the programme area shows two hours.
+    val hourWidth = if (modernRows) (screenWidthDp.dp - railWidth) / 2 else stockHourWidth
     // Phone cells carry the subtitle and two description lines (Logan
     // 2026-09-05, EPGGuideView.swift:3415: 98pt on the phone idiom, 72 on
     // the iPad), so they are taller. Phone = smallest width under 600dp,
@@ -284,9 +294,21 @@ fun GuideScreen(
     // more of it), so the row count, not the row height, is what has to match.
     // The phone / tablet column still takes its small net growth: there the
     // band replaces a number line that used to sit under the logo.
-    val rowHeight = (if (isTv) (if (previewMode) 48.dp else 66.dp) * tvComfortScale * fontScale else if (isPhoneIdiom) 98.dp * appTextScale else 72.dp * appTextScale) * subtextGrowth +
+    val headerHeight = if (modernRows) 32.dp * fontScale else if (isTv) 25.dp * tvComfortScale * fontScale else 32.dp * appTextScale
+    // Measured height of the grid area (header + rows), for the modern row fit.
+    var gridAreaPx by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val rowHeight = if (modernRows) {
+        // Compact modern (TiviMate): exactly MODERN_VISIBLE_ROWS rows fill
+        // the measured grid area under the banner and header (a fixed pitch
+        // cut the 8th row off), never below what one title line needs; a
+        // very large text size then shows fewer rows instead of squashing.
+        val minRow = MODERN_ROW_HEIGHT * fontScale * 0.8f + MODERN_ROW_GAP
+        val fitted = if (gridAreaPx > 0) {
+            with(androidx.compose.ui.platform.LocalDensity.current) { gridAreaPx.toDp() - headerHeight } / MODERN_VISIBLE_ROWS
+        } else MODERN_ROW_HEIGHT * fontScale + MODERN_ROW_GAP
+        maxOf(fitted, minRow)
+    } else (if (isTv) (if (previewMode) 48.dp else 66.dp) * tvComfortScale * fontScale else if (isPhoneIdiom) 98.dp * appTextScale else 72.dp * appTextScale) * subtextGrowth +
         (if (isTv) 0.dp else com.aeriotv.android.feature.livetv.grid.GUIDE_PHONE_ROW_BAND_GROWTH)
-    val headerHeight = if (isTv) 25.dp * tvComfortScale * fontScale else 32.dp * appTextScale
 
     // Clock: 30 s tick for the now-line and the airing tint.
     var nowMs by remember { mutableStateOf(System.currentTimeMillis()) }
@@ -434,6 +456,13 @@ fun GuideScreen(
         }
     }
     val grid = remember { GuideGridState(initialViewportStartMs = System.currentTimeMillis() - 15 * 60_000L) }
+    // Compact modern (TiviMate): the live timeline starts on the half hour.
+    LaunchedEffect(modernRows) {
+        if (grid.alignToHalfHour != modernRows) {
+            grid.alignToHalfHour = modernRows
+            grid.anchorToNow(System.currentTimeMillis())
+        }
+    }
     val rows = remember(displayChannels, state.epgByChannel, windowStartMs, windowEndMs) {
         com.aeriotv.android.feature.livetv.GuideMemo.get(
             "rows",
@@ -807,7 +836,37 @@ fun GuideScreen(
             }
             false
         }) {
-    Row(modifier = Modifier.fillMaxSize()) {
+    // Compact modern (TiviMate): the group pane runs the full height at the
+    // left and the whole page (banner with its video, header, grid) moves
+    // right beside it, instead of the pane docking under the banner.
+    val fullHeightSidebar = isTv && modernRows && sidebarShiftMode
+    var pageWidthPx by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    Row(modifier = Modifier.fillMaxSize().onSizeChanged { pageWidthPx = it.width }) {
+    if (fullHeightSidebar) {
+        androidx.compose.animation.AnimatedVisibility(
+            visible = groupSidebarOpen,
+            enter = androidx.compose.animation.slideInHorizontally(
+                animationSpec = androidx.compose.animation.core.tween(180),
+            ) { -it },
+            exit = androidx.compose.animation.ExitTransition.None,
+        ) {
+            androidx.compose.runtime.CompositionLocalProvider(
+                com.aeriotv.android.feature.livetv.LocalTiviGroupRows provides true,
+            ) {
+                GuideGroupSidebarPane(
+                    groups = groups,
+                    selectedToken = state.selectedGroup,
+                    topOffset = 0.dp,
+                    onPreview = previewSidebarGroup,
+                    onCommit = commitSidebarGroup,
+                    refocusToken = sidebarActiveToken,
+                    refocusRequest = sidebarRefocusRequest,
+                    onManageGroups = openSidebarManageGroups,
+                    hiddenGroupCount = hiddenGroups.size,
+                )
+            }
+        }
+    }
     if (groupSidebarOpen && !isTv) {
         GuideGroupSidebarPane(
             groups = groups,
@@ -818,7 +877,23 @@ fun GuideScreen(
             hiddenGroupCount = hiddenGroups.size,
         )
     }
-    Column(modifier = Modifier.weight(1f).fillMaxSize().then(if (isTv) Modifier else Modifier.statusBarsPadding())) {
+    Column(
+        modifier = Modifier.weight(1f).fillMaxSize()
+            .then(if (isTv) Modifier else Modifier.statusBarsPadding())
+            .then(
+                // TiviMate: the page keeps its full width while the group
+                // pane is open and slides right, the right edge running off
+                // the screen, instead of narrowing (no grid relayout either).
+                if (fullHeightSidebar && pageWidthPx > 0) {
+                    Modifier.layout { measurable, constraints ->
+                        val placeable = measurable.measure(
+                            constraints.copy(minWidth = pageWidthPx, maxWidth = pageWidthPx),
+                        )
+                        layout(constraints.maxWidth, placeable.height) { placeable.placeRelative(0, 0) }
+                    }
+                } else Modifier,
+            ),
+    ) {
         if (!isTv) {
             // Phone / tablet: NO title bar (Logan 2026-09-05, Apple parity).
             // The header row carries the groups control, the pills or the
@@ -869,7 +944,29 @@ fun GuideScreen(
                 )
             }
         }
-        if (previewMode) {
+        if (previewMode && modernRows) {
+            // Compact modern (TiviMate): the video large at the top left, the
+            // focused programme beside it.
+            val topNav = com.aeriotv.android.feature.main.LocalTvTopNavFocusRequester.current
+            val pillsShown = !sidebarGroupMode && !favoritesOnly
+            TiviGuideBanner(
+                program = previewProgram,
+                channel = previewChannel,
+                nowMs = nowMs,
+                groupName = com.aeriotv.android.feature.livetv.groupDisplayName(state.selectedGroup, collections),
+                isFavorite = previewChannel?.id in favoriteIds,
+                miniActive = miniActive,
+                onOpenInfo = {
+                    previewProgram?.let { cell ->
+                        programInfoTarget = cell.toInfoTarget(previewChannel?.name ?: "", previewChannel?.dispatcharrChannelId)
+                    }
+                },
+                descriptionFocus = bannerFocus,
+                downTarget = if (pillsShown) pillsFocus else gridFocus,
+                upTarget = topNav,
+                onDown = if (pillsShown) null else ({ clockSelectTrigger += 1; true }),
+            )
+        } else if (previewMode) {
             val topNav = com.aeriotv.android.feature.main.LocalTvTopNavFocusRequester.current
             val pillsShown = !sidebarGroupMode && !favoritesOnly
             GuidePreviewBanner(
@@ -933,7 +1030,7 @@ fun GuideScreen(
         // the grid width changes once instead of re-laying rows every frame.
         Row(modifier = Modifier.fillMaxSize()) {
         androidx.compose.animation.AnimatedVisibility(
-            visible = sidebarShiftMode && groupSidebarOpen,
+            visible = sidebarShiftMode && groupSidebarOpen && !fullHeightSidebar,
             enter = androidx.compose.animation.slideInHorizontally(
                 animationSpec = androidx.compose.animation.core.tween(180),
             ) { -it },
@@ -951,7 +1048,7 @@ fun GuideScreen(
                 hiddenGroupCount = hiddenGroups.size,
             )
         }
-        Box(modifier = Modifier.weight(1f).fillMaxSize()) {
+        Box(modifier = Modifier.weight(1f).fillMaxSize().onSizeChanged { gridAreaPx = it.height }) {
         if (rows.isEmpty && favoritesOnly && favoritesOrNull == null) {
             // Favorites not loaded yet: draw nothing rather than flash the
             // empty-group notice for a frame (Streamer 2026-09-03).
@@ -1004,6 +1101,7 @@ fun GuideScreen(
                     }
                 },
                 compact = previewMode,
+                modern = modernRows,
                 clockSelectTrigger = clockSelectTrigger,
                 remoteAction = { slot -> remoteMap.guideAction(slot, sidebarGroupMode) },
                 onHostAction = hostAction,
@@ -1037,7 +1135,11 @@ fun GuideScreen(
         // banner (lifted 14 dp under the bar) when that layout is on. Drawn
         // in the shell's full-screen slot so the scrim dims the whole screen,
         // nav bar included (tvOS); the pane is offset by the guide's own top.
-        val drawerTop = headerHeight + (if (previewMode) GuidePreviewBanner.height - 14.dp else 0.dp)
+        val drawerTop = headerHeight + when {
+            previewMode && modernRows -> TiviGuideBanner.height
+            previewMode -> GuidePreviewBanner.height - 14.dp
+            else -> 0.dp
+        }
         val density = androidx.compose.ui.platform.LocalDensity.current
         val guideTop = with(density) { guideTopPx.toDp() }
         val drawerSlot = com.aeriotv.android.feature.main.LocalTvFullScreenOverlay.current
@@ -1378,6 +1480,16 @@ private fun GroupPills(
 }
 
 private const val QUANTUM_MS = 15 * 60_000L
+
+/** Compact modern layout (TiviMate): channel column share of the screen width. */
+private const val MODERN_RAIL_FRACTION = 0.25f
+
+/** Compact modern layout: row height before the text size, and the gap under each row. */
+private val MODERN_ROW_HEIGHT = 30.dp
+internal val MODERN_ROW_GAP = 4.dp
+
+/** Compact modern layout: rows the grid area is divided into (TiviMate shows 8). */
+private const val MODERN_VISIBLE_ROWS = 8
 
 /**
  * The guide cell a TV catch-up replay was launched from, plus the timeline

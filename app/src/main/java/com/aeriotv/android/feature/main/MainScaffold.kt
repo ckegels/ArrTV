@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.FiberSmartRecord
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Cast
@@ -67,6 +68,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -522,6 +524,13 @@ fun MainScaffold(
     }
 
     val settingsVm: SettingsViewModel = hiltViewModel()
+    // "ArrTV look" (rail item above Settings / top bar circle): everything in
+    // one press, with a short confirmation.
+    val lookContext = androidx.compose.ui.platform.LocalContext.current
+    val applyArrTvLook: () -> Unit = {
+        settingsVm.applyArrTvLook()
+        android.widget.Toast.makeText(lookContext, "ArrTV look applied", android.widget.Toast.LENGTH_SHORT).show()
+    }
     val defaultTabPref by settingsVm.defaultTab.collectAsStateWithLifecycle(initialValue = "")
 
     var selectedTab by rememberSaveable { mutableStateOf(AppTab.LiveTV) }
@@ -835,7 +844,22 @@ fun MainScaffold(
         val fullScreenOverlay = remember { mutableStateOf<(@Composable () -> Unit)?>(null) }
         val topNavHasFocusState: androidx.compose.runtime.MutableState<Boolean> = remember { mutableStateOf(false) }
         val tabEntryFocus: androidx.compose.runtime.MutableState<FocusRequester?> = remember { mutableStateOf(null) }
+        // Compact modern layout (Settings > Appearance): a left navigation
+        // rail replaces the top tab bar. Off = the stock bar, untouched.
+        val layoutVm: com.aeriotv.android.feature.settings.SettingsViewModel = hiltViewModel()
+        val compactModern by layoutVm.compactModernLayout.collectAsStateWithLifecycle(initialValue = false)
+        // The tab content as one focus group that remembers its last focused
+        // child, so leaving the rail returns exactly where the user was.
+        val contentRequester = remember { FocusRequester() }
+        // Bumped when a rail selection should move focus into the new tab.
+        var railContentFocusRequest by remember { mutableIntStateOf(0) }
+        val openNavRail: (() -> Boolean)? = if (compactModern) {
+            { runCatching { topNavRequester.requestFocus() }.getOrDefault(false) }
+        } else {
+            null
+        }
         CompositionLocalProvider(
+            LocalTvOpenNavRail provides openNavRail,
             LocalTvTopNavFocusRequester provides topNavRequester,
             LocalTvTopNavHasFocus provides topNavHasFocusState,
             LocalTvTabEntryFocus provides tabEntryFocus,
@@ -862,10 +886,11 @@ fun MainScaffold(
             // 62dp is the bar's designed height (16 top + 34 capsule + 12
             // bottom); it only ever seeds the very first frame, after which
             // the measured height governs.
-            val barInset = if (barHeightPx > 0) {
-                with(chromeDensity) { barHeightPx.toDp() }
-            } else {
-                62.dp
+            val barInset = when {
+                // Rail mode: no top bar; a small overscan-safe margin only.
+                compactModern -> 16.dp
+                barHeightPx > 0 -> with(chromeDensity) { barHeightPx.toDp() }
+                else -> 62.dp
             }
             // The corner mini player is mounted at the ACTIVITY root, outside
             // this composition, so it cannot read a CompositionLocal from
@@ -873,10 +898,10 @@ fun MainScaffold(
             // window state instead; PersistentExoWindow takes its top inset
             // from it (tvOS pins the mini 87pt from the physical screen top,
             // deliberately clear of the tab bar: mini report D1).
-            val barDrawnBottom = if (barDrawnBottomPx > 0f) {
-                with(chromeDensity) { barDrawnBottomPx.toDp() }
-            } else {
-                barInset - 12.dp
+            val barDrawnBottom = when {
+                compactModern -> 12.dp
+                barDrawnBottomPx > 0f -> with(chromeDensity) { barDrawnBottomPx.toDp() }
+                else -> barInset - 12.dp
             }
             androidx.compose.runtime.LaunchedEffect(barDrawnBottom) {
                 com.aeriotv.android.feature.player.MiniPlayerChrome
@@ -937,10 +962,11 @@ fun MainScaffold(
             //  - Live TV: a 16dp band under the bar holds the one-line strip.
             //  - Other tabs / fullscreen (Pending): none (no strip shown).
             val miniActive = miniPlayerState is MiniPlayerSession.State.Active
-            val showHintStrip = hintsEnabled &&
+            val showHintStrip = hintsEnabled && !compactModern &&
                 selectedTab == AppTab.LiveTV &&
                 miniPlayerState !is MiniPlayerSession.State.Pending
             val topHintGap = when {
+                compactModern -> 0.dp
                 selectedTab == AppTab.LiveTV &&
                     miniPlayerState !is MiniPlayerSession.State.Pending ->
                     16.dp
@@ -961,7 +987,7 @@ fun MainScaffold(
                 // initial focus it decides) is exactly what it was when the
                 // bar was the Column's first child; zIndex keeps it painted
                 // above the content it now overlaps.
-                Box(
+                if (!compactModern) Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .fillMaxWidth()
@@ -974,6 +1000,7 @@ fun MainScaffold(
                         .onFocusChanged { barHasFocus = it.hasFocus; topNavHasFocusState.value = it.hasFocus },
                 ) {
                     TvTopTabBar(
+                        onApplyLook = applyArrTvLook,
                         retainedCount = retainedList.size,
                         onRetainedClick = { showRetainedDialog = true },
                         onRefresh = { viewModel.refreshPlaylist() },
@@ -1016,6 +1043,11 @@ fun MainScaffold(
                         // while the bar collapses, so no tab (guide, Settings,
                         // media pages) sees its viewport resize mid-scroll.
                         .padding(top = barInset + topHintGap)
+                        // Rail mode: the content remembers its last focused
+                        // child, so Right / Back out of the rail returns there.
+                        .then(
+                            if (compactModern) Modifier.focusRequester(contentRequester).focusRestorer() else Modifier,
+                        )
                         // UP leaving the tab content must land on the SELECTED
                         // tab's pill. Geometric 2D search used to hit whichever
                         // pill sat above the focused column (On Demand over the
@@ -1023,15 +1055,65 @@ fun MainScaffold(
                         // switched tabs (user report). The bar's own onEnter
                         // does not intercept a direct child hit, so the
                         // redirect lives on the content group's exit instead.
+                        // Rail mode: LEFT out of the page opens the rail too
+                        // (on the selected item), the TiviMate way.
                         .focusGroup()
                         .focusProperties {
                             onExit = {
-                                if (requestedFocusDirection == androidx.compose.ui.focus.FocusDirection.Up) {
+                                val dir = requestedFocusDirection
+                                if (dir == androidx.compose.ui.focus.FocusDirection.Up ||
+                                    (compactModern && dir == androidx.compose.ui.focus.FocusDirection.Left)
+                                ) {
                                     pillRequesters[selectedTab]?.requestFocus()
                                 }
                             }
                         },
                 )
+                // Compact modern layout: the left navigation rail. Declared
+                // AFTER the content so it never takes the cold-start focus;
+                // zIndex paints it over the page it slides across.
+                if (compactModern) {
+                    val railItems = remember(tabs) { listOf(AppTab.Search) + tabs }
+                    // Update at the rail's bottom: checks now and, when there
+                    // is one, updates (github builds only; hidden elsewhere).
+                    val updateVm: com.aeriotv.android.feature.update.UpdateViewModel = hiltViewModel()
+                    TvNavRail(
+                        items = railItems,
+                        selected = selectedTab,
+                        itemRequesters = pillRequesters,
+                        onSelect = { tab ->
+                            if (tab != selectedTab) {
+                                selectedTab = tab
+                                initialTabApplied = true
+                            }
+                            railContentFocusRequest++
+                        },
+                        onReturn = {
+                            if (!runCatching { contentRequester.requestFocus() }.getOrDefault(false)) {
+                                tabEntryFocus.value?.let { runCatching { it.requestFocus() } }
+                            }
+                        },
+                        onFocusChanged = { topNavHasFocusState.value = it },
+                        onApplyLook = applyArrTvLook,
+                        onUpdate = if (updateVm.isEnabled) ({ updateVm.manualCheck() }) else null,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .zIndex(2f)
+                            // LocalTvTopNavFocusRequester lands on the SELECTED
+                            // item, like the bar's selected pill.
+                            .focusRequester(topNavRequester)
+                            .focusProperties { onEnter = { pillRequesters[selectedTab]?.requestFocus() } },
+                    )
+                    // After a rail selection: focus the tab's entry point once
+                    // it has composed, else wherever the content restores to.
+                    androidx.compose.runtime.LaunchedEffect(railContentFocusRequest) {
+                        if (railContentFocusRequest == 0) return@LaunchedEffect
+                        androidx.compose.runtime.withFrameNanos { }
+                        kotlinx.coroutines.delay(50)
+                        val entered = tabEntryFocus.value?.let { runCatching { it.requestFocus() }.getOrDefault(false) } ?: false
+                        if (!entered) runCatching { contentRequester.requestFocus() }
+                    }
+                }
             }
             // No "Syncing" pill on TV: the top bar's Refresh circle already
             // spins while background work runs (refreshing = anyBackgroundWork).
@@ -1881,6 +1963,9 @@ private fun TvTopTabBar(
      *  up without a trip through Settings > playlist. */
     onRefresh: () -> Unit = {},
     refreshing: Boolean = false,
+    /** "ArrTV look": applies the fork's theme, text sizes and layouts in one
+     *  press (a round button beside Refresh / Search, also on Settings). */
+    onApplyLook: (() -> Unit)? = null,
     /** Reports the leftmost pixel the bar actually occupies (the action
      *  circles when shown, otherwise the centered capsule) so the top-left
      *  gesture hints can size themselves to the real gutter instead of a
@@ -1967,7 +2052,8 @@ private fun TvTopTabBar(
     // The action circles hide on Settings (Logan 2026-08-06: they belong to
     // the content tabs - Live TV / DVR / On Demand). They stay while the
     // Search screen itself is up so its circle can show the selected fill.
-    val showActionCircles = selected != AppTab.Settings
+    // The ArrTV look button is wanted on every tab, Settings included.
+    val showActionCircles = selected != AppTab.Settings || onApplyLook != null
     // Cold start: TV initial focus falls on the LEFTMOST focusable, which is
     // now the Refresh circle - pull it onto the selected pill (the
     // pre-circle behavior, and an accidental OK there refreshed instead of
@@ -2071,10 +2157,17 @@ private fun TvTopTabBar(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    if (onApplyLook != null) {
+                        TvBarCircleButton(
+                            icon = Icons.Filled.AutoAwesome,
+                            contentDescription = "Apply the ArrTV look",
+                            onClick = onApplyLook,
+                        )
+                    }
                     // Refresh (TV's pull-to-refresh stand-in), then Search -
                     // the most-used action sits closest to the pills, one
-                    // Left press away.
-                    TvBarCircleButton(
+                    // Left press away. Not on Settings.
+                    if (selected != AppTab.Settings) TvBarCircleButton(
                         icon = Icons.Filled.Refresh,
                         contentDescription = "Refresh channels and guide",
                         onClick = onRefresh,
@@ -2087,7 +2180,7 @@ private fun TvTopTabBar(
                             onClick = onRetainedClick,
                         )
                     }
-                    TvBarCircleButton(
+                    if (selected != AppTab.Settings) TvBarCircleButton(
                         icon = AppTab.Search.iconSelected,
                         contentDescription = AppTab.Search.label,
                         selected = selected == AppTab.Search,

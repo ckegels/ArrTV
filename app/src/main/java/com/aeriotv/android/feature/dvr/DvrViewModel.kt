@@ -869,6 +869,20 @@ class DvrViewModel @Inject constructor(
         }
     }
 
+    /** The commercial breaks Comskip marked on a server recording ([start, end] ms), empty
+     *  when it marked none, was not run, or the server does not say (Dispatch More v239). */
+    suspend fun commercialBreaks(recordingId: Int): List<LongRange> {
+        val playlist = playlistRepository.activePlaylist() ?: return emptyList()
+        if (playlist.apiKey.isNullOrBlank()) return emptyList()
+        val base = playlistRepository.effectiveBaseUrl(playlist)
+        return runCatching {
+            val rec = dispatcharrAuth.withApiKeyRetry(playlist.id) { key ->
+                dispatcharrClient.getRecording(base, key, recordingId)
+            }
+            com.aeriotv.android.feature.player.CommercialBreaks.parse(rec.customProperties)
+        }.getOrDefault(emptyList())
+    }
+
     suspend fun scheduleServerRecording(
         channelDispatcharrId: Int,
         startMillis: Long,

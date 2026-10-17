@@ -1873,15 +1873,33 @@ class AppPreferences @Inject constructor(
         store.edit { it[KEY_DVR_DEFAULT_DESTINATION] = value }
     }
 
-    val dvrDefaultPreRollMins: Flow<Int> = store.data.map { it[KEY_DVR_DEFAULT_PRE_ROLL] ?: 0 }
+    // Start 5 minutes early and end 5 minutes late unless changed in Settings -> DVR (the
+    // user's defaults, 2026-09-30). Kept under new keys: a 0 stored under the old ones was
+    // the old default, and would otherwise have kept every recording at 0 after the update.
+    val dvrDefaultPreRollMins: Flow<Int> = store.data.map { it[KEY_DVR_DEFAULT_PRE_ROLL] ?: 5 }
     suspend fun setDvrDefaultPreRollMins(value: Int) {
         store.edit { it[KEY_DVR_DEFAULT_PRE_ROLL] = value }
     }
 
     /** iOS `dvrDefaultPostRollMins` parity. */
-    val dvrDefaultPostRollMins: Flow<Int> = store.data.map { it[KEY_DVR_DEFAULT_POST_ROLL] ?: 0 }
+    val dvrDefaultPostRollMins: Flow<Int> = store.data.map { it[KEY_DVR_DEFAULT_POST_ROLL] ?: 5 }
     suspend fun setDvrDefaultPostRollMins(value: Int) {
         store.edit { it[KEY_DVR_DEFAULT_POST_ROLL] = value }
+    }
+
+    /** Ask the server to run Comskip on a recording. On by default: with Dispatcharr's Comskip in
+     *  Mark mode it only marks the breaks, which the player then skips (CommercialBreaks.kt);
+     *  nothing is cut (the user, 2026-09-30, after cutting was turned off as too risky). */
+    val dvrRemoveCommercials: Flow<Boolean> = store.data.map { it[KEY_DVR_REMOVE_COMMERCIALS] ?: true }
+    suspend fun setDvrRemoveCommercials(value: Boolean) {
+        store.edit { it[KEY_DVR_REMOVE_COMMERCIALS] = value }
+    }
+
+    /** What the player does at a commercial break Comskip marked on a recording: "auto"
+     *  skips it (with a moment to go back), "button" offers Skip ad, "off" plays it. */
+    val dvrCommercialBreaks: Flow<String> = store.data.map { it[KEY_DVR_COMMERCIAL_BREAKS] ?: "auto" }
+    suspend fun setDvrCommercialBreaks(value: String) {
+        store.edit { it[KEY_DVR_COMMERCIAL_BREAKS] = value }
     }
 
     /**
@@ -2206,8 +2224,10 @@ class AppPreferences @Inject constructor(
             booleanPreferencesKey("multiview_perf_warning_suppressed")
         val KEY_CHANNEL_COLLECTIONS = stringPreferencesKey("channel_collections")
         val KEY_DVR_MAX_LOCAL_STORAGE_MB = intPreferencesKey("dvr_max_local_storage_mb")
-        val KEY_DVR_DEFAULT_PRE_ROLL = intPreferencesKey("dvr_default_pre_roll_mins")
-        val KEY_DVR_DEFAULT_POST_ROLL = intPreferencesKey("dvr_default_post_roll_mins")
+        val KEY_DVR_DEFAULT_PRE_ROLL = intPreferencesKey("dvr_default_pre_roll_mins_v2")
+        val KEY_DVR_DEFAULT_POST_ROLL = intPreferencesKey("dvr_default_post_roll_mins_v2")
+        val KEY_DVR_REMOVE_COMMERCIALS = booleanPreferencesKey("dvr_remove_commercials")
+        val KEY_DVR_COMMERCIAL_BREAKS = stringPreferencesKey("dvr_commercial_breaks")
         val KEY_DVR_DEFAULT_DESTINATION = stringPreferencesKey("dvr_default_destination")
         val KEY_LIVE_REWIND_ENABLED = booleanPreferencesKey("live_rewind_enabled")
         val KEY_LIVE_REWIND_DEPTH_MIN = intPreferencesKey("live_rewind_depth_minutes")

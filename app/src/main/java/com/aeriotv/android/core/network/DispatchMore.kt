@@ -34,6 +34,7 @@ object DispatchMore {
     const val HEADER_MAX_VIDEO = "X-Dispatch-Max-Video"
     const val DEFAULT_REPORT_PATH = "/api/core/app-reports/"
     const val DEFAULT_STALL_PATH = "/api/core/app-stall/"
+    const val DEFAULT_GUIDE_CHOICE_PATH = "/api/core/app-guide/"
 
     /** What one server said on /api/core/capabilities/. */
     @Serializable
@@ -53,6 +54,11 @@ object DispatchMore {
          *  after 5 s and one check (v212, "Faster failover when arrTV starts a
          *  channel"): the app's own first moves then wait for it. */
         val fastFailover: Boolean = false,
+        /** Anyone watching may put a channel on another guide (v216, "Let
+         *  arrTV change a channel's guide"): the player offers "Wrong guide?
+         *  Choose another" under the report. */
+        val guideChoice: Boolean = false,
+        val guideChoicePath: String = DEFAULT_GUIDE_CHOICE_PATH,
     )
 
     // The formats the server accepts; anything else it ignores.

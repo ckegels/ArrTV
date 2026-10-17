@@ -32,10 +32,14 @@ object DispatchMore {
     const val HEADER_MULTIVIEW = "X-Dispatch-Multiview"
     const val HEADER_PREVIOUS = "X-Dispatch-Previous-Channel"
     const val HEADER_MAX_VIDEO = "X-Dispatch-Max-Video"
+    /** "Watch here" on a login the server holds to one device at a time:
+     *  take the stream back from the device that replaced this one. */
+    const val HEADER_TAKE_OVER = "X-Dispatch-Take-Over"
     const val DEFAULT_REPORT_PATH = "/api/core/app-reports/"
     const val DEFAULT_STALL_PATH = "/api/core/app-stall/"
     const val DEFAULT_GUIDE_CHOICE_PATH = "/api/core/app-guide/"
     const val DEFAULT_REWIND_PATH = "/api/channels/rewind/"
+    const val DEFAULT_LINK_PATH = "/api/core/app-link/"
 
     /** What one server said on /api/core/capabilities/. */
     @Serializable
@@ -64,6 +68,10 @@ object DispatchMore {
          *  pause and rewind need nothing on this device (core/timeshift/ServerRewind.kt). */
         val rewind: Boolean = false,
         val rewindPath: String = DEFAULT_REWIND_PATH,
+        /** Watch together (v260): devices of one login may join each other and then
+         *  follow each other's channel changes (WatchTogether). */
+        val linkDevices: Boolean = false,
+        val linkPath: String = DEFAULT_LINK_PATH,
     )
 
     // The formats the server accepts; anything else it ignores.
@@ -126,6 +134,10 @@ object DispatchMore {
         servers.computeIfPresent(origin) { _, s -> s.copy(stallSwitch = false) }
     }
 
+    /** Whether a Dispatch More server this app uses offers watch together (its switch is
+     *  on): Join is shown only then. */
+    fun linkDevicesOffered(): Boolean = servers.values.any { it.linkDevices }
+
     /** The server behind [url], when it is a Dispatch More server. */
     fun serverFor(url: String?): Server? = originOf(url)?.let { servers[it] }
 
@@ -147,6 +159,46 @@ object DispatchMore {
 
     fun endMultiview() {
         multiviewSession = null
+    }
+
+    /** Until when ([monotonicMs]) the next stream request takes the stream back
+     *  (see [takeOver]); that request carries [HEADER_TAKE_OVER] and clears it,
+     *  so only the tune the viewer asked for takes over and later automatic
+     *  reconnects do not -- they would take it back from the other device at
+     *  every reconnect, and that one from us. */
+    @Volatile
+    private var takeOverUntilMs = 0L
+
+    /** The viewer asked for this: "Watch here" on the other-device notice, or
+     *  a channel picked in the guide, the list or with the remote. The next
+     *  stream request, within [TAKE_OVER_WINDOW_MS], takes the stream back
+     *  from the device that replaced this one (contract §5a). */
+    fun takeOver(nowMs: Long = monotonicMs()) {
+        takeOverUntilMs = nowMs + TAKE_OVER_WINDOW_MS
+    }
+
+    /** A press is followed by its stream request at once; one that never
+     *  makes a request (a channel that is not live) must not leave the next
+     *  automatic reconnect taking over long afterwards. */
+    const val TAKE_OVER_WINDOW_MS = 10_000L
+
+    private fun monotonicMs(): Long = System.nanoTime() / 1_000_000
+
+    /** [HEADER_TAKE_OVER] when the viewer just asked for this ([takeOver]), else
+     *  nothing; asking clears it, so only the one request carries it. */
+    fun takeOverHeader(): Map<String, String> {
+        if (takeOverUntilMs == 0L) return emptyMap()
+        val wanted = monotonicMs() < takeOverUntilMs
+        takeOverUntilMs = 0L
+        return if (wanted) mapOf(HEADER_TAKE_OVER to "1") else emptyMap()
+    }
+
+    /** The headers for a look back or movie request to [url]: which device this is
+     *  (a login held to one device at a time counts those too, contract §5a), and
+     *  the take-over the viewer asked for. Empty for any other server. */
+    fun playbackHeaders(url: String?): Map<String, String> {
+        val device = deviceHeaders(url)
+        return if (device.isEmpty()) device else device + takeOverHeader()
     }
 
     /** The device headers for any request to [url]; empty for any other server. */
@@ -182,6 +234,7 @@ object DispatchMore {
             putAll(device)
             multiview?.takeIf { CHANNEL_REF.matches(it) }?.let { put(HEADER_MULTIVIEW, it) }
             previousChannel(url, previousUrl)?.let { put(HEADER_PREVIOUS, it) }
+            putAll(takeOverHeader())
         }
     }
 

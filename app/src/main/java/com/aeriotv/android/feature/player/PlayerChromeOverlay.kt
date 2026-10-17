@@ -58,6 +58,7 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.ClosedCaption
+import androidx.compose.material.icons.outlined.LinkOff
 import androidx.compose.material.icons.outlined.EventNote
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.GraphicEq
@@ -899,6 +900,12 @@ fun PlayerChromeOverlay(
             val guideChoice = GuideChoiceMenu.action
             if (moreOpen && guideChoice != null && guideChoice.available()) {
                 add(PlayerOption("guide", Icons.Outlined.EventNote, stringResource(R.string.player_wrong_guide)) { close(); guideChoice.open() })
+            }
+            // Watching together with another device of this login: stop following it
+            if (moreOpen && com.aeriotv.android.core.network.WatchTogether.linked.value) {
+                add(PlayerOption("together", Icons.Outlined.LinkOff, stringResource(R.string.player_option_stop_watch_together)) {
+                    close(); com.aeriotv.android.core.network.WatchTogether.leave()
+                })
             }
             add(PlayerOption("subtitles", Icons.Outlined.ClosedCaption, stringResource(R.string.player_subtitles)) { close(); onShowSubtitles() })
             add(PlayerOption("audio", Icons.Outlined.GraphicEq, stringResource(R.string.player_option_audio_track)) { close(); onShowAudioTracks() })

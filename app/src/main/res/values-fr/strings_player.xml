@@ -87,6 +87,19 @@
     <!-- Dispatcharr503.kt -->
     <string name="player_channel_unavailable">Chaîne indisponible</string>
     <!-- DispatcharrConnectionLimit.kt -->
+    <!-- A login the server holds to one TV at a time: another TV took the stream -->
+    <string name="player_other_device_title">Lecture sur %1$s</string>
+    <string name="player_other_device_title_unnamed">Lecture sur un autre appareil</string>
+    <string name="player_other_device_message">Ce compte regarde sur un seul appareil à la fois. Appuyez sur Regarder ici pour regarder sur ce téléviseur ; l\'autre s\'arrête.</string>
+    <string name="player_join_other_device">Rejoindre</string>
+    <string name="player_join_switched_off">Regarder ensemble est désactivé sur le serveur (Paramètres › Streaming › arrTV)</string>
+    <string name="player_join_failed">Cet appareil ne regarde plus de chaîne</string>
+    <string name="player_option_stop_watch_together">Ne plus regarder ensemble</string>
+    <string name="watch_together_offer_title">Regarder ensemble ?</string>
+    <string name="watch_together_offer_message">%1$s regarde %2$s avec ce compte. Rejoignez-le : dès lors, si l\'un de vous change de chaîne, l\'autre suit.</string>
+    <string name="watch_together_unnamed_device">Un autre appareil</string>
+    <string name="watch_together_not_now">Pas maintenant</string>
+    <string name="player_watch_here">Regarder ici</string>
     <string name="player_limit_stream_ended_title">Flux terminé</string>
     <string name="player_limit_stream_ended_message">Ce flux a été arrêté par le serveur. Appuyez sur Réessayer pour le relancer.</string>
     <string name="player_limit_user_title">Trop de sessions en cours</string>

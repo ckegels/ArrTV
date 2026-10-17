@@ -526,9 +526,84 @@ class DispatcharrClient @Inject constructor() {
                     rewind = (root["rewind"] as? JsonPrimitive)?.booleanOrNull == true,
                     rewindPath = (root["rewind_url"] as? JsonPrimitive)?.contentOrNull
                         ?.takeIf { it.startsWith("/") } ?: DispatchMore.DEFAULT_REWIND_PATH,
+                    linkDevices = (root["link_devices"] as? JsonPrimitive)?.booleanOrNull == true,
+                    linkPath = (root["link_url"] as? JsonPrimitive)?.contentOrNull
+                        ?.takeIf { it.startsWith("/") } ?: DispatchMore.DEFAULT_LINK_PATH,
                 ),
             )
         }.getOrNull()
+
+    /** Watch together (Dispatch More v260): another device of the login watching a channel. */
+    data class LinkOffer(val device: String, val name: String, val channel: String, val channelName: String)
+
+    /** What the server said about this device and watching together; null when it said nothing. */
+    data class LinkState(val linked: Boolean, val channel: String?, val offers: List<LinkOffer>)
+
+    private fun JsonObject.str(key: String): String? = (this[key] as? JsonPrimitive)?.contentOrNull
+
+    /** GET the link url: what this device (its device header) may join, and whether it is linked. */
+    suspend fun fetchLinkState(baseUrl: String, apiKey: String, path: String): LinkState? {
+        val response = client.get("${baseUrl.trimEnd('/')}$path") { applyAuth(apiKey) }
+        if (response.status.value == 401) throw DispatcharrError.Unauthorized("Link refused: 401")
+        if (!response.status.isSuccess()) return null
+        val root = response.body<JsonElement>() as? JsonObject ?: return null
+        val offers = (root["offers"] as? kotlinx.serialization.json.JsonArray).orEmpty().mapNotNull { item ->
+            val o = item as? JsonObject ?: return@mapNotNull null
+            LinkOffer(
+                device = o.str("device") ?: return@mapNotNull null,
+                name = o.str("name").orEmpty(),
+                channel = o.str("channel") ?: return@mapNotNull null,
+                channelName = o.str("channel_name").orEmpty(),
+            )
+        }
+        return LinkState(
+            linked = (root["linked"] as? JsonPrimitive)?.booleanOrNull == true,
+            channel = root.str("channel"),
+            offers = offers,
+        )
+    }
+
+    /** POST {"join": device}: the channel the device joined is on, or null when it is not watching now. */
+    suspend fun joinLink(baseUrl: String, apiKey: String, path: String, device: String): String? {
+        val response = client.post("${baseUrl.trimEnd('/')}$path") {
+            applyAuth(apiKey)
+            contentType(ContentType.Application.Json)
+            setBody(JsonObject(mapOf("join" to JsonPrimitive(device))))
+        }
+        if (response.status.value == 401) throw DispatcharrError.Unauthorized("Link refused: 401")
+        if (!response.status.isSuccess()) return null
+        return (response.body<JsonElement>() as? JsonObject)?.str("channel")
+    }
+
+    /** Watching together in step: another linked device's latest position on the same channel. */
+    data class LinkPosition(val device: String, val name: String, val pts: Long, val atMs: Long)
+
+    /** POST this device's position ({"position": {pts, at}}); the others' come back. */
+    suspend fun reportLinkPosition(baseUrl: String, apiKey: String, path: String, pts: Long, atMs: Long): List<LinkPosition> {
+        val response = client.post("${baseUrl.trimEnd('/')}$path") {
+            applyAuth(apiKey)
+            contentType(ContentType.Application.Json)
+            setBody(JsonObject(mapOf("position" to JsonObject(mapOf("pts" to JsonPrimitive(pts), "at" to JsonPrimitive(atMs))))))
+        }
+        if (response.status.value == 401) throw DispatcharrError.Unauthorized("Link refused: 401")
+        if (!response.status.isSuccess()) return emptyList()
+        val others = ((response.body<JsonElement>() as? JsonObject)?.get("others") as? kotlinx.serialization.json.JsonArray).orEmpty()
+        return others.mapNotNull { item ->
+            val o = item as? JsonObject ?: return@mapNotNull null
+            LinkPosition(
+                device = o.str("device") ?: return@mapNotNull null,
+                name = o.str("name").orEmpty(),
+                pts = (o["pts"] as? JsonPrimitive)?.longOrNull ?: return@mapNotNull null,
+                atMs = (o["at"] as? JsonPrimitive)?.longOrNull ?: return@mapNotNull null,
+            )
+        }
+    }
+
+    /** DELETE the link url: this device stops watching together. */
+    suspend fun leaveLink(baseUrl: String, apiKey: String, path: String) {
+        val response = client.delete("${baseUrl.trimEnd('/')}$path") { applyAuth(apiKey) }
+        if (response.status.value == 401) throw DispatcharrError.Unauthorized("Link refused: 401")
+    }
 
     /** The answer to a problem report: the report's id, or why it was refused. */
     sealed interface ReportAnswer {

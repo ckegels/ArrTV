@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -888,6 +889,77 @@ fun AerioTVNavHost(
                 val exoHolderNav = remember { playerEntryNav.exoPlayerHolder() }
                 val exoWindowNav = remember { playerEntryNav.exoWindowState() }
                 val miniVmNav: MiniPlayerViewModel = hiltViewModel()
+
+                // Watch together (Dispatch More v260). A channel the linked device changed
+                // to, or the one just joined, opens the player when it is not open (the open
+                // player tunes it in place). At start, a link left from before ends, and a
+                // device of this login that is watching is offered to join.
+                val linksNav = remember { playerEntryNav.dispatchMoreLinks() }
+                val followNav by com.aeriotv.android.core.network.WatchTogether.follow
+                    .collectAsStateWithLifecycle()
+                LaunchedEffect(followNav) {
+                    val request = followNav ?: return@LaunchedEffect
+                    if (com.aeriotv.android.core.network.WatchTogether.playerOpen) return@LaunchedEffect
+                    val channel = state.channels.firstOrNull {
+                        com.aeriotv.android.core.network.DispatchMore.channelRef(it.url) == request.channelUuid
+                    } ?: return@LaunchedEffect
+                    com.aeriotv.android.core.network.WatchTogether.consumed(request)
+                    navController.navigate(Routes.player(channel.id)) { launchSingleTop = true }
+                }
+                var watchOffer by remember {
+                    mutableStateOf<com.aeriotv.android.core.network.DispatcharrClient.LinkOffer?>(null)
+                }
+                LaunchedEffect(state.phase) {
+                    if (state.phase != PlaylistViewModel.Phase.ChannelsReady) return@LaunchedEffect
+                    val together = com.aeriotv.android.core.network.WatchTogether
+                    if (together.offerAsked) return@LaunchedEffect
+                    together.offerAsked = true
+                    // The capabilities probe lands a few seconds into the start
+                    kotlinx.coroutines.delay(5_000)
+                    val answer = linksNav.state() ?: return@LaunchedEffect
+                    if (answer.linked) linksNav.leaveInBackground()
+                    watchOffer = answer.offers.firstOrNull()
+                }
+                watchOffer?.let { offer ->
+                    val joinFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { watchOffer = null },
+                        title = { androidx.compose.material3.Text(stringResource(R.string.watch_together_offer_title)) },
+                        text = {
+                            androidx.compose.material3.Text(
+                                stringResource(
+                                    R.string.watch_together_offer_message,
+                                    // The server's stand-in for a device that never said its
+                                    // name is English: in the app's own language instead
+                                    offer.name.takeIf { it.isNotBlank() && it != "another device" }
+                                        ?: stringResource(R.string.watch_together_unnamed_device),
+                                    offer.channelName.ifBlank { offer.channel.take(8) },
+                                ),
+                            )
+                        },
+                        confirmButton = {
+                            androidx.compose.material3.Button(
+                                onClick = {
+                                    watchOffer = null
+                                    com.aeriotv.android.core.network.WatchTogether.join(offer.device)
+                                },
+                                modifier = Modifier.focusRequester(joinFocus),
+                            ) { androidx.compose.material3.Text(stringResource(R.string.player_join_other_device)) }
+                        },
+                        dismissButton = {
+                            androidx.compose.material3.TextButton(onClick = { watchOffer = null }) {
+                                androidx.compose.material3.Text(stringResource(R.string.watch_together_not_now))
+                            }
+                        },
+                    )
+                    LaunchedEffect(offer) {
+                        // A TV: the remote starts on Join
+                        repeat(5) {
+                            if (runCatching { joinFocus.requestFocus() }.isSuccess) return@LaunchedEffect
+                            kotlinx.coroutines.delay(50)
+                        }
+                    }
+                }
 
                 LaunchedEffect(state.phase) {
                     // Skipped onboarding stays in the (empty) app; see

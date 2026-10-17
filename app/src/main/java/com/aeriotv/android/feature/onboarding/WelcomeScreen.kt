@@ -79,6 +79,9 @@ fun WelcomeScreen(
      */
     onSignInWithGoogle: (() -> Unit)? = null,
     googleSignInInProgress: Boolean = false,
+    /** Local network discovery: picking a Dispatcharr server found on the
+     *  subnet opens its login with the address filled in. Null = no scan. */
+    onPickDiscoveredServer: ((DiscoveredServer) -> Unit)? = null,
 ) {
     val config = LocalConfiguration.current
     val isTv = com.aeriotv.android.feature.livetv.rememberLiveTvFormFactor().isTv
@@ -87,8 +90,16 @@ fun WelcomeScreen(
     // single column to mirror the tvOS welcome layout.
     val twoColumn = !isTv && config.screenWidthDp >= 720 && config.screenHeightDp < 720
 
-    if (twoColumn) WelcomeTwoColumn(onConnectServer, onSkip, onSignInWithGoogle, googleSignInInProgress)
-    else WelcomeSingleColumn(onConnectServer, onSkip, onSignInWithGoogle, googleSignInInProgress)
+    // Scan once for Dispatcharr servers on the local network; any found show
+    // up as the first option.
+    val discovered: @Composable () -> Unit = if (onPickDiscoveredServer != null) {
+        val (servers, scanning) = rememberServerDiscovery()
+        ({ DiscoveredServersBlock(servers, scanning, onPickDiscoveredServer) })
+    } else {
+        {}
+    }
+    if (twoColumn) WelcomeTwoColumn(onConnectServer, onSkip, onSignInWithGoogle, googleSignInInProgress, discovered)
+    else WelcomeSingleColumn(onConnectServer, onSkip, onSignInWithGoogle, googleSignInInProgress, discovered)
 }
 
 @Composable
@@ -97,6 +108,7 @@ private fun WelcomeSingleColumn(
     onSkip: () -> Unit,
     onSignInWithGoogle: (() -> Unit)?,
     googleSignInInProgress: Boolean,
+    discovered: @Composable () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -125,6 +137,8 @@ private fun WelcomeSingleColumn(
             Spacer(Modifier.height(22.dp))
             SupportedTypesGroup(alignStart = false)
             Spacer(Modifier.height(22.dp))
+            discovered()
+            Spacer(Modifier.height(12.dp))
             SyncCard(inProgress = googleSignInInProgress, onClick = onSignInWithGoogle)
             if (onSignInWithGoogle != null) Spacer(Modifier.height(12.dp))
             ConnectServerRow(onClick = onConnectServer)
@@ -140,6 +154,7 @@ private fun WelcomeTwoColumn(
     onSkip: () -> Unit,
     onSignInWithGoogle: (() -> Unit)?,
     googleSignInInProgress: Boolean,
+    discovered: @Composable () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -147,7 +162,7 @@ private fun WelcomeTwoColumn(
             .background(MaterialTheme.colorScheme.background),
     ) {
         WelcomeAmbientOrbs(modifier = Modifier.fillMaxSize())
-        WelcomeTwoColumnRow(onConnectServer, onSkip, onSignInWithGoogle, googleSignInInProgress)
+        WelcomeTwoColumnRow(onConnectServer, onSkip, onSignInWithGoogle, googleSignInInProgress, discovered)
     }
 }
 
@@ -157,6 +172,7 @@ private fun WelcomeTwoColumnRow(
     onSkip: () -> Unit,
     onSignInWithGoogle: (() -> Unit)?,
     googleSignInInProgress: Boolean,
+    discovered: @Composable () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -189,6 +205,8 @@ private fun WelcomeTwoColumnRow(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.Center,
         ) {
+            discovered()
+            Spacer(Modifier.height(12.dp))
             SyncCard(inProgress = googleSignInInProgress, onClick = onSignInWithGoogle)
             if (onSignInWithGoogle != null) Spacer(Modifier.height(12.dp))
             ConnectServerRow(onClick = onConnectServer)

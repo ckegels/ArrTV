@@ -1,415 +1,258 @@
-# AerioTV for Android
+<p align="center">
+  <img src="docs/arrtv/banner.png" alt="ArrTV" width="480" />
+</p>
 
-AerioTV for Android is a native IPTV streaming app for Android phones, tablets, and Google TV / Android TV, built from a single Jetpack Compose codebase. It connects to Dispatcharr (admin login or API key), Xtream Codes, and M3U playlist servers to deliver live TV, movies, and series with a full electronic program guide (EPG) when supplied by the user.
+# ArrTV
 
-**Google Play**
-- AerioTV is in closed testing on Google Play (invite only).
+ArrTV is an IPTV app for **Google TV / Android TV**, phones and tablets. It plays live TV with a
+full program guide, movies, series and recordings from a **Dispatcharr** server, an **Xtream
+Codes** provider or an **M3U** playlist.
 
-**Sideload**
-- Download the latest `.apk` from [Releases](https://github.com/jonzey231/AerioTV-Android/releases) and install it (enable install from unknown sources for your browser or file manager, or run `adb install`). The sideload build is occasionally ahead of the Play track.
+> [!TIP]
+> **ArrTV is built to be used with [Dispatch More](https://github.com/ckegels/dispatch-more)**, a
+> modified Dispatcharr server. ArrTV works with any Dispatcharr, but many of its best features
+> need Dispatch More on the server: see [Works best with Dispatch More](#works-best-with-dispatch-more).
 
-## Screenshots
+ArrTV is a modified version of [AerioTV for Android](https://github.com/jonzey231/AerioTV-Android)
+by Logan Jones. It keeps everything AerioTV does and adds a TV player overlay in the style of
+classic IPTV set-top apps, live updates from Dispatcharr, a compact TV layout, simpler
+recording, speed fixes for low-end TV boxes, and its own update channel. ArrTV is not affiliated
+with AerioTV or with the Dispatcharr project.
 
-Screenshots are coming soon.
+**Contents:** [Works best with Dispatch More](#works-best-with-dispatch-more) · [Install](#install) ·
+[First setup](#first-setup) · [Updates](#updates) · [What ArrTV adds](#what-arrtv-adds) ·
+[Remote control](#remote-control) · [Features](#features) · [Supported servers](#supported-servers) ·
+[Tips for low-end TV boxes](#tips-for-low-end-tv-boxes) · [Building from source](#building-from-source) ·
+[License](#license)
 
-<details>
-<summary><strong>Phone</strong></summary>
-<br>
-<em>Coming soon.</em>
-<!-- <img src="docs/screenshots/phone/01.png" width="200" /> -->
-</details>
+## Works best with Dispatch More
 
-<details>
-<summary><strong>Tablet</strong></summary>
-<br>
-<em>Coming soon.</em>
-<!-- <img src="docs/screenshots/tablet/01.png" width="320" /> -->
-</details>
+[Dispatch More](https://github.com/ckegels/dispatch-more) installs over an existing Dispatcharr
+(Linux, LXC or Docker) with one command, and comes off again with one button. Together with
+ArrTV it adds:
 
-<details>
-<summary><strong>Android TV</strong></summary>
-<br>
-<em>Coming soon.</em>
-<!-- <img src="docs/screenshots/androidtv/01.png" width="420" /> -->
-</details>
+| Feature | What it does |
+|---|---|
+| **Each TV is its own device** | Switching channels on one TV never cuts off another TV on the same provider login, and each TV gets streams it can play. |
+| **Faster failover** | A stream that does not start is replaced by the next one sooner; a stuttering stream is reported so the server can switch. |
+| **Report a problem** | One press sends what went wrong with a channel to the server. |
+| **Wrong guide? Choose another** | Pick the right guide for a channel from the player, by comparing what is on each with the picture. It changes for everyone. |
+| **Instant updates** | New channels, Show Groups (channels grouped by what is on, like Cooking or Movies) and guide changes appear within seconds. |
+| **Ad breaks skipped in recordings** | Breaks the server marks are skipped while you watch; the recording is never cut. |
+| **Recordings that start** | On a Linux Dispatcharr install, stock Dispatcharr never starts a recording; Dispatch More fixes that. |
+
+Each of these has a switch in ArrTV (Settings › General › arrTV optimizations) and on the server.
+Without Dispatch More, ArrTV works like any Dispatcharr app and simply leaves these out.
+
+## Install
+
+ArrTV is not in the Play Store. It installs from this repository's releases.
+
+**Direct download (always the latest version):**
+`https://github.com/ckegels/AerioTV-Android/releases/latest/download/ArrTV.apk`
+
+**On Google TV / Android TV**
+
+1. Install the **Downloader** app (by AFTVnews) from the Play Store.
+2. In Downloader, enter the direct download link above.
+3. When asked, allow Downloader to install unknown apps, then install ArrTV.
+
+Other ways: send `ArrTV.apk` to the TV with an app like *Send Files to TV* and open it with a
+file manager, or install it from a computer with `adb install ArrTV.apk`.
+
+**On a phone or tablet:** open the direct download link, open the downloaded file, and allow
+your browser to install unknown apps.
+
+ArrTV has its own app ID (`com.ckegels.arrtv`), so it installs **next to** AerioTV instead of
+replacing it. Android 8.0 or newer is required.
+
+**The server:** to get everything ArrTV can do, install [Dispatch More](https://github.com/ckegels/dispatch-more#install)
+on your Dispatcharr (one command) and switch on what you want under Settings → Streaming → arrTV.
+
+## First setup
+
+1. Open ArrTV. On the welcome screen it looks for **Dispatcharr servers on your network** for a
+   few seconds. Pick the one it finds and enter your username and password.
+2. Otherwise choose **Connect a Server** and pick Dispatcharr, Xtream Codes or M3U.
+3. Optional: **Sync via Google Account** carries playlists, favorites, reminders, watch progress
+   and settings between your devices.
+
+Network discovery only searches the TV's own network on Dispatcharr's standard port 9191. A
+server in another network, behind a VPN or on another port is added with **Connect a Server**.
+
+## Updates
+
+ArrTV updates itself from this repository's releases.
+
+- **Update** at the bottom of the side panel (compact layout), or **Settings › App Updates ›
+  Check for updates**: checks now and, when there is a new version, downloads and installs it.
+- **Check for updates automatically** (on by default) looks for a new version each time ArrTV
+  opens and offers it once. Nothing is installed without somebody pressing Update.
+- Android asks once to allow ArrTV to install apps. Android 12 and newer then update without
+  asking again; Android 11 and older show a confirmation for each update. Your channels,
+  settings and recordings are kept.
+- Each release includes a compile profile, so the app is fast right away after an update.
+
+Updates are refused while a local recording is running, so a recording is never cut off.
+
+## What ArrTV adds
+
+Compared with AerioTV:
+
+**Player (TV)**
+- **Info bar overlay** (Settings › Player › Overlay Style › Info bar, off by default). Changing
+  channel shows a bar along the bottom with the channel logo, the programme with season and
+  episode, time, progress, minutes left, channel number and name, picture format, description
+  and what's next.
+- **OK** shows the same bar with a timeline, **start, back, play / pause, forward and live**
+  buttons, and a row of cards: **TV guide**, **History** and the next channels in the guide.
+- **Hold OK**, or **Down** from the cards, slides up the options: report a problem, wrong guide
+  (Dispatch More), subtitles, audio track, speed, picture scale, record, sleep timer, stream
+  info, switch stream, Multiview and audio only.
+- Channel up / down wraps around from the last channel to the first and back.
+
+**Recording**
+- **Start 5 minutes early and end 5 minutes late** by default (Settings › DVR).
+- **The record sheet asks one thing:** this episode, all episodes or new episodes only. One line
+  says what will happen; **Adjust** changes the times, the destination or ad breaks for that
+  one recording.
+- **Ad breaks skipped** in server recordings (with Dispatch More and Comskip in Mark mode):
+  skipped automatically with a few seconds to press Left and go back, or with a **Skip ad**
+  button (Settings › DVR › Commercial Breaks).
+
+**Dispatcharr**
+- **Live updates** (Settings › General › Live updates, on by default, needs a username and
+  password login): new, removed or changed channels and guide updates appear while the app is
+  open, without a restart.
+- **With [Dispatch More](https://github.com/ckegels/dispatch-more)**: see
+  [Works best with Dispatch More](#works-best-with-dispatch-more). Each part has its own switch
+  in Settings › General › arrTV optimizations.
+- Background data (the scheduled refresh and the guide sweep) shows up in the open app, and the
+  scheduled refresh also runs while one channel is playing.
+
+**TV layout**
+- **Compact modern layout** (Settings › Appearance › Layout, TV only, off by default): a
+  navigation rail on the left instead of the top tab bar, a guide with a group sidebar and a
+  programme preview, and compact guide rows. Turning it off restores your previous settings.
+- Monochrome theme by default, and the ArrTV icon and TV banner.
+
+**Language**
+- **English and French.** ArrTV follows the device: French when the TV or phone is set to any
+  French, English otherwise. Settings › Appearance › Language picks one for ArrTV only (on
+  Android 13 and newer this is also the system's App languages page).
+
+**Speed and reliability**
+- The guide loads several times faster on low-end boxes (22 s → 6 s on a Chromecast with Google
+  TV HD), paints a small time window first, and stays on screen when memory runs low.
+- Delete Playlist is instant; the playlist's cached data is removed in the background.
+
+## Remote control
+
+Standard buttons in the player (all of them can be changed in Settings › Remote Control):
+
+| Button | Short press | Hold |
+|---|---|---|
+| Up / Down | Next / previous channel | Recently watched / Search |
+| OK | Show the info bar and cards (or the player controls) | Options (info bar style) |
+| Left | The guide (or a channel list from the side, if switched on in Settings › Player) | Back to the guide, playback continues in the corner |
+| Right | Previous channel | Program info |
+| Back | Back to the guide, playback continues in the corner | Stop playback |
+
+In the guide, OK plays the selected channel and holding OK opens the programme menu (reminder, recording, catch-up).
+
+**Remote tour.** The first time a TV has the guide loaded, ArrTV offers a short tour: the app
+moves through the guide and the player by itself while a remote at the side of the screen lights
+up each button and says what it does (in English or French). Back stops it. Start it again any
+time from Settings › Remote Control › Show the remote tutorial.
 
 ## Features
 
-A native Android IPTV client. Stream live TV with a full EPG, browse on-demand movies and series, schedule recordings to a Dispatcharr server or to your device, and watch up to 9 channels at once with Multiview, across phone, tablet, and Google TV / Android TV, with optional Google Drive sync stitching it together.
+Everything from AerioTV, including:
 
-Click each section for the full list:
+- **Live TV and guide**: hardware-accelerated playback (Media3 / ExoPlayer, HLS, DASH, MPEG-TS, HEVC and HDR where the device supports it), a full EPG grid, favorites, hidden groups, reminders, catch-up on channels that support it, and jump to any cached day.
+- **Live Rewind**: pause and rewind live TV from a buffer on the device (Settings › Player).
+- **Multiview**: up to 9 channels at once, with audio on the selected tile.
+- **Recording**: server-side on Dispatcharr (keeps running when the app is closed, with ad breaks marked by Comskip) and local recording on the device for every server type, with start-early and end-late buffers.
+- **Movies and series** from Dispatcharr (with TMDB details) and Xtream Codes, with Continue Watching.
+- **Casting** from a phone to Google Cast devices.
+- **Picture-in-picture**, sleep timer, audio-only mode, subtitle and audio track selection (DVB, closed captions, and teletext subtitle pages such as 888, which most European channels use), stream info, and refresh-rate matching.
+- **LAN / WAN switching**: a separate home address for your server that is used automatically on your home network.
+- **Google Drive sync** (optional).
 
-<details>
-<summary><strong>Live TV & Guide</strong> (Media3 / ExoPlayer playback, list + grid views, EPG, reminders)</summary>
+## Supported servers
 
-- Hardware-accelerated playback on Media3 / ExoPlayer (HLS, DASH, and progressive streams; hardware decode including HEVC HDR)
-- List view plus a full EPG guide (grid on TV and tablet, a List / Guide toggle on phone)
-- Program titles, descriptions, and time slots
-- Channel info card identifies the channel and program when a stream starts
-- Sort channels by number, name, or favorites; reorder favorites by drag
-- Tap to play; manage favorites and per-group visibility from the channel menu
-- Long-press an upcoming program to set a reminder or schedule a recording
-- EPG reminders fire before the program starts, as an in-app banner and a notification
-- EPG window configurable from 6 hours up to the full available window (Settings, Network)
-- Guide zoom (pinch or a discrete scale selector) and a jump-to-now control
-- Channels without guide data are still selectable from the grid
-- Pull to refresh the channel list; per-playlist Refresh EPG
+- **Dispatcharr** (recommended), with username and password or an API key. Server-side recording and Comskip, stream switching, TMDB-rich movie and series details, fast bulk guide loading, network discovery and live updates.
+- **Xtream Codes**, with the URL, username and password from your provider. Live TV, movies and series, local recording.
+- **M3U**, with a playlist URL and an optional XMLTV guide URL. Live TV and local recording.
 
-</details>
+Over-the-air MPEG-2 channels (for example from an HDHomeRun) play on most TV boxes, but many phones and tablets cannot decode MPEG-2. With Dispatcharr, assign those channels an ffmpeg stream profile that converts them to H.264; see the [AerioTV README](https://github.com/jonzey231/AerioTV-Android#ota--hdhomerun-channels-mpeg-2) for the exact parameters.
 
-<details>
-<summary><strong>Multiview</strong> up to 9 streams at once.</summary>
+## Tips for low-end TV boxes
 
-- Watch up to 9 live channels at once in a dynamically sized grid
-- Enter from any playing channel, or stage channels from the guide and launch into Multiview
-- Layouts adapt to tile count, from 1 up to a full 3x3
-- Only the most recently added stream plays audio; tap a tile (or press Select on the remote) to move audio focus
-- Per-tile menu: Make Audio, Full-Screen tile, Audio Track, Subtitle Track, Remove
-- Drag to reorder tiles; double-tap a tile for fullscreen
-- Resource guards: a thermal watchdog, a soft tile limit, and low-memory handling stop new tiles before the device is overwhelmed
+On boxes with little memory and a slow processor (for example the Chromecast with Google TV HD):
 
-</details>
+- Update ArrTV through **App Updates**, so it is prepared for your device during the install.
+- Close apps you are not using. Android keeps them in memory and the whole device slows down when memory runs out.
+- **Live Rewind** writes the channel you watch to storage continuously. Turn it off (Settings › Player) if you do not use pause and rewind.
+- A smaller **Guide Days** setting on the playlist keeps less guide data to load at startup.
 
-<details>
-<summary><strong>DVR Recording</strong> server-side on Dispatcharr, local on every server type.</summary>
+## Building from source
 
-- Schedule live or upcoming programs from the Live TV guide
-- **Dispatcharr server-side recording** continues even when AerioTV is closed (the server runs the recording), ideal for unattended recordings
-- **Local recording on this device**, available for Dispatcharr, Xtream Codes, and M3U
-- Per-recording pre-roll (start early) and post-roll (end late) buffers: None / 5 / 10 / 15 / 30 / 60 min or custom
-- **Remove Commercials (Comskip)** runs server-side on Dispatcharr; toggle it at schedule time or run it after recording
-- DVR tab appears automatically when there is at least one recording, split into Scheduled / Recording / Completed
-- Auto-discovery of recordings scheduled outside the app (Dispatcharr web UI)
-- Play completed recordings in the app, and save server-side recordings to the device
-- A Clear All action for completed recordings
-- Keep-device-awake toggle so a local recording is not interrupted by display sleep
-
-</details>
-
-<details>
-<summary><strong>Movies & TV Shows</strong> (Dispatcharr & Xtream Codes) VOD library, Continue Watching, TMDB-rich metadata.</summary>
-
-- Browse and filter on-demand content by category
-- TMDB-rich metadata on Dispatcharr (backdrop, plot, cast, director, year, rating, runtime; per-episode air dates, ratings, IMDB IDs, and per-episode artwork)
-- Provider-supplied metadata on Xtream Codes (poster, title, one-line plot)
-- Continue Watching resumes movies and episodes, and advances automatically to the next episode in a series
-- Watch progress syncs across devices when Google Drive sync is on
-- Per-playlist VOD toggle in Settings, Edit Playlist
-- Full-library pagination walks past the first page on large libraries
-- Movie and series detail caches make second-opens instant
-
-</details>
-
-<details>
-<summary><strong>Player</strong> chrome, Stream Info, Sleep Timer, PiP, refresh-rate matching, channel-flip.</summary>
-
-- Tap to summon chrome; it auto-fades after a few seconds of inactivity
-- Overflow menu (phone) or Options pills (Android TV) for all secondary controls
-- Audio track and subtitle track selection
-- Playback speed (0.5x to 2x) for on-demand content; not available on live streams
-- Sleep Timer with a countdown
-- Audio Only mode
-- Picture-in-Picture, including auto-PiP when you leave the app during playback
-- Aspect-ratio control
-- **Stream Info overlay** reads codec, resolution, frame rate, decoder (hardware or software), dropped frames, and audio details live from the player, so you see what the device is actually decoding rather than what the upstream server reports
-- **Channel-flip** by swiping up or down (phone) or pressing D-pad up or down (Android TV) during single-stream live playback
-- MediaStyle media notification with the channel logo for lock-screen and Bluetooth controls, plus background audio
-- Display refresh-rate matching for smooth live playback (for example, 50fps content on a 60Hz panel)
-
-</details>
-
-<details>
-<summary><strong>Casting</strong> Google Cast from the phone, with native hand-off to AerioTV on Android TV.</summary>
-
-- Cast live channels from the phone to Google Cast receivers on your network
-- **Android TV / Google TV with AerioTV installed**: the cast hands off to the AerioTV app on the TV, which tunes the channel itself. No phone-side processing, original audio (including AC-3 surround) passes through, full frame rate
-- **Other Cast receivers** (Chromecast, Chromecast Ultra, Cast-enabled TVs without the app): the phone serves the live stream to AerioTV's web receiver, repackaged as HLS with separate video and audio renditions
-- Audio is never transcoded: AAC passes through, and AC-3 or E-AC-3 pass through when the receiver reports it can decode them. If it cannot, AerioTV declines to cast that channel and tells you why. Video is passed through as-is (H.264 is what Cast receivers decode)
-- No Dispatcharr output profile or other server-side configuration is needed. Earlier guidance about a dedicated cast profile is obsolete
-- When casting to the web receiver the phone is the media source, so it has to stay on the same network as the receiver. Weak Wi-Fi on the receiver (for example 2.4 GHz on a Chromecast Ultra) can cause buffering on high-bitrate channels; 5 GHz is recommended
-- The cast card at the bottom of the app controls playback; the X stops the TV and closes the card. On Android TV, pressing stop or exit on the remote ends the cast session and returns to Live TV
-
-</details>
-
-<details>
-<summary><strong>Google Drive Sync</strong> opt-in, set-up-once, no account required to use the app.</summary>
-
-- Server configurations, preferences, VOD watch progress, EPG reminders, favorites and their order, hidden groups, and accent color sync through a private Google Drive AppData folder
-- One-tap Google sign-in
-- Opt-in: AerioTV is fully functional without a Google account
-- Set up once on one device and your other devices pick up the same data on launch
-
-</details>
-
-<details>
-<summary><strong>Android TV</strong> D-pad focus model, mini-player, LAN/WAN switching.</summary>
-
-- Full D-pad navigation with a tvOS-style focus model (focus cards and focus scaling)
-- Options pills for audio, subtitles, speed, sleep timer, and stream info
-- D-pad up or down changes channels during single-stream live playback
-- A mini-player keeps the current stream alive in a corner while you browse the guide or settings
-- Channels and logos sized for living-room viewing
-- LAN / WAN switching: save your home Wi-Fi and a per-playlist LAN URL, and AerioTV routes to the local address at home and the remote address away
-
-</details>
-
-<details>
-<summary><strong>Phone, tablet & foldable</strong> mini-player, gestures, adaptive layouts.</summary>
-
-- A mini-player keeps the stream alive while you browse the guide, settings, or on-demand library
-- Picture-in-Picture and swipe-to-dismiss on the phone player
-- A portrait List / Guide toggle on phones
-- Runs across phones, tablets, and foldables (tested on the Galaxy Z Fold 5)
-
-</details>
-
-## Supported Server Types
-
-AerioTV connects to three different playlist types. Each unlocks a different set of features. If you are choosing between them, the short version is below.
-
-Click each type for the full breakdown:
-
-<details>
-<summary><strong>Dispatcharr Direct Connect</strong> <em>(Recommended)</em> admin username and password, or an API key. <em>Most full-featured option.</em></summary>
-
-[Dispatcharr](https://github.com/Dispatcharr/Dispatcharr) is a self-hosted IPTV middleware that gives users control over their IPTV services. See the linked GitHub.
-
-**What Dispatcharr is uniquely good at**
-
-- **Server-side DVR**: schedule recordings that keep running even when AerioTV is closed or the device is asleep. (Local recording to the device works on every server type, but Dispatcharr is the only one where the server itself runs the recording.)
-- **Comskip (commercial-skip)**: toggle it when scheduling a server-side recording, or run it after the fact from the DVR tab. Comskip runs on the Dispatcharr server, so it is only available for server-side recordings.
-- **Server-side recording playback**: stream completed server recordings directly, no auth headers needed.
-- **Server-side stream failover via channel UUID**: when a primary stream dies mid-playback, Dispatcharr swaps to a backup provider transparently.
-- **TMDB-enriched VOD metadata**: backdrops, plots, cast, director, year, rating, runtime, plus per-episode air dates, TMDB ratings, IMDB IDs, and per-episode artwork, pulled in by Dispatcharr's TMDB scraper. (Xtream Codes also has VOD, but its metadata is whatever the provider supplies, usually poster, title, and a one-line plot.)
-- **Bulk EPG fetch**: one network call returns the grid for every channel via `/api/epg/grid/`. Xtream Codes uses per-stream EPG calls; M3U pulls XMLTV from a separate URL.
-- **Per-server custom User-Agent override**: set it in Settings, Edit Playlist. It is sent on Dispatcharr API requests and on playback, so the value shows up in Dispatcharr's admin Stats panel. Not currently exposed for Xtream Codes or M3U.
-- **External XMLTV URL override** <em>(advanced)</em>: point the EPG at a third-party XMLTV source while keeping channels from Dispatcharr's API.
-- **Auto-discovery of recordings scheduled outside the app**: recordings you scheduled from the Dispatcharr web UI appear in AerioTV's DVR tab within a couple of minutes. Xtream Codes and M3U have no server-side scheduler to discover from.
-
-</details>
-
-<details>
-<summary><strong>Xtream Codes</strong> source URL plus username and password. <em>No self-hosting required.</em></summary>
-
-The Xtream Codes API is what most IPTV providers natively expose. You log in with the username and password your provider gave you, and AerioTV pulls live TV, movies, and series.
-
-**Benefits**
-
-- **No self-hosting.** Most IPTV providers expose an Xtream Codes endpoint by default. Paste the URL, type your credentials, done.
-- **Live TV plus a VOD library.** Movies and series come from the same login as live channels, with no separate EPG or VOD URLs to manage.
-- **Per-playlist VOD toggle.** Settings, Edit Playlist exposes the same "fetch VOD from this playlist" switch Dispatcharr has, so you can keep a secondary playlist's Live TV without loading its VOD library every launch.
-- **Local DVR with pre-roll and post-roll.** Recordings on this device, with the same buffer pickers (None / 5 / 10 / 15 / 30 / 60 min or custom) Dispatcharr server-side recordings get. Recordings continue while the app stays running.
-- **EPG via TVG ID matching.** Most provider EPGs key to Xtream's `tvg_id` field automatically. You can also point an external XMLTV URL at it.
-- **Familiar auth model.** A single username and password.
-
-**Drawbacks**
-
-- **VOD metadata is provider-supplied, not TMDB-enriched.** You typically get the poster, title, and a one-line plot. Per-episode air dates, TMDB ratings, and per-episode artwork are not available.
-- **No server-side DVR.** Recordings are local only, so AerioTV has to keep running for the recording duration. No comskip (Dispatcharr only).
-- **EPG depth varies by provider.** Some give you a few days, some give you a few hours.
-
-</details>
-
-<details>
-<summary><strong>M3U Playlist</strong> direct URL plus an optional XMLTV EPG. <em>Universal compatibility, simplest setup.</em></summary>
-
-A plain M3U playlist is just a list of stream URLs in a text file. It works with any IPTV provider that gives you a playlist URL, including providers that do not support the Xtream Codes API.
-
-**Benefits**
-
-- **Universal compatibility.** If a provider hands you any URL ending in `.m3u` or `.m3u8`, AerioTV can play it.
-- **Fastest setup.** Paste the URL and you are done. No credentials, no server, no scrape time.
-- **No self-hosting.**
-- **Local DVR with pre-roll and post-roll.** Recordings on this device, with the same buffer pickers Xtream Codes and Dispatcharr recordings get. Recordings continue while the app stays running.
-- **Optional separate XMLTV URL** for EPG. Bring your own EPG source if your provider does not include one.
-
-**Drawbacks**
-
-- **No VOD library.** M3U is live TV only, no movies or series. If your provider has VOD, you will need their Xtream Codes endpoint (or a Dispatcharr instance pointed at them) to access it.
-- **No server-side DVR.** Recordings are local only, so AerioTV has to be running for the recording to capture. No comskip (Dispatcharr only).
-- **EPG depends on a separate XMLTV source.** You set the URL yourself, and EPG quality is whatever that source provides.
-- **No stream failover.** When a stream URL stops working, the provider has to fix the playlist. There is no server-side swap like Dispatcharr has.
-- **Large M3U files can be slow to parse** on first launch. A playlist with tens of thousands of channels takes a noticeable beat to ingest.
-
-</details>
-
-## OTA / HDHomeRun Channels (MPEG-2)
-
-Over-the-air broadcast channels (ATSC tuners such as HDHomeRun) carry
-MPEG-2 video. Android TV boxes generally include an MPEG-2 hardware
-decoder, but many phones and tablets do not, so these channels may fail
-to play on handheld devices.
-
-For Dispatcharr users the fix is a one-time server-side transcode:
-create an ffmpeg [Stream Profile](https://dispatcharr.github.io/Dispatcharr-Docs/system/?h=stream+profiles#stream-profiles)
-and assign it to your OTA channels. Command: `ffmpeg`. Parameters
-(paste exactly this, and do NOT include the word `ffmpeg` at the start
-of the parameters field):
+Requirements: Android Studio (or JDK 21 from JetBrains, as `gradle/gradle-daemon-jvm.properties` asks) and the Android SDK 36.
 
 ```
--fflags +discardcorrupt+genpts -user_agent {userAgent} -i {streamUrl} -map 0:v:0 -map 0:a? -vf yadif -c:v libx264 -preset veryfast -tune zerolatency -crf 21 -maxrate 12M -bufsize 24M -g 60 -keyint_min 60 -sc_threshold 0 -c:a ac3 -mpegts_flags +pat_pmt_at_frames+resend_headers+initial_discontinuity -f mpegts pipe:1
-```
-
-This deinterlaces the broadcast and re-encodes it to H.264 with AC-3
-audio, which every device plays natively. Expect roughly one CPU core
-per concurrently watched OTA channel; if your server has a hardware
-encoder, substitute `-c:v h264_qsv` or `-c:v h264_nvenc` for
-`-c:v libx264 -crf 21`. Remember to assign the profile to the OTA
-channels themselves: editing a profile does not move any channel onto
-it.
-
-If your HDHomeRun is a transcode-capable model (EXTEND class), enabling
-its built-in H.264 transcoder is an alternative that needs no server
-CPU at all.
-
-## Tech Stack
-
-- Kotlin 2.3 + Jetpack Compose (Material 3)
-- Compose for TV (`androidx.tv`) for Google TV / Android TV form factors
-- Media3 / ExoPlayer for playback (HLS, DASH, progressive; hardware decode including HEVC HDR)
-- Room (relational data) + DataStore (preferences)
-- Ktor + kotlinx.serialization (Dispatcharr, Xtream Codes, M3U, XMLTV)
-- Hilt (DI), Coroutines + Flow (async), Navigation Compose (routing)
-- Coil (image loading), Google Drive AppData (optional settings and progress sync)
-
-## Requirements for Development
-
-- Android Studio (latest stable)
-- JDK 17 or newer (the JDK bundled with Android Studio works)
-- Android SDK 36 (compile and target), minSdk 26 (Android 8.0)
-
-## Getting Started
-
-Clone the repository and build the debug app:
-
-```
-git clone https://github.com/jonzey231/AerioTV-Android.git
+git clone https://github.com/ckegels/AerioTV-Android.git
 cd AerioTV-Android
-./gradlew :app:assembleDebug
+./gradlew :app:assembleGithubDebug
 ```
 
-Or open the project root in Android Studio and run the `app` configuration on a device or emulator.
+- The `github` flavor contains the in-app updater; the `play` flavor does not.
+- The updater's release repository, its trusted signing certificate and the default theme are Gradle properties, so a build can point them at its own releases:
+  - `aerio.updateRepo=owner/repo` (default: the official AerioTV releases)
+  - `aerio.updateKeySha256=<SHA-256 of the release signing certificate>`
+  - `aerio.defaultTheme=Monochrome` (any theme name; default `Aerio`)
+- The updater only runs in builds signed with the certificate it trusts; debug builds hide it.
+- Google Drive sync needs your own Google Cloud OAuth web client ID in `local.properties` as `GOOGLE_DRIVE_WEB_CLIENT_ID`; without it only sync is disabled.
 
-Optional: Google Drive sync needs your own Google Cloud OAuth Web Client ID in `local.properties` as `GOOGLE_DRIVE_WEB_CLIENT_ID`. The app is fully functional without it; only Drive sync is disabled.
-
-## Project Structure
-
-```
-app/src/main/java/com/aeriotv/android/
-    MainActivity.kt, Navigation.kt, AerioTVApplication.kt
-    core/
-        network/        Ktor clients (Dispatcharr, Xtream Codes, M3U)
-        parser/         M3U + XMLTV parsing
-        playback/       ExoPlayer holder, tuning, refresh-rate matching
-        data/           Room database + DAOs
-        preferences/    DataStore settings
-        sync/           Google Drive AppData sync
-        pip/            Picture-in-Picture
-        wifi/           LAN / WAN home-network detection
-        security/       log sanitization, safe image URLs
-        category/  debug/  di/  system/  tv/
-    feature/
-        livetv/  player/  multiview/  dvr/  ondemand/  channels/
-        onboarding/  settings/  miniplayer/  splash/  favorites/
-        reminders/  watchprogress/  whatsnew/  playlist/  main/
-    ui/
-        adaptive/  scale/  theme/  tv/  textfield/
-```
-
-## Configuration
-
-- On first launch the app presents an onboarding flow where you add your server
-- Server configurations can be carried to another device with Google Drive sync
-- EPG data is cached locally (Room) for instant now-playing on relaunch
-- The EPG window is configurable from 6 hours to the full window in Settings, Network
-- A "Setting Up" screen shows during a slow first sync
-
-## Sideloading
-
-- Download the latest `.apk` from the [Releases](https://github.com/jonzey231/AerioTV-Android/releases) page
-- Install it through your file manager (enable install from unknown sources) or with `adb install path/to/AerioTV.apk`
-- Works on phones, tablets, and Google TV / Android TV
-
-## Building for Release
-
-- App bundle for Google Play: `./gradlew :app:bundleRelease` (requires a `keystore.properties` with your signing config; an absent keystore produces an unsigned release)
-- Standalone APK: `./gradlew :app:assembleRelease`
+The ArrTV source of every release is on its tag (`v<version>`), and the `personal` branch holds the current combined source.
 
 ## License
 
-Copyright (C) 2026 Logan Jones
+ArrTV is a modified version of AerioTV for Android.
 
-AerioTV for Android is free software: you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by the Free
-Software Foundation, either version 3 of the License, or (at your option) any
-later version. See [LICENSE](LICENSE).
+Copyright (C) 2026 Logan Jones (AerioTV)
+Modifications copyright (C) 2026 ckegels (ArrTV)
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ArrTV is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. See [LICENSE](LICENSE).
 
-An additional permission under GPL section 7 covers linking with the proprietary
-Google Play services client libraries. See [LICENSE-EXCEPTIONS.md](LICENSE-EXCEPTIONS.md).
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-Releases up to and including v0.4.20 were published under the MIT License. That
-grant is not revoked: any copy obtained under MIT keeps its MIT rights to that
-snapshot in perpetuity. Everything from the relicensing commit forward is
-GPL-3.0-or-later.
+An additional permission under GPL section 7 covers linking with the proprietary Google Play services client libraries. See [LICENSE-EXCEPTIONS.md](LICENSE-EXCEPTIONS.md).
+
+AerioTV releases up to and including v0.4.20 were published under the MIT License. That grant is not revoked: any copy obtained under MIT keeps its MIT rights to that snapshot in perpetuity. Everything from the relicensing commit forward is GPL-3.0-or-later.
 
 ### Third-party components
 
-AerioTV bundles an FFmpeg build (LGPL-2.1-or-later) and depends on a number of
-Apache-2.0 libraries. The FFmpeg build is configured without `--enable-gpl` and
-enables exactly ten audio decoders: `aac`, `ac3`, `eac3`, `dca`, `truehd`,
-`mlp`, `mp2`, `mp3`, `flac` and `alac`. Anything outside that set relies on the
-device's own hardware decoder. See
-[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for the full list, the exact
-FFmpeg build configuration, and where to obtain the corresponding source. The
-same information is in the app under Settings > About > Open Source Licenses.
+ArrTV bundles an FFmpeg build (LGPL-2.1-or-later) and depends on a number of Apache-2.0 libraries. The FFmpeg build is configured without `--enable-gpl` and enables exactly ten audio decoders: `aac`, `ac3`, `eac3`, `dca`, `truehd`, `mlp`, `mp2`, `mp3`, `flac` and `alac`. Anything outside that set relies on the device's own hardware decoder. See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for the full list, the exact FFmpeg build configuration, and where to obtain the corresponding source. The same information is in the app under Settings › About › Open Source Licenses.
 
-The Apache-2.0 components include AndroidX and Jetpack Compose, Media3 /
-ExoPlayer, Kotlin with kotlinx.coroutines and kotlinx.serialization, Ktor,
-Dagger and Hilt, OkHttp, Okio (Square), Coil, ZXing Core and Reorderable. They
-are used under the Apache License, Version 2.0, whose full text is at
-https://www.apache.org/licenses/LICENSE-2.0 and is also bundled in the app.
+The Apache-2.0 components include AndroidX and Jetpack Compose, Media3 / ExoPlayer, Kotlin with kotlinx.coroutines and kotlinx.serialization, Ktor, Dagger and Hilt, OkHttp, Okio (Square), Coil, ZXing Core and Reorderable. They are used under the Apache License, Version 2.0, whose full text is at https://www.apache.org/licenses/LICENSE-2.0 and is also bundled in the app.
 
-FFmpeg is loaded as a dynamically linked JNI shared object (`libffmpegJNI.so`)
-inside `app/libs/media3-decoder-ffmpeg.aar`, and can be replaced with a modified
-build, as section 6 of the LGPL requires. Build steps are in
-[app/libs/README.md](app/libs/README.md). To receive the corresponding FFmpeg
-source directly, open an issue at
-[github.com/jonzey231/AerioTV-Android/issues](https://github.com/jonzey231/AerioTV-Android/issues).
+FFmpeg is loaded as a dynamically linked JNI shared object (`libffmpegJNI.so`) inside `app/libs/media3-decoder-ffmpeg.aar`, and can be replaced with a modified build, as section 6 of the LGPL requires. Build steps are in [app/libs/README.md](app/libs/README.md).
 
-The Google Play services client libraries (Cast sender, Cast Connect receiver,
-Play services Auth, Google Identity) are proprietary and are used under the
-Android Software Development Kit License Agreement and the Google APIs Terms of
-Service. Linking them with this GPL-licensed program is permitted by an
-additional permission under GPL section 7; see
-[LICENSE-EXCEPTIONS.md](LICENSE-EXCEPTIONS.md).
+The Google Play services client libraries (Cast sender, Cast Connect receiver, Play services Auth, Google Identity) are proprietary and are used under the Android Software Development Kit License Agreement and the Google APIs Terms of Service. Linking them with this GPL-licensed program is permitted by an additional permission under GPL section 7; see [LICENSE-EXCEPTIONS.md](LICENSE-EXCEPTIONS.md).
 
-The four-color Google "G" on the Sign in with Google button
-(`res/drawable/ic_google_g.xml`) is a trademark of Google LLC, used per the
-Google Sign-In branding guidelines.
+The four-color Google "G" on the Sign in with Google button (`res/drawable/ic_google_g.xml`) is a trademark of Google LLC, used per the Google Sign-In branding guidelines.
 
 ### Patents
 
-AerioTV includes independent implementations of audio and video codecs, supplied
-by FFmpeg, that may be covered by patents in some countries. AerioTV is free
-software under GPL-3.0-or-later and grants no patent license of any kind; users
-and redistributors are responsible for compliance with the patent law that
-applies where they live.
+ArrTV includes independent implementations of audio and video codecs, supplied by FFmpeg, that may be covered by patents in some countries. ArrTV is free software under GPL-3.0-or-later and grants no patent license of any kind; users and redistributors are responsible for compliance with the patent law that applies where they live.
 
-Dolby, DTS and other names that appear in this project are trademarks of their
-respective owners, used only to identify the audio formats concerned. AerioTV is
-not affiliated with, endorsed by, or certified by any of them.
+Dolby, DTS and other names that appear in this project are trademarks of their respective owners, used only to identify the audio formats concerned. ArrTV is not affiliated with, endorsed by, or certified by any of them.
 
 ### TMDB attribution
 
-This product uses the TMDB API but is not endorsed or certified by TMDB.
-
-TMDB data and images are used only after a TMDB API key is configured in
-Settings > App Behaviors.
+This product uses the TMDB API but is not endorsed or certified by TMDB. TMDB data and images are used only after a TMDB API key is configured in the app's settings.
 
 ## Support
 
-To report bugs or request features, open an issue at [github.com/jonzey231/AerioTV-Android/issues](https://github.com/jonzey231/AerioTV-Android/issues).
+For problems with ArrTV, open an issue at [github.com/ckegels/AerioTV-Android/issues](https://github.com/ckegels/AerioTV-Android/issues). Please do not report ArrTV problems to the AerioTV project.

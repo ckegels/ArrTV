@@ -48,6 +48,8 @@ import com.aeriotv.android.BuildConfig
 import com.aeriotv.android.Routes
 import com.aeriotv.android.core.update.UpdateState
 import com.aeriotv.android.ui.settings.rememberIsTvDevice
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * Launch-prompt gate for the in-app updater (github flavor; renders nothing
@@ -184,59 +186,53 @@ private fun UpdatePromptBody(
     val bodyText: String
     var notes = ""
     var primaryLabel: String? = null
-    var laterLabel: String? = "Later"
+    var laterLabel: String? = stringResource(R.string.main_update_later)
     var progressPercent: Int? = null
     var indeterminate = false
 
     when (state) {
         is UpdateState.Available -> {
-            titleText = "Update available"
+            titleText = stringResource(R.string.main_update_available_title)
             val mb = state.info.apkSizeBytes / (1024 * 1024)
-            bodyText = "AerioTV ${state.info.versionName} is available (${mb} MB). Update " +
-                "downloads and installs it in one go."
+            bodyText = stringResource(R.string.main_update_available_body, state.info.versionName, mb)
             notes = state.info.notes
-            primaryLabel = "Update"
+            primaryLabel = stringResource(R.string.main_update_action)
         }
         is UpdateState.Downloading -> {
-            titleText = "Downloading update"
+            titleText = stringResource(R.string.main_update_downloading_title)
             bodyText = "AerioTV ${state.info.versionName}"
             progressPercent = state.progressPercent
             laterLabel = null
         }
         is UpdateState.Verifying -> {
-            titleText = "Verifying download"
-            bodyText = "Checking the update's signature and version."
+            titleText = stringResource(R.string.main_update_verifying_title)
+            bodyText = stringResource(R.string.main_update_verifying_body)
             indeterminate = true
             laterLabel = null
         }
         is UpdateState.ReadyToInstall -> {
-            titleText = "Ready to install"
-            bodyText = "AerioTV ${state.info.versionName} is verified and ready. Your " +
-                "channels, settings, and recordings are kept. AerioTV will close to " +
-                "install; reopen it from your home screen."
-            primaryLabel = "Install"
+            titleText = stringResource(R.string.main_update_ready_title)
+            bodyText = stringResource(R.string.main_update_ready_body, state.info.versionName)
+            primaryLabel = stringResource(R.string.main_update_install)
         }
         is UpdateState.AwaitingInstallPermission -> {
-            titleText = "One-time permission needed"
-            bodyText = "Android needs you to allow AerioTV to install updates. Turn on " +
-                "\"Allow from this source\" in the Settings screen, come back, and tap " +
-                "Install. If you've already allowed it, Install continues right away."
+            titleText = stringResource(R.string.main_update_permission_title)
+            bodyText = stringResource(R.string.main_update_permission_body)
             // Routes through install(): proceeds if the grant is in place,
             // reopens the Settings toggle otherwise.
-            primaryLabel = "Install"
+            primaryLabel = stringResource(R.string.main_update_install)
         }
         is UpdateState.Installing -> {
-            titleText = "Installing"
-            bodyText = "Confirm the update in the Android dialog. AerioTV will close to " +
-                "install; reopen it from your home screen. Your data is kept."
+            titleText = stringResource(R.string.main_update_installing_title)
+            bodyText = stringResource(R.string.main_update_installing_body)
             indeterminate = true
             laterLabel = null
         }
         is UpdateState.Error -> {
-            titleText = "Update problem"
+            titleText = stringResource(R.string.main_update_error_title)
             bodyText = state.message
-            primaryLabel = "Try again"
-            laterLabel = "Close"
+            primaryLabel = stringResource(R.string.main_update_try_again)
+            laterLabel = stringResource(R.string.common_close)
         }
         else -> return
     }
@@ -276,7 +272,7 @@ private fun UpdatePromptBody(
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            text = "$pct%",
+            text = stringResource(R.string.main_update_percent, pct),
             style = MaterialTheme.typography.labelMedium.subtext(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

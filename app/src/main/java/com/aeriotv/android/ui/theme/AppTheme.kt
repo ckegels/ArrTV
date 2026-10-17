@@ -1,6 +1,8 @@
 package com.aeriotv.android.ui.theme
 
 import androidx.compose.ui.graphics.Color
+import androidx.annotation.StringRes
+import com.aeriotv.android.R
 
 /**
  * Brand theme presets mirroring iOS AerioTV's AppTheme enum.
@@ -20,7 +22,9 @@ import androidx.compose.ui.graphics.Color
  * uses a darkened accent that keeps the hue but earns real contrast on white.
  */
 enum class AppTheme(
+    /** English name, kept for existing callers; show [displayNameRes]. */
     val displayName: String,
+    @StringRes val displayNameRes: Int,
     val accentPrimary: Color,
     val accentSecondary: Color,
     val appBackground: Color,
@@ -32,6 +36,7 @@ enum class AppTheme(
 ) {
     Aerio(
         displayName = "AerioTV",
+        displayNameRes = R.string.main_theme_aerio,
         accentPrimary = Color(0xFF1AC4D8),
         accentSecondary = Color(0xFF1A8FA8),
         appBackground = Color(0xFF0A1628),
@@ -43,6 +48,7 @@ enum class AppTheme(
     ),
     Midnight(
         displayName = "Midnight",
+        displayNameRes = R.string.main_theme_midnight,
         accentPrimary = Color(0xFF60A5FA),
         accentSecondary = Color(0xFF3B82F6),
         appBackground = Color(0xFF0A0F1A),
@@ -53,6 +59,7 @@ enum class AppTheme(
     ),
     Sunset(
         displayName = "Sunset",
+        displayNameRes = R.string.main_theme_sunset,
         accentPrimary = Color(0xFFFB923C),
         accentSecondary = Color(0xFFF97316),
         appBackground = Color(0xFF0F0A07),
@@ -63,6 +70,7 @@ enum class AppTheme(
     ),
     Forest(
         displayName = "Forest",
+        displayNameRes = R.string.main_theme_forest,
         accentPrimary = Color(0xFF4ADE80),
         accentSecondary = Color(0xFF22C55E),
         appBackground = Color(0xFF080F0A),
@@ -73,6 +81,7 @@ enum class AppTheme(
     ),
     Lavender(
         displayName = "Lavender",
+        displayNameRes = R.string.main_theme_lavender,
         accentPrimary = Color(0xFFA78BFA),
         accentSecondary = Color(0xFF8B5CF6),
         appBackground = Color(0xFF0C0A12),
@@ -83,6 +92,7 @@ enum class AppTheme(
     ),
     Monochrome(
         displayName = "Monochrome",
+        displayNameRes = R.string.main_theme_monochrome,
         accentPrimary = Color(0xFFE2E8F0),
         accentSecondary = Color(0xFF94A3B8),
         appBackground = Color(0xFF0A0A0A),
@@ -100,6 +110,7 @@ enum class AppTheme(
      */
     Slate(
         displayName = "Slate",
+        displayNameRes = R.string.main_theme_slate,
         accentPrimary = Color(0xFF4FC3F7),
         accentSecondary = Color(0xFF29B6F6),
         // Greyer than Material blue-grey (#263238 read too blue next to
@@ -120,6 +131,7 @@ enum class AppTheme(
      */
     Light(
         displayName = "Light",
+        displayNameRes = R.string.main_theme_light,
         // Dark rendition: a lighter teal reads on the near-black ground.
         accentPrimary = Color(0xFF4FB3C2),
         accentSecondary = Color(0xFF3C8A96),

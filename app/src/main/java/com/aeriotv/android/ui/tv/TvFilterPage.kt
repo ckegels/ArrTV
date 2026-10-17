@@ -47,6 +47,8 @@ import androidx.compose.ui.unit.sp
 import com.aeriotv.android.ui.scale.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * Android TV Filter page, ported 1:1 from the tvOS MoviesFilterPage
@@ -99,7 +101,7 @@ fun TvFilterPage(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        text = "Filter",
+                        text = stringResource(R.string.main_filter_title),
                         fontSize = 15.5.sp,
                         lineHeight = 19.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -117,7 +119,7 @@ fun TvFilterPage(
                         if (showAll) {
                             item(key = "__show_all__") {
                                 FilterRow(
-                                    title = "Show All Groups",
+                                    title = stringResource(R.string.main_filter_show_all_groups),
                                     on = false,
                                     accent = true,
                                     modifier = Modifier.focusRequester(firstRow),

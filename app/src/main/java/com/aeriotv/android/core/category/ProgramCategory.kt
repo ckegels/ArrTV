@@ -14,6 +14,8 @@ import androidx.compose.material.icons.filled.Theaters
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.outlined.Mood
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.annotation.StringRes
+import com.aeriotv.android.R
 
 /**
  * Mirrors iOS ProgramCategory (Aerio/Shared/CategoryColor.swift). 11 buckets
@@ -27,7 +29,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
  */
 enum class ProgramCategory(
     val storageSuffix: String,
+    /** English label, kept for existing callers; screens show [labelRes]. */
     val displayName: String,
+    /** The label shown to the user, in the app's language. */
+    @StringRes val labelRes: Int,
     val defaultHex: String,
     val icon: ImageVector,
     val aliases: List<String>,
@@ -35,6 +40,7 @@ enum class ProgramCategory(
     Sports(
         storageSuffix = "sports",
         displayName = "Sports",
+        labelRes = R.string.livetv_category_sports,
         defaultHex = "3949AB",
         icon = Icons.Filled.SportsBasketball,
         aliases = listOf(
@@ -47,6 +53,7 @@ enum class ProgramCategory(
     Movies(
         storageSuffix = "movie",
         displayName = "Movies",
+        labelRes = R.string.livetv_category_movies,
         defaultHex = "5E35B1",
         icon = Icons.Filled.Theaters,
         aliases = listOf(
@@ -56,6 +63,7 @@ enum class ProgramCategory(
     Kids(
         storageSuffix = "kids",
         displayName = "Kids",
+        labelRes = R.string.livetv_category_kids,
         defaultHex = "039BE5",
         icon = Icons.Filled.Diversity1,
         aliases = listOf(
@@ -67,6 +75,7 @@ enum class ProgramCategory(
     News(
         storageSuffix = "news",
         displayName = "News",
+        labelRes = R.string.livetv_category_news,
         defaultHex = "43A047",
         icon = Icons.Filled.Newspaper,
         aliases = listOf(
@@ -78,6 +87,7 @@ enum class ProgramCategory(
     Documentary(
         storageSuffix = "documentary",
         displayName = "Documentary",
+        labelRes = R.string.livetv_category_documentary,
         defaultHex = "6D4C41",
         icon = Icons.Filled.Article,
         aliases = listOf(
@@ -88,6 +98,7 @@ enum class ProgramCategory(
     Drama(
         storageSuffix = "drama",
         displayName = "Drama",
+        labelRes = R.string.livetv_category_drama,
         defaultHex = "C62828",
         icon = Icons.Filled.TheaterComedy,
         aliases = listOf(
@@ -98,6 +109,7 @@ enum class ProgramCategory(
     Comedy(
         storageSuffix = "comedy",
         displayName = "Comedy",
+        labelRes = R.string.livetv_category_comedy,
         defaultHex = "F9A825",
         icon = Icons.Outlined.Mood,
         aliases = listOf("comedy", "sitcom", "stand-up", "stand up"),
@@ -105,6 +117,7 @@ enum class ProgramCategory(
     Reality(
         storageSuffix = "reality",
         displayName = "Reality",
+        labelRes = R.string.livetv_category_reality,
         defaultHex = "EC407A",
         icon = Icons.Filled.Tv,
         aliases = listOf(
@@ -115,6 +128,7 @@ enum class ProgramCategory(
     Educational(
         storageSuffix = "educational",
         displayName = "Educational",
+        labelRes = R.string.livetv_category_educational,
         defaultHex = "00897B",
         icon = Icons.Filled.School,
         aliases = listOf(
@@ -124,6 +138,7 @@ enum class ProgramCategory(
     SciFi(
         storageSuffix = "scifi",
         displayName = "Sci-Fi / Fantasy",
+        labelRes = R.string.livetv_category_scifi,
         defaultHex = "00838F",
         icon = Icons.Filled.AutoAwesome,
         aliases = listOf(
@@ -134,6 +149,7 @@ enum class ProgramCategory(
     Music(
         storageSuffix = "music",
         displayName = "Music",
+        labelRes = R.string.livetv_category_music,
         defaultHex = "D81B60",
         icon = Icons.Filled.MusicNote,
         aliases = listOf("music", "concert", "musical", "música"),

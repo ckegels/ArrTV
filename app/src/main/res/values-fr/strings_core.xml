@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- SourceType.kt -->
+    <string name="core_source_type_m3u_url">URL M3U</string>
+    <string name="core_source_type_dispatcharr_api_key">Dispatcharr (clé API)</string>
+    <string name="core_source_type_dispatcharr_user_pass">Dispatcharr (nom d\'utilisateur et mot de passe)</string>
+
+    <!-- PlaylistEntity.kt -->
+    <string name="core_source_label_dispatcharr_user_pass">Dispatcharr Direct Connect - Nom d\'utilisateur et mot de passe</string>
+    <string name="core_source_label_dispatcharr_admin_key">Dispatcharr Direct Connect - Clé API administrateur</string>
+    <string name="core_source_label_dispatcharr_standard_key">Dispatcharr Direct Connect - Clé API standard</string>
+
+    <!-- ProgramInfoTarget.kt -->
+    <string name="core_recording_fact_recorded">Enregistré le</string>
+    <string name="core_recording_fact_window">Plage horaire</string>
+    <string name="core_recording_fact_window_range">%1$s à %2$s</string>
+    <string name="core_recording_fact_quality">Qualité</string>
+    <string name="core_recording_fact_audio">Audio</string>
+    <string name="core_recording_fact_size">Taille</string>
+    <string name="core_recording_fact_bitrate">Débit</string>
+    <string name="core_recording_fact_format">Format</string>
+    <string name="core_recording_fact_location">Emplacement</string>
+    <string name="core_recording_fact_status">État</string>
+    <string name="core_unit_fps_whole">%1$.0f i/s</string>
+    <string name="core_unit_fps_fraction">%1$.2f i/s</string>
+    <string name="core_unit_size_gb">%1$.2f Go</string>
+    <string name="core_unit_size_mb">%1$.1f Mo</string>
+    <string name="core_unit_mbps_whole">%1$.0f Mbit/s</string>
+    <string name="core_unit_mbps_fraction">%1$.1f Mbit/s</string>
+
+    <!-- DispatcharrCapability.kt -->
+    <string name="core_capability_denied_manage_dvr">Votre compte Dispatcharr peut voir les enregistrements mais pas les gérer. Demandez à l\'administrateur de votre serveur l\'accès à la gestion des enregistrements.</string>
+    <string name="core_capability_denied_view_dvr">Votre compte Dispatcharr n\'a pas accès aux enregistrements. Demandez à l\'administrateur de votre serveur de l\'activer.</string>
+    <string name="core_capability_denied_view_vod">Votre compte Dispatcharr n\'a pas accès aux films. Demandez à l\'administrateur de votre serveur de l\'activer.</string>
+    <string name="core_capability_denied_view_series">Votre compte Dispatcharr n\'a pas accès aux séries. Demandez à l\'administrateur de votre serveur de l\'activer.</string>
+    <string name="core_capability_denied_catchup">Le replay n\'est pas activé pour votre compte Dispatcharr. Demandez à l\'administrateur de votre serveur de l\'activer.</string>
+    <string name="core_capability_denied_switch_stream">Changer de flux nécessite un compte administrateur Dispatcharr. Demandez l\'accès à l\'administrateur de votre serveur.</string>
+    <string name="core_capability_denied_manage_playlists">Votre compte Dispatcharr ne peut pas modifier les playlists du serveur. Demandez l\'accès à l\'administrateur de votre serveur.</string>
+    <string name="core_capability_denied_read_server_settings">Votre compte Dispatcharr ne peut pas lire les paramètres du serveur. Demandez l\'accès à l\'administrateur de votre serveur.</string>
+    <string name="core_capability_network_restricted">Le serveur a refusé cette action alors que votre compte Dispatcharr y est autorisé. Cela indique généralement une restriction réseau sur le compte (réseaux autorisés). Demandez à l\'administrateur de votre serveur d\'autoriser le réseau de cet appareil.</string>
+
+    <!-- DispatcharrClient.kt -->
+    <string name="core_dispatcharr_login_transport_error">Erreur réseau lors de la connexion : %1$s</string>
+    <string name="core_dispatcharr_invalid_credentials">Nom d\'utilisateur ou mot de passe incorrect. AerioTV utilise le mot de passe du tableau de bord Dispatcharr (System -> Users -> onglet Account), pas votre mot de passe XC Dispatcharr.</string>
+    <string name="core_dispatcharr_login_rate_limited">Le serveur limite les tentatives de connexion (HTTP 429). Patientez une minute et réessayez.</string>
+    <string name="core_dispatcharr_login_http_error">Erreur réseau lors de la connexion : HTTP %1$d</string>
+    <string name="core_dispatcharr_login_unexpected">Le serveur a renvoyé une réponse inattendue lors de la connexion. Vérifiez que l\'URL pointe vers une instance Dispatcharr 0.23.0 ou plus récente.</string>
+    <string name="core_dispatcharr_refresh_transport_error">Erreur réseau lors du renouvellement de la session : %1$s</string>
+    <string name="core_dispatcharr_refresh_expired">Le jeton de renouvellement a expiré. AerioTV va se reconnecter avec les identifiants enregistrés.</string>
+    <string name="core_dispatcharr_refresh_http_error">Erreur réseau lors du renouvellement de la session : HTTP %1$d</string>
+    <string name="core_dispatcharr_refresh_unexpected">Le renouvellement de la session a renvoyé une réponse inattendue.</string>
+    <string name="core_dispatcharr_profile_read_failed">Impossible de lire le profil utilisateur : %1$s</string>
+    <string name="core_dispatcharr_profile_read_http">Impossible de lire le profil utilisateur : HTTP %1$d</string>
+    <string name="core_dispatcharr_profile_unexpected">Le serveur a renvoyé un profil utilisateur inattendu. Vérifiez que l\'URL pointe vers une instance Dispatcharr 0.23.0 ou plus récente.</string>
+    <string name="core_dispatcharr_no_api_key">Le compte Dispatcharr « %1$s » n\'a pas de clé API. Dans Dispatcharr, ouvrez System, puis Users, modifiez cet utilisateur et générez une clé API, puis réessayez.</string>
+    <string name="core_dispatchmore_unreachable">Impossible de joindre le serveur : %1$s</string>
+    <string name="core_dispatchmore_reports_not_taken">Ce serveur n\'accepte pas les signalements</string>
+    <string name="core_dispatchmore_server_answered">Le serveur a répondu %1$d</string>
+    <string name="core_dispatchmore_guide_switched_off">Le changement de guide est désactivé sur le serveur</string>
+    <string name="core_dispatchmore_guide_gone">Cette chaîne ou ce guide n\'existe plus</string>
+    <string name="core_dispatcharr_dvr_unauthorized">Dispatcharr a refusé cette requête (non autorisée). Votre session ou votre clé API a peut-être expiré.</string>
+    <string name="core_dispatcharr_connection_check_failed">Échec de la vérification de la connexion : HTTP %1$d %2$s</string>
+    <string name="core_dispatcharr_channel_profile_read_failed">Impossible de lire le profil de chaînes %1$s : HTTP %2$d</string>
+    <string name="core_dispatcharr_channel_profile_unexpected">Le serveur a renvoyé un profil de chaînes inattendu pour l\'identifiant %1$s.</string>
+    <string name="core_dispatcharr_program_detail_failed">Échec du chargement du détail du programme : HTTP %1$d</string>
+    <string name="core_dispatcharr_programs_by_tvg_failed">Échec du chargement des programmes par tvg-id : HTTP %1$d</string>
+    <string name="core_dispatcharr_epg_grid_failed">Échec du chargement de la grille EPG : HTTP %1$d %2$s</string>
+    <string name="core_dispatcharr_current_programs_failed">Échec du chargement des programmes en cours : HTTP %1$d %2$s</string>
+    <string name="core_http_error_from_url">HTTP %1$d %2$s depuis %3$s</string>
+    <string name="core_dispatcharr_unexpected_shape_from">Réponse au format inattendu depuis %1$s : %2$s</string>
+    <string name="core_dispatcharr_api_key_rejected">Dispatcharr a refusé la clé API pour %1$s (HTTP %2$d). L\'administrateur l\'a probablement renouvelée.</string>
+    <string name="core_dispatcharr_catchup_unavailable">Indisponible en raison des priorités de visionnage en cours</string>
+    <string name="core_dispatcharr_recording_create_failed">Échec de la création de l\'enregistrement : HTTP %1$d %2$s</string>
+    <string name="core_dispatcharr_series_rule_create_failed">Échec de la création de la règle de série : HTTP %1$d %2$s</string>
+    <string name="core_dispatcharr_series_rule_evaluate_failed">Échec de l\'évaluation de la règle de série : HTTP %1$d %2$s</string>
+    <string name="core_dispatcharr_recording_fetch_failed">Échec du chargement de l\'enregistrement : HTTP %1$d</string>
+    <string name="core_dispatcharr_recording_update_failed">Échec de la mise à jour de l\'enregistrement : HTTP %1$d %2$s</string>
+    <string name="core_dispatcharr_vod_movies_failed">Échec du chargement des films VOD : HTTP %1$d</string>
+    <string name="core_dispatcharr_vod_movies_unexpected">Format inattendu pour /api/vod/movies/ : %1$s</string>
+    <string name="core_dispatcharr_vod_series_item_failed">Échec du chargement de la série VOD %1$s : HTTP %2$d</string>
+    <string name="core_dispatcharr_vod_series_failed">Échec du chargement des séries VOD : HTTP %1$d</string>
+    <string name="core_dispatcharr_vod_series_unexpected">Format inattendu pour /api/vod/series/ : %1$s</string>
+    <string name="core_dispatcharr_movie_provider_info_failed">Échec du chargement des infos du fournisseur pour le film : HTTP %1$d</string>
+    <string name="core_dispatcharr_series_provider_info_failed">Échec du chargement des infos du fournisseur pour la série : HTTP %1$d</string>
+    <string name="core_dispatcharr_movie_provider_media_failed">Échec du chargement des médias du fournisseur pour le film : HTTP %1$d</string>
+    <string name="core_dispatcharr_series_episodes_failed">Échec du chargement des épisodes de la série : HTTP %1$d</string>
+    <string name="core_dispatcharr_remove_commercials_failed">Échec de la suppression des publicités : HTTP %1$d %2$s</string>
+    <string name="core_dispatcharr_stop_recording_failed">Échec de l\'arrêt de l\'enregistrement : HTTP %1$d %2$s</string>
+    <string name="core_dispatcharr_switch_stream_failed">Échec du changement de flux : HTTP %1$d %2$s body=%3$s</string>
+    <string name="core_dispatcharr_recording_delete_failed">Échec de la suppression de l\'enregistrement : HTTP %1$d %2$s</string>
+
+    <!-- PlaylistFetcher.kt -->
+    <string name="core_fetch_no_data_204">Le serveur a accepté la requête mais n\'a renvoyé aucune donnée (HTTP 204) depuis %1$s. Cela signifie généralement qu\'il n\'a pas pu générer la playlist pour ces identifiants : vérifiez le nom d\'utilisateur et le mot de passe, et que cet appareil est autorisé à se connecter.</string>
+    <string name="core_fetch_empty_response">Le serveur a renvoyé une réponse vide depuis %1$s.</string>
+    <string name="core_fetch_not_enough_space">Espace libre insuffisant pour télécharger cette playlist : il faut environ %1$d Mo, mais seulement %2$d Mo sont libres. Libérez de l\'espace et réessayez.</string>
+    <string name="core_fetch_stalled">Téléchargement bloqué : seulement %1$d Ko reçus au cours des %2$d dernières secondes (%3$d Mo téléchargés jusqu\'ici). Le serveur répond à peine ; réessayez plus tard.</string>
+    <string name="core_fetch_ended_early">Le téléchargement de la playlist s\'est arrêté avant la fin (%1$d Mo sur %2$d Mo). La connexion a été interrompue en cours de route ; veuillez réessayer.</string>
+
+    <!-- PlaylistRepository.kt -->
+    <string name="core_playlist_source_type_later">La prise en charge de %1$s arrivera dans une version ultérieure</string>
+    <string name="core_playlist_username_required">Le nom d\'utilisateur est obligatoire</string>
+    <string name="core_playlist_password_required">Le mot de passe est obligatoire</string>
+    <string name="core_playlist_no_active_for_switch">Aucune playlist active pour changer de flux</string>
+    <string name="core_playlist_xc_no_live_channels">Le serveur n\'a renvoyé aucune chaîne en direct pour ces identifiants. Vérifiez le nom d\'utilisateur et le mot de passe, et que cet appareil est autorisé à se connecter.</string>
+    <string name="core_playlist_imported_file_missing">Le fichier importé est introuvable : %1$s. Importez-le à nouveau depuis Modifier la playlist.</string>
+    <string name="core_playlist_api_key_required">La clé API Dispatcharr est obligatoire</string>
+    <string name="core_playlist_xc_username_required">Le nom d\'utilisateur Xtream Codes est obligatoire</string>
+
+    <!-- XtreamCodesApi.kt -->
+    <string name="core_xc_episode_fallback">Épisode %1$s</string>
+    <string name="core_xc_empty_response">Le serveur a renvoyé une réponse vide pour %1$s.</string>
+    <string name="core_xc_server_error">Le serveur a renvoyé une erreur pour %1$s : %2$s</string>
+
+    <!-- DispatchMoreGuides.kt -->
+    <string name="core_guide_changed_to">Guide remplacé par %1$s</string>
+    <string name="core_dispatchmore_not_a_channel">Cette chaîne n\'appartient pas à ce serveur</string>
+    <string name="core_dispatchmore_no_login_guide">Aucune connexion Dispatcharr pour faire la demande</string>
+    <string name="core_dispatchmore_unreachable_plain">Impossible de joindre le serveur</string>
+
+    <!-- DispatchMoreReports.kt -->
+    <string name="core_report_sent">Signalement envoyé (n° %1$s)</string>
+    <string name="core_report_not_sent">Signalement non envoyé : %1$s</string>
+    <string name="core_dispatchmore_no_login_report">Aucune connexion Dispatcharr pour l\'envoyer</string>
+    <string name="core_report_could_not_send">Impossible d\'envoyer le signalement</string>
+
+    <!-- DispatcharrLiveEvent.kt -->
+    <string name="core_live_lookback_moved">Déplacé vers un autre flux pour un autre spectateur</string>
+
+    <!-- TMDBService.kt -->
+    <string name="core_tmdb_role_director">Réalisateur</string>
+    <string name="core_tmdb_role_creator">Créateur</string>
+
+    <!-- DriveSyncManager.kt -->
+    <string name="core_sync_restore_nothing_in_drive">Rien dans Drive pour l\'instant</string>
+    <string name="core_sync_restore_failed">Restauration impossible</string>
+
+    <!-- SyncCategory.kt -->
+    <string name="core_sync_category_playlists">Playlists et serveurs</string>
+    <string name="core_sync_category_playlists_subtitle">URL M3U, serveurs Dispatcharr, identifiants Xtream (côté serveur uniquement)</string>
+    <string name="core_sync_category_watch_progress">Progression de lecture</string>
+    <string name="core_sync_category_watch_progress_subtitle">Points de reprise des films, épisodes et enregistrements</string>
+    <string name="core_sync_category_reminders">Rappels</string>
+    <string name="core_sync_category_reminders_subtitle">Rappels de programmes planifiés</string>
+    <string name="core_sync_category_favorites">Favoris</string>
+    <string name="core_sync_category_favorites_subtitle">Chaînes favorites + votre ordre personnalisé</string>
+    <string name="core_sync_category_watchlist">Ma liste</string>
+    <string name="core_sync_category_watchlist_subtitle">Films et séries mis de côté pour plus tard, ainsi que les titres masqués</string>
+    <string name="core_sync_category_preferences">Préférences de l\'application</string>
+    <string name="core_sync_category_preferences_subtitle">Thème, mode d\'apparence, couleur d\'accent, onglet par défaut, groupes masqués, personnalisation de la palette</string>
+    <string name="core_sync_category_credentials">Identifiants</string>
+    <string name="core_sync_category_credentials_subtitle">Mots de passe des serveurs + clés API (l\'espace AppData de Drive est privé à l\'application)</string>
+
+    <!-- EpgBadges.kt -->
+    <string name="core_epg_badge_live">DIRECT</string>
+    <string name="core_epg_badge_new">INÉDIT</string>
+    <string name="core_epg_badge_premiere">PREMIÈRE</string>
+    <string name="core_epg_badge_finale">FINALE</string>
+    <string name="core_epg_badge_repeat">REDIFF</string>
+    <string name="core_epg_badge_on_now">EN COURS</string>
+
+    <!-- SkipIntervals.kt -->
+    <plurals name="core_skip_back_seconds">
+        <item quantity="one">Reculer de %d seconde</item>
+        <item quantity="many">Reculer de %d secondes</item>
+        <item quantity="other">Reculer de %d secondes</item>
+    </plurals>
+    <plurals name="core_skip_forward_seconds">
+        <item quantity="one">Avancer de %d seconde</item>
+        <item quantity="many">Avancer de %d secondes</item>
+        <item quantity="other">Avancer de %d secondes</item>
+    </plurals>
+</resources>

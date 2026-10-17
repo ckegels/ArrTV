@@ -38,6 +38,8 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * The link a [TvQrLinkDialog] should present: the dialog title (usually the
@@ -120,7 +122,7 @@ fun TvQrLinkDialog(
                     ) {
                         Image(
                             bitmap = qr.asImageBitmap(),
-                            contentDescription = "QR code for $title",
+                            contentDescription = stringResource(R.string.livetv_qr_code_for, title),
                             filterQuality = FilterQuality.None,
                             modifier = Modifier.size(240.dp),
                         )
@@ -142,7 +144,7 @@ fun TvQrLinkDialog(
                 )
 
                 Spacer(Modifier.height(14.dp))
-                SettingsDialogTextButton(label = "Close", onClick = onDismiss)
+                SettingsDialogTextButton(label = stringResource(R.string.common_close), onClick = onDismiss)
             }
         }
     }

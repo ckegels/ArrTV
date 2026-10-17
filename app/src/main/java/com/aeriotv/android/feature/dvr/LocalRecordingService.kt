@@ -125,7 +125,7 @@ class LocalRecordingService : Service() {
                     reaffirmForeground()
                 } else {
                     val streamUrl = intent.getStringExtra(EXTRA_STREAM_URL).orEmpty()
-                    val title = intent.getStringExtra(EXTRA_TITLE) ?: "Recording"
+                    val title = intent.getStringExtra(EXTRA_TITLE) ?: applicationContext.getString(R.string.media_recording)
                     val channelName = intent.getStringExtra(EXTRA_CHANNEL_NAME) ?: title
                     val apiKey = intent.getStringExtra(EXTRA_API_KEY).orEmpty()
                     val durationMs = intent.getLongExtra(EXTRA_DURATION_MS, 60 * 60 * 1000L)
@@ -141,7 +141,7 @@ class LocalRecordingService : Service() {
                     reaffirmForeground()
                 } else {
                     val fileUrl = intent.getStringExtra(EXTRA_STREAM_URL).orEmpty()
-                    val title = intent.getStringExtra(EXTRA_TITLE) ?: "Recording"
+                    val title = intent.getStringExtra(EXTRA_TITLE) ?: applicationContext.getString(R.string.media_recording)
                     val channelName = intent.getStringExtra(EXTRA_CHANNEL_NAME) ?: title
                     val apiKey = intent.getStringExtra(EXTRA_API_KEY).orEmpty()
                     startDownload(fileUrl, title, channelName, apiKey)
@@ -178,7 +178,7 @@ class LocalRecordingService : Service() {
         )
         activeTitle = title
         ensureNotificationChannel()
-        val notif = buildNotification(title, "Recording…")
+        val notif = buildNotification(title, applicationContext.getString(R.string.media_notif_recording))
         startForegroundCompat(notif)
 
         val recJob = scope.launch {
@@ -310,7 +310,7 @@ class LocalRecordingService : Service() {
         setActive(true)
         activeTitle = title
         ensureNotificationChannel()
-        startForegroundCompat(buildNotification(title, "Saving to device…"))
+        startForegroundCompat(buildNotification(title, applicationContext.getString(R.string.media_notif_saving_to_device)))
 
         val recJob = scope.launch {
             // A multi-GB recording can take minutes; hold the CPU awake (gated
@@ -417,7 +417,7 @@ class LocalRecordingService : Service() {
         val notif = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher)
             .setContentTitle(title)
-            .setContentText(if (success) "Saved to device" else "Save to device failed")
+            .setContentText(if (success) applicationContext.getString(R.string.media_notif_saved_to_device) else applicationContext.getString(R.string.media_notif_save_failed))
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
@@ -589,7 +589,7 @@ class LocalRecordingService : Service() {
      */
     private fun reaffirmForeground() {
         ensureNotificationChannel()
-        startForegroundCompat(buildNotification(activeTitle.ifBlank { "Recording" }, "Recording…"))
+        startForegroundCompat(buildNotification(activeTitle.ifBlank { applicationContext.getString(R.string.media_recording) }, applicationContext.getString(R.string.media_notif_recording)))
     }
 
     private fun stopForegroundCompat() {
@@ -606,10 +606,10 @@ class LocalRecordingService : Service() {
             val mgr = getSystemService(NotificationManager::class.java)
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Local recordings",
+                applicationContext.getString(R.string.media_notif_channel_local_recordings),
                 NotificationManager.IMPORTANCE_LOW,
             ).apply {
-                description = "Ongoing notification while AerioTV is recording a channel to local storage."
+                description = applicationContext.getString(R.string.media_notif_channel_local_recordings_desc)
                 setShowBadge(false)
             }
             mgr.createNotificationChannel(channel)
@@ -636,7 +636,7 @@ class LocalRecordingService : Service() {
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(contentPi)
-            .addAction(android.R.drawable.ic_media_pause, "Stop", stopPi)
+            .addAction(android.R.drawable.ic_media_pause, applicationContext.getString(R.string.media_notif_stop), stopPi)
             .build()
     }
 

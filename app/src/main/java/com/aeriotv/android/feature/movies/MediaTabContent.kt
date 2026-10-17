@@ -1,5 +1,8 @@
 package com.aeriotv.android.feature.movies
 
+import com.aeriotv.android.core.locale.AppText
+import com.aeriotv.android.R
+import androidx.compose.ui.res.stringResource
 import com.aeriotv.android.ui.scale.subtext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -136,8 +139,8 @@ fun MediaTabContent(
             rows.filter { it.vodType == "movie" }.mapNotNull { r ->
                 val m = viewModel.movieByUuid(r.videoId)
                 // A row the player saved before the title was known reads
-                // "On Demand"; without the movie loaded there is nothing to show.
-                if (m == null && (r.title.isBlank() || r.title == "On Demand")) return@mapNotNull null
+                // "On Demand" (in the app's language); without the movie loaded there is nothing to show.
+                if (m == null && (r.title.isBlank() || r.title == "On Demand" || r.title == AppText.get(R.string.ondemand_title))) return@mapNotNull null
                 MediaHeroPage(
                     key = "cw:" + r.videoId, title = m?.let { displayTitle(it.displayName, it.year) } ?: displayTitle(r.title, null),
                     artUrl = m?.posterUrl ?: r.posterUrl, year = m?.year, season = null, episode = null,
@@ -404,7 +407,7 @@ fun MediaTabContent(
             onPlayFromStart = {},
             onDetails = { item?.movieUuid?.let { u -> viewModel.noteMovieTitle(u, page.title); onMovieClick(u) } ?: item?.seriesId?.let(onSeriesClick) },
             onRemove = { item?.let { watchlistVm.remove(it.key) } },
-            removeLabel = "Remove from Watchlist",
+            removeLabel = stringResource(R.string.media_remove_from_watchlist),
             isHidden = item?.key in hiddenTitles,
             onToggleHidden = item?.let { m -> { viewModel.toggleHidden(m.key) } },
         )
@@ -412,7 +415,7 @@ fun MediaTabContent(
     val searchExtras = buildList {
         if (personMatchName != null) add(PageRow("person") {
             Text(
-                "Includes titles with $personMatchName",
+                stringResource(R.string.media_includes_titles_with, personMatchName),
                 style = MaterialTheme.typography.labelMedium.subtext(),
                 color = MaterialTheme.colorScheme.tertiary,
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -422,11 +425,11 @@ fun MediaTabContent(
         if (showProviderPills) add(PageRow("providers") {
             EdgeToEdgePillRow {
                 item(key = "all") {
-                    GenrePill("All Providers", selectedProviderId == null) { viewModel.selectProvider(null, kind == MediaKind.Movies) }
+                    GenrePill(stringResource(R.string.media_all_providers), selectedProviderId == null) { viewModel.selectProvider(null, kind == MediaKind.Movies) }
                 }
                 items(providerIds.size, key = { providerIds[it] }) { i ->
                     val pid = providerIds[i]
-                    GenrePill(state.providerNames[pid] ?: "Provider $pid", selectedProviderId == pid) {
+                    GenrePill(state.providerNames[pid] ?: stringResource(R.string.media_provider_n, pid), selectedProviderId == pid) {
                         viewModel.selectProvider(if (selectedProviderId == pid) null else pid, kind == MediaKind.Movies)
                     }
                 }
@@ -515,16 +518,16 @@ fun MediaTabContent(
         gridState = gridState,
         compact = compact,
         decks = listOf(
-            PageDeck("Continue Watching", heroPages, { it.key }, heroCard),
-            PageDeck("Watchlist", watchlistPages, { it.key }, wlCard),
+            PageDeck(stringResource(R.string.media_continue_watching), heroPages, { it.key }, heroCard),
+            PageDeck(stringResource(R.string.media_watchlist), watchlistPages, { it.key }, wlCard),
         ),
-        headerTitle = if (isSearching) "Results" else kind.libraryTitle,
+        headerTitle = if (isSearching) stringResource(R.string.media_results) else stringResource(kind.libraryTitleRes),
         headerCount = gridItems.size,
         sortMenu = {
             DropdownMenu(expanded = showSort, onDismissRequest = { showSort = false }) {
                 MediaSortOrder.entries.forEach { order ->
                     DropdownMenuItem(
-                        text = { Text(order.label) },
+                        text = { Text(stringResource(order.labelRes)) },
                         trailingIcon = { if (order == sortOrder) Icon(Icons.Filled.Check, contentDescription = null) },
                         onClick = {
                             showSort = false
@@ -542,7 +545,7 @@ fun MediaTabContent(
         query = query,
         onQueryChange = { submitQuery(it) },
         onSearchToggle = { searchActive = !searchActive; if (!searchActive) submitQuery("") },
-        searchPlaceholder = if (kind == MediaKind.Movies) "Search movies" else "Search TV shows",
+        searchPlaceholder = if (kind == MediaKind.Movies) stringResource(R.string.media_search_movies) else stringResource(R.string.media_search_tv_shows),
         isSearching = isSearching,
         searchExtras = searchExtras,
         pills = genrePills,
@@ -557,13 +560,13 @@ fun MediaTabContent(
                 posterUrl = posterUrlFor(item),
                 onClick = open,
                 menu = { close ->
-                    DropdownMenuItem(text = { Text("Details") }, onClick = { close(); open() })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.media_details)) }, onClick = { close(); open() })
                     DropdownMenuItem(
-                        text = { Text(if (item.key in watchlistKeys) "Remove from Watchlist" else "Add to Watchlist") },
+                        text = { Text(if (item.key in watchlistKeys) stringResource(R.string.media_remove_from_watchlist) else stringResource(R.string.media_add_to_watchlist)) },
                         onClick = { close(); watchlistVm.toggle(item) },
                     )
                     DropdownMenuItem(
-                        text = { Text(if (item.key in hiddenTitles) "Unhide" else "Hide") },
+                        text = { Text(if (item.key in hiddenTitles) stringResource(R.string.media_unhide) else stringResource(R.string.media_hide)) },
                         onClick = { close(); viewModel.toggleHidden(item.key) },
                     )
                 },
@@ -571,7 +574,7 @@ fun MediaTabContent(
         },
         emptyContent = {
             if (isLoading || (!isSearching && libraryPending) || (isSearching && (state.isSearching || state.isSearchingSeries))) CircularProgressIndicator()
-            else Text(if (isSearching) "No results" else kind.emptyTitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            else Text(if (isSearching) stringResource(R.string.media_no_results) else stringResource(kind.emptyTitleRes), color = MaterialTheme.colorScheme.onSurfaceVariant)
         },
         railLetters = available,
         // The library is a window over the catalog (GH #109): the rail index

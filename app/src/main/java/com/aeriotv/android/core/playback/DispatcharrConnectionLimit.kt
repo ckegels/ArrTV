@@ -1,5 +1,7 @@
 package com.aeriotv.android.core.playback
 
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
@@ -48,11 +50,12 @@ object DispatcharrConnectionLimit {
      *  its stream limit (see StreamEndVerifier); an unverified clean end keeps
      *  reconnecting on a backoff instead. Says nothing about limits, because
      *  what the user can do about it is press Retry. */
-    val STREAM_ENDED = Notice(
-        kind = Kind.STREAM_ENDED,
-        title = "Stream ended",
-        message = "This stream was stopped by the server. Press Retry to start it again.",
-    )
+    val STREAM_ENDED: Notice
+        get() = Notice(
+            kind = Kind.STREAM_ENDED,
+            title = AppText.get(R.string.player_limit_stream_ended_title),
+            message = AppText.get(R.string.player_limit_stream_ended_message),
+        )
 
     private const val USER_LIMIT_PREFIX = "Stream limit exceeded"
     private const val PROVIDER_LIMIT_PREFIX =
@@ -72,14 +75,13 @@ object DispatcharrConnectionLimit {
         return when {
             code == 429 && reason.startsWith(USER_LIMIT_PREFIX, ignoreCase = true) -> Notice(
                 kind = Kind.USER_STREAM_LIMIT,
-                title = "Too many sessions playing",
+                title = AppText.get(R.string.player_limit_user_title),
                 message = userLimitMessage(reason),
             )
             code == 503 && reason.startsWith(PROVIDER_LIMIT_PREFIX, ignoreCase = true) -> Notice(
                 kind = Kind.PROVIDER_LIMIT,
-                title = "Server is busy",
-                message = "All connections for this channel are in use right now. " +
-                    "Try again in a few minutes, or contact your server administrator.",
+                title = AppText.get(R.string.player_limit_provider_title),
+                message = AppText.get(R.string.player_limit_provider_message),
             )
             else -> null
         }
@@ -87,13 +89,11 @@ object DispatcharrConnectionLimit {
 
     private fun userLimitMessage(reason: String): String {
         val count = Regex("""\((\d+)""").find(reason)?.groupValues?.get(1)?.toIntOrNull()
-        val devices = when (count) {
-            null -> "a limited number of sessions"
-            1 -> "1 session"
-            else -> "$count sessions"
+        return if (count == null) {
+            AppText.get(R.string.player_limit_user_message_unknown)
+        } else {
+            AppText.plural(R.plurals.player_limit_user_message, count, count)
         }
-        return "Your account can play $devices at once, and they are all in use. " +
-            "Stop something that is playing, or contact your server administrator."
     }
 
     /** Load-error policy wrapper: a limit refusal is never retried by Media3

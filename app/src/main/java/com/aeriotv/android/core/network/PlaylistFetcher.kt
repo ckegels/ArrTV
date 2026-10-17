@@ -1,5 +1,7 @@
 package com.aeriotv.android.core.network
 
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import android.util.Log
 import com.aeriotv.android.core.debug.LogSanitizer
 import io.ktor.client.HttpClient
@@ -78,12 +80,9 @@ class PlaylistFetcher @Inject constructor() {
     private fun emptyBodyError(status: Int, url: String): IllegalStateException =
         IllegalStateException(
             if (status == 204) {
-                "The server accepted the request but returned no data (HTTP 204) from " +
-                    "${LogSanitizer.redactUrl(url)}. That usually means it could not build " +
-                    "the playlist for these credentials: check the username and password, " +
-                    "and that this device is allowed to connect."
+                AppText.get(R.string.core_fetch_no_data_204, LogSanitizer.redactUrl(url))
             } else {
-                "The server returned an empty response from ${LogSanitizer.redactUrl(url)}."
+                AppText.get(R.string.core_fetch_empty_response, LogSanitizer.redactUrl(url))
             },
         )
 
@@ -98,7 +97,7 @@ class PlaylistFetcher @Inject constructor() {
         }
         if (!response.status.isSuccess()) {
             throw IllegalStateException(
-                "HTTP ${response.status.value} ${response.status.description} from ${LogSanitizer.redactUrl(url)}",
+                AppText.get(R.string.core_http_error_from_url, response.status.value, response.status.description, LogSanitizer.redactUrl(url)),
             )
         }
         if (response.status.value == 204) throw emptyBodyError(204, url)
@@ -166,7 +165,7 @@ class PlaylistFetcher @Inject constructor() {
             if (validators != null && response.code == 304) return@use null
             if (!response.isSuccessful) {
                 throw IllegalStateException(
-                    "HTTP ${response.code} ${response.message} from ${LogSanitizer.redactUrl(url)}",
+                    AppText.get(R.string.core_http_error_from_url, response.code, response.message, LogSanitizer.redactUrl(url)),
                 )
             }
             if (response.code == 204) throw emptyBodyError(204, url)
@@ -180,9 +179,7 @@ class PlaylistFetcher @Inject constructor() {
             val free = dest.parentFile?.usableSpace ?: Long.MAX_VALUE
             if (expected > 0 && free < expected + SPACE_HEADROOM_BYTES) {
                 throw IllegalStateException(
-                    "Not enough free space to download this playlist: it needs about " +
-                        "${expected / 1_000_000}MB but only ${free / 1_000_000}MB is free. " +
-                        "Free up some space and try again.",
+                    AppText.get(R.string.core_fetch_not_enough_space, expected / 1_000_000, free / 1_000_000),
                 )
             }
             if (expected > LARGE_DOWNLOAD_BYTES) {
@@ -207,10 +204,7 @@ class PlaylistFetcher @Inject constructor() {
                         if (nowMs - windowStart >= THROUGHPUT_WINDOW_MS) {
                             if (windowBytes < THROUGHPUT_FLOOR_BYTES) {
                                 throw IllegalStateException(
-                                    "Download stalled: only ${windowBytes / 1024}KB arrived in the " +
-                                        "last ${THROUGHPUT_WINDOW_MS / 1000}s " +
-                                        "(${total / 1_000_000}MB downloaded so far). " +
-                                        "The server is barely responding; try again later.",
+                                    AppText.get(R.string.core_fetch_stalled, windowBytes / 1024, THROUGHPUT_WINDOW_MS / 1000, total / 1_000_000),
                                 )
                             }
                             windowStart = nowMs
@@ -228,9 +222,7 @@ class PlaylistFetcher @Inject constructor() {
             // truncated body parses into a legitimate-looking partial playlist.
             if (expected > 0 && total < expected) {
                 throw IllegalStateException(
-                    "The playlist download ended early (${total / 1_000_000}MB of " +
-                        "${expected / 1_000_000}MB). The connection dropped part-way " +
-                        "through; please try again.",
+                    AppText.get(R.string.core_fetch_ended_early, total / 1_000_000, expected / 1_000_000),
                 )
             }
             if (expected > LARGE_DOWNLOAD_BYTES) {
@@ -270,7 +262,7 @@ class PlaylistFetcher @Inject constructor() {
     }.execute { response ->
         if (!response.status.isSuccess()) {
             throw IllegalStateException(
-                "HTTP ${response.status.value} ${response.status.description} from ${LogSanitizer.redactUrl(url)}",
+                AppText.get(R.string.core_http_error_from_url, response.status.value, response.status.description, LogSanitizer.redactUrl(url)),
             )
         }
         // See [emptyBodyError]: a 2xx with nothing in it is a failure the caller
@@ -283,9 +275,7 @@ class PlaylistFetcher @Inject constructor() {
         val free = dest.parentFile?.usableSpace ?: Long.MAX_VALUE
         if (expected > 0 && free < expected + SPACE_HEADROOM_BYTES) {
             throw IllegalStateException(
-                "Not enough free space to download this playlist: it needs about " +
-                    "${expected / 1_000_000}MB but only ${free / 1_000_000}MB is free. " +
-                    "Free up some space and try again.",
+                AppText.get(R.string.core_fetch_not_enough_space, expected / 1_000_000, free / 1_000_000),
             )
         }
         if (expected > LARGE_DOWNLOAD_BYTES) {
@@ -315,10 +305,7 @@ class PlaylistFetcher @Inject constructor() {
                     if (nowMs - windowStart >= THROUGHPUT_WINDOW_MS) {
                         if (windowBytes < THROUGHPUT_FLOOR_BYTES) {
                             throw IllegalStateException(
-                                "Download stalled: only ${windowBytes / 1024}KB arrived in the " +
-                                    "last ${THROUGHPUT_WINDOW_MS / 1000}s " +
-                                    "(${total / 1_000_000}MB downloaded so far). " +
-                                    "The server is barely responding; try again later.",
+                                AppText.get(R.string.core_fetch_stalled, windowBytes / 1024, THROUGHPUT_WINDOW_MS / 1000, total / 1_000_000),
                             )
                         }
                         windowStart = nowMs
@@ -341,9 +328,7 @@ class PlaylistFetcher @Inject constructor() {
         // landed means the connection died mid-stream.
         if (expected > 0 && total < expected) {
             throw IllegalStateException(
-                "The playlist download ended early (${total / 1_000_000}MB of " +
-                    "${expected / 1_000_000}MB). The connection dropped part-way " +
-                    "through; please try again.",
+                AppText.get(R.string.core_fetch_ended_early, total / 1_000_000, expected / 1_000_000),
             )
         }
         if (expected > LARGE_DOWNLOAD_BYTES) {

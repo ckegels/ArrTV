@@ -555,7 +555,12 @@ class DispatcharrClient @Inject constructor() {
         val offers: List<LinkOffer>,
         val leads: Boolean = true,
         val together: List<LinkMember> = emptyList(),
+        /** Asked of this device and not answered yet (v268): found here when the socket is down. */
+        val requests: List<LinkAsk> = emptyList(),
     )
+
+    /** Another person's device asking to join this one (v268, the link state's "requests"). */
+    data class LinkAsk(val by: String, val name: String, val user: String, val channelName: String)
 
     /** How a join went: linked on [channel], or another person's device was asked first (v266). */
     sealed interface JoinAnswer {
@@ -590,12 +595,22 @@ class DispatcharrClient @Inject constructor() {
                 leads = (o["leads"] as? JsonPrimitive)?.booleanOrNull ?: true,
             )
         }
+        val requests = (root["requests"] as? kotlinx.serialization.json.JsonArray).orEmpty().mapNotNull { item ->
+            val o = item as? JsonObject ?: return@mapNotNull null
+            LinkAsk(
+                by = o.str("by") ?: return@mapNotNull null,
+                name = o.str("name").orEmpty(),
+                user = o.str("user").orEmpty(),
+                channelName = o.str("channel_name").orEmpty(),
+            )
+        }
         return LinkState(
             linked = (root["linked"] as? JsonPrimitive)?.booleanOrNull == true,
             channel = root.str("channel"),
             offers = offers,
             leads = (root["leads"] as? JsonPrimitive)?.booleanOrNull ?: true,
             together = together,
+            requests = requests,
         )
     }
 

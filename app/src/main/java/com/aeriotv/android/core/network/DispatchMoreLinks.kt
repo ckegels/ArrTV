@@ -298,7 +298,7 @@ class DispatchMoreLinks @Inject constructor(
                     androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.currentState
                         .isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)
                 }
-                if (inFront && target() != null) state()?.let { onGroupChannel(it) }
+                if (inFront && target() != null) state()?.let { onGroupChannel(it); onRequests(it) }
                 kotlinx.coroutines.delay(STATUS_EVERY_MS)
             }
         }
@@ -357,6 +357,22 @@ class DispatchMoreLinks @Inject constructor(
             // Let the fresh connection start and settle before looking again
             kotlinx.coroutines.delay(STEP_SETTLE_MS)
         }
+    }
+
+    /** The requests this device answered lately: the server may still list one for a moment. */
+    private val answered = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    /**
+     * A request to join this device that the socket never brought (it was down): the same
+     * pop-up, from the server's status. One already up, or answered lately, is left alone.
+     */
+    private fun onRequests(state: DispatcharrClient.LinkState) {
+        val now = android.os.SystemClock.elapsedRealtime()
+        answered.entries.removeIf { now - it.value > ANSWERED_KEEP_MS }
+        if (WatchTogether.joinRequest.value != null) return
+        val ask = state.requests.firstOrNull { !answered.containsKey(it.by) } ?: return
+        Log.i(TAG, "${ask.name} asks to join (seen from the server)")
+        WatchTogether.askedToJoin(WatchTogether.JoinRequest(ask.by, ask.name, ask.user, ask.channelName))
     }
 
     /** Since when this device has been linked but on another channel than the group's. */
@@ -469,6 +485,7 @@ class DispatchMoreLinks @Inject constructor(
 
     /** Allow or Decline another person's request to join this device. */
     fun answerInBackground(device: String, allow: Boolean) {
+        answered[device] = android.os.SystemClock.elapsedRealtime()
         scope.launch {
             val (playlistId, base, path) = target() ?: return@launch
             runCatching { auth.withApiKeyRetry(playlistId) { key -> client.answerLink(base, key, path, device, allow) } }
@@ -513,9 +530,12 @@ class DispatchMoreLinks @Inject constructor(
         const val STEP_CHECK_MS = 10_000L
         const val STEP_SETTLE_MS = 20_000L
         // The Join list asked again this often while the app is in front
-        const val STATUS_EVERY_MS = 20_000L
-        // How long another person's answer is waited for (the server keeps the request 30 s)
-        const val ASK_WAIT_MS = 25_000L
+        const val STATUS_EVERY_MS = 10_000L
+        // How long another person's answer is waited for (the server keeps the request 45 s, so a
+        // device whose socket is down finds it in its status, asked every 10 s)
+        const val ASK_WAIT_MS = 40_000L
+        // A request answered is not shown again from a status that still lists it
+        const val ANSWERED_KEEP_MS = 60_000L
         // How often the server is asked while waiting for that answer
         const val ASK_POLL_MS = 3_000L
         // Linked but on another channel than the group's this long: follow it

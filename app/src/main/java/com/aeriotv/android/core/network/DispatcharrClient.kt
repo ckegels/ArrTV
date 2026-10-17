@@ -123,6 +123,9 @@ class DispatcharrClient @Inject constructor() {
             // here keeps every code path well-behaved without scattering
             // Semaphore.withPermit{} across 20+ call sites.
             config {
+                // Which device this is, on every request to a Dispatch More
+                // server (nothing for any other server; see DispatchMore).
+                addInterceptor(DispatchMore.interceptor)
                 dispatcher(
                     Dispatcher().apply {
                         // Cap TOTAL concurrent requests at 4 (covers the rare
@@ -486,6 +489,108 @@ class DispatcharrClient @Inject constructor() {
             else -> null
         }
     }.getOrNull()
+
+    /** What /api/core/capabilities/ said: a Dispatch More server, or not one. */
+    sealed interface DispatchMoreAnswer {
+        data class Present(val server: DispatchMore.Server) : DispatchMoreAnswer
+        /** 404 (stock Dispatcharr), or a contract version we do not know. */
+        data object Absent : DispatchMoreAnswer
+    }
+
+    /**
+     * GET /api/core/capabilities/: whether this server is a Dispatch More
+     * build that takes the app's device headers (app_integration >= 1), and
+     * whether it takes problem reports. Any logged-in user may ask. Null when
+     * the answer says nothing either way (no connection, a 5xx, a 401), so
+     * the caller keeps what it knew.
+     */
+    suspend fun fetchDispatchMoreCapabilities(baseUrl: String, apiKey: String): DispatchMoreAnswer? =
+        runCatching {
+            val url = "${baseUrl.trimEnd('/')}/api/core/capabilities/"
+            val response = client.get(url) { applyAuth(apiKey) }
+            if (response.status.value == 404) return@runCatching DispatchMoreAnswer.Absent
+            if (!response.status.isSuccess()) return@runCatching null
+            val root = response.body<JsonElement>() as? JsonObject ?: return@runCatching null
+            val contract = (root["app_integration"] as? JsonPrimitive)?.intOrNull ?: 0
+            if (contract < 1) return@runCatching DispatchMoreAnswer.Absent
+            DispatchMoreAnswer.Present(
+                DispatchMore.Server(
+                    reports = (root["reports"] as? JsonPrimitive)?.booleanOrNull == true,
+                    reportPath = (root["report_url"] as? JsonPrimitive)?.contentOrNull
+                        ?.takeIf { it.startsWith("/") } ?: DispatchMore.DEFAULT_REPORT_PATH,
+                    build = (root["build"] as? JsonPrimitive)?.contentOrNull.orEmpty(),
+                    devices = (root["devices"] as? JsonPrimitive)?.booleanOrNull == true,
+                    switchHints = (root["switch_hints"] as? JsonPrimitive)?.booleanOrNull == true,
+                    stallSwitch = (root["stall_switch"] as? JsonPrimitive)?.booleanOrNull == true,
+                    fastFailover = (root["fast_failover"] as? JsonPrimitive)?.booleanOrNull == true,
+                    stallPath = (root["stall_url"] as? JsonPrimitive)?.contentOrNull
+                        ?.takeIf { it.startsWith("/") } ?: DispatchMore.DEFAULT_STALL_PATH,
+                ),
+            )
+        }.getOrNull()
+
+    /** The answer to a problem report: the report's id, or why it was refused. */
+    sealed interface ReportAnswer {
+        data class Sent(val id: String) : ReportAnswer
+        data class Refused(val message: String) : ReportAnswer
+    }
+
+    /**
+     * POST a problem report (Dispatch More, contract section 7). 201 carries the
+     * report's id; 403 means the server does not take reports. Never retried:
+     * the user sees the answer and can send again.
+     */
+    suspend fun sendAppReport(baseUrl: String, apiKey: String, path: String, report: JsonObject): ReportAnswer {
+        val response = try {
+            client.post("${baseUrl.trimEnd('/')}$path") {
+                applyAuth(apiKey)
+                contentType(ContentType.Application.Json)
+                setBody(report)
+            }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            return ReportAnswer.Refused("Could not reach the server: ${e.message ?: e::class.simpleName}")
+        }
+        // A rotated key: thrown so withApiKeyRetry logs in again and resends.
+        if (response.status.value == 401) {
+            throw DispatcharrError.Unauthorized("Report refused: 401")
+        }
+        return run {
+            val body = runCatching { response.body<JsonElement>() as? JsonObject }.getOrNull()
+            val id = (body?.get("id") as? JsonPrimitive)?.contentOrNull
+            when {
+                response.status.isSuccess() && id != null -> ReportAnswer.Sent(id)
+                response.status.value == 403 ->
+                    ReportAnswer.Refused("This server does not take reports")
+                else -> ReportAnswer.Refused(
+                    (body?.get("error") as? JsonPrimitive)?.contentOrNull
+                        ?: "The server answered ${response.status.value}",
+                )
+            }
+        }
+    }
+
+    /**
+     * POST a stall (Dispatch More v207, contract "Stutter"): the picture of a
+     * live stream stopped after its first frame. Returns the HTTP status and
+     * the server's `action`; nothing is done with it, the server swaps the
+     * stream in place. 401 is thrown so withApiKeyRetry logs in again.
+     */
+    suspend fun sendAppStall(baseUrl: String, apiKey: String, path: String, stall: JsonObject): Pair<Int, String?> {
+        val response = client.post("${baseUrl.trimEnd('/')}$path") {
+            applyAuth(apiKey)
+            contentType(ContentType.Application.Json)
+            setBody(stall)
+        }
+        if (response.status.value == 401) throw DispatcharrError.Unauthorized("Stall refused: 401")
+        val body = runCatching { response.body<JsonElement>() as? JsonObject }.getOrNull()
+        val action = listOfNotNull(
+            (body?.get("action") as? JsonPrimitive)?.contentOrNull,
+            (body?.get("stream") as? JsonPrimitive)?.contentOrNull,
+            (body?.get("reason") as? JsonPrimitive)?.contentOrNull,
+        ).joinToString(" ").ifBlank { null }
+        return response.status.value to action
+    }
 
     // Cast audio, 2026-09-13: the /api/core/outputprofiles/ fetch and the
     // stereo-AAC pick that lived here are GONE. Cast sessions ingest the

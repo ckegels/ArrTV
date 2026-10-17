@@ -464,8 +464,12 @@ fun GuideScreen(
         }
     }
     val grid = remember { GuideGridState(initialViewportStartMs = System.currentTimeMillis() - 15 * 60_000L) }
-    LaunchedEffect(state.guideWidening) {
-        grid.placeholderTitle = if (state.guideWidening) AppText.get(R.string.common_loading) else AppText.get(R.string.livetv_no_info)
+    // "Loading…" while the guide is still on its way: widening to a new range,
+    // or the first download of a fresh install (no cache yet), which takes
+    // ~20 s on a Chromecast HD and read as a broken guide when it said "No info".
+    val guideOnItsWay = state.guideWidening || state.isEpgLoading
+    LaunchedEffect(guideOnItsWay) {
+        grid.placeholderTitle = if (guideOnItsWay) AppText.get(R.string.common_loading) else AppText.get(R.string.livetv_no_info)
     }
     // Compact modern (TiviMate): the live timeline starts on the half hour.
     LaunchedEffect(modernRows) {

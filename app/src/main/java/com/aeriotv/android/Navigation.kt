@@ -264,6 +264,25 @@ fun AerioTVNavHost(
     // the Watch together list -- over whichever screen is up, the player included
     com.aeriotv.android.feature.player.WatchTogetherPrompts()
     com.aeriotv.android.feature.player.WatchTogetherSheet()
+    com.aeriotv.android.feature.player.WatchTogetherHint()
+    // At the start of the app, once: a link left from before ends, and a device that is
+    // watching -- this login's, or another person's in the house -- is shown on the start card.
+    // Here, not on the guide: a TV opens a stream at once and the guide is never up (the user)
+    LaunchedEffect(Unit) {
+        val together = com.aeriotv.android.core.network.WatchTogether
+        if (together.offerAsked) return@LaunchedEffect
+        together.offerAsked = true
+        // The capabilities probe and the first list land a few seconds into the start
+        kotlinx.coroutines.delay(6_000)
+        repeat(15) {
+            if (together.status.value != null) return@repeat
+            together.refresh()
+            kotlinx.coroutines.delay(1_000)
+        }
+        val answer = together.status.value ?: return@LaunchedEffect
+        if (answer.linked) together.leave()
+        answer.offers.firstOrNull()?.let { together.showHint(it) }
+    }
     val dlGraphEntry = remember(dlCurrentEntry) {
         runCatching { navController.getBackStackEntry(Routes.PLAYLIST_GRAPH) }.getOrNull()
     }
@@ -910,70 +929,7 @@ fun AerioTVNavHost(
                     com.aeriotv.android.core.network.WatchTogether.consumed(request)
                     navController.navigate(Routes.player(channel.id)) { launchSingleTop = true }
                 }
-                var watchOffer by remember {
-                    mutableStateOf<com.aeriotv.android.core.network.DispatcharrClient.LinkOffer?>(null)
-                }
-                LaunchedEffect(state.phase) {
-                    if (state.phase != PlaylistViewModel.Phase.ChannelsReady) return@LaunchedEffect
-                    val together = com.aeriotv.android.core.network.WatchTogether
-                    if (together.offerAsked) return@LaunchedEffect
-                    together.offerAsked = true
-                    // The capabilities probe lands a few seconds into the start
-                    kotlinx.coroutines.delay(5_000)
-                    val answer = linksNav.state() ?: return@LaunchedEffect
-                    if (answer.linked) linksNav.leaveInBackground()
-                    watchOffer = answer.offers.firstOrNull()
-                }
-                watchOffer?.let { offer ->
-                    val joinFocus = remember { androidx.compose.ui.focus.FocusRequester() }
-                    androidx.compose.material3.AlertDialog(
-                        onDismissRequest = { watchOffer = null },
-                        title = { androidx.compose.material3.Text(stringResource(R.string.watch_together_offer_title)) },
-                        text = {
-                            // The server's stand-in for a device that never said its name is
-                            // English: in the app's own language instead
-                            val deviceName = offer.name.takeIf { it.isNotBlank() && it != "another device" }
-                                ?: stringResource(R.string.watch_together_unnamed_device)
-                            val channelName = offer.channelName.ifBlank { offer.channel.take(8) }
-                            androidx.compose.material3.Text(
-                                // Another person's device (v266): asked first, and they lead
-                                if (offer.user.isNotBlank()) {
-                                    stringResource(R.string.watch_together_offer_message_person, offer.user, channelName, deviceName)
-                                } else {
-                                    stringResource(R.string.watch_together_offer_message, deviceName, channelName)
-                                },
-                            )
-                        },
-                        confirmButton = {
-                            androidx.compose.material3.Button(
-                                onClick = {
-                                    watchOffer = null
-                                    com.aeriotv.android.core.network.WatchTogether.join(offer.device)
-                                },
-                                modifier = Modifier.focusRequester(joinFocus),
-                            ) {
-                                androidx.compose.material3.Text(
-                                    stringResource(
-                                        if (offer.user.isNotBlank()) R.string.watch_together_ask
-                                        else R.string.player_join_other_device,
-                                    ),
-                                )
-                            }
-                        },
-                        dismissButton = {
-                            androidx.compose.material3.TextButton(onClick = { watchOffer = null }) {
-                                androidx.compose.material3.Text(stringResource(R.string.watch_together_not_now))
-                            }
-                        },
-                    )
-                    LaunchedEffect(offer) {
-                        // A TV: the remote starts on Join
-                        repeat(5) {
-                            if (runCatching { joinFocus.requestFocus() }.isSuccess) return@LaunchedEffect
-                            kotlinx.coroutines.delay(50)
-                        }
-                    }
-                }
+                // The start-of-app watch together offer is the card in AerioTVNavHost now
 
                 LaunchedEffect(state.phase) {
                     // Skipped onboarding stays in the (empty) app; see

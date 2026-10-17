@@ -124,6 +124,9 @@
     <string name="watch_together_disconnect">Déconnecter</string>
     <string name="watch_together_leads">mène</string>
     <string name="watch_together_close">Fermer</string>
+    <string name="watch_together_hint">%1$s regarde %2$s</string>
+    <string name="watch_together_hint_tv">OK : regarder ensemble</string>
+    <string name="watch_together_hint_phone">Touchez pour regarder ensemble</string>
     <string name="player_watch_here">Regarder ici</string>
     <string name="player_limit_stream_ended_title">Flux terminé</string>
     <string name="player_limit_stream_ended_message">Ce flux a été arrêté par le serveur. Appuyez sur Réessayer pour le relancer.</string>

@@ -128,6 +128,51 @@ object WatchTogether {
     /** The Watch together list is open (the Join button, the player's menu). */
     val sheetOpen = MutableStateFlow(false)
 
+    /** At the start of the app, a device of this login or another person's that is watching:
+     *  a small card top right over whatever plays, for ten seconds (WatchTogetherHint). On a
+     *  TV, OK opens the Watch together list while it is up and Back puts it away. */
+    val hint = MutableStateFlow<DispatcharrClient.LinkOffer?>(null)
+
+    /** The Watch together buttons stand out while the start card is up, and a while after,
+     *  so the eye finds them. */
+    val highlight = MutableStateFlow(false)
+
+    fun showHint(offer: DispatcharrClient.LinkOffer) {
+        hint.value = offer
+        highlight.value = true
+    }
+
+    /** The key the card took on its way down, so its release goes nowhere either. */
+    @Volatile
+    private var swallowUp = -1
+
+    /** MainActivity.dispatchKeyEvent, before anything else: OK opens the list and Back puts the
+     *  card away, only while it is up; every other key passes. */
+    fun hintKey(event: android.view.KeyEvent): Boolean = hintKey(event.action, event.keyCode, event.repeatCount)
+
+    internal fun hintKey(action: Int, keyCode: Int, repeatCount: Int): Boolean {
+        if (action == android.view.KeyEvent.ACTION_UP && keyCode == swallowUp) {
+            swallowUp = -1
+            return true
+        }
+        if (hint.value == null || action != android.view.KeyEvent.ACTION_DOWN || repeatCount != 0) return false
+        return when (keyCode) {
+            android.view.KeyEvent.KEYCODE_DPAD_CENTER, android.view.KeyEvent.KEYCODE_ENTER,
+            android.view.KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                swallowUp = keyCode
+                hint.value = null
+                openSheet()
+                true
+            }
+            android.view.KeyEvent.KEYCODE_BACK -> {
+                swallowUp = keyCode
+                hint.value = null
+                true
+            }
+            else -> false
+        }
+    }
+
     /** The other person's device asked to let this one in, while waiting for the answer. */
     @Volatile
     var asking: String? = null
@@ -197,6 +242,7 @@ object WatchTogether {
     }
 
     fun openSheet() {
+        hint.value = null
         sheetOpen.value = true
         refresh()
     }

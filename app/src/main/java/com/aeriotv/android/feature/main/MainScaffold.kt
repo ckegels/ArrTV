@@ -533,6 +533,8 @@ fun MainScaffold(
     val togetherStatus by com.aeriotv.android.core.network.WatchTogether.status.collectAsStateWithLifecycle()
     val openWatchTogether: (() -> Unit)? =
         if (togetherStatus != null) ({ com.aeriotv.android.core.network.WatchTogether.openSheet() }) else null
+    val togetherHighlight by com.aeriotv.android.core.network.WatchTogether.highlight.collectAsStateWithLifecycle()
+    val togetherLinked by com.aeriotv.android.core.network.WatchTogether.linked.collectAsStateWithLifecycle()
     val defaultTabPref by settingsVm.defaultTab.collectAsStateWithLifecycle(initialValue = "")
 
     var selectedTab by rememberSaveable { mutableStateOf(AppTab.LiveTV) }
@@ -1003,6 +1005,7 @@ fun MainScaffold(
                 ) {
                     TvTopTabBar(
                         onWatchTogether = openWatchTogether,
+                        watchTogetherHighlighted = togetherHighlight || togetherLinked,
                         retainedCount = retainedList.size,
                         onRetainedClick = { showRetainedDialog = true },
                         onRefresh = { viewModel.refreshPlaylist() },
@@ -1097,6 +1100,7 @@ fun MainScaffold(
                         },
                         onFocusChanged = { topNavHasFocusState.value = it },
                         onWatchTogether = openWatchTogether,
+                        watchTogetherHighlighted = togetherHighlight || togetherLinked,
                         onUpdate = if (updateVm.isEnabled) ({ updateVm.manualCheck() }) else null,
                         modifier = Modifier
                             .align(Alignment.TopStart)
@@ -1968,6 +1972,8 @@ private fun TvTopTabBar(
     /** "Watch together": the list of who to join and who is joined (a round button beside
      *  Refresh / Search, also on Settings); null hides it. */
     onWatchTogether: (() -> Unit)? = null,
+    /** Watch together stands out (the start card is up, or someone is joined). */
+    watchTogetherHighlighted: Boolean = false,
     /** Reports the leftmost pixel the bar actually occupies (the action
      *  circles when shown, otherwise the centered capsule) so the top-left
      *  gesture hints can size themselves to the real gutter instead of a
@@ -2164,6 +2170,7 @@ private fun TvTopTabBar(
                             icon = Icons.Outlined.Groups,
                             contentDescription = stringResource(R.string.watch_together_title),
                             onClick = onWatchTogether,
+                            selected = watchTogetherHighlighted,
                         )
                     }
                     // Refresh (TV's pull-to-refresh stand-in), then Search -

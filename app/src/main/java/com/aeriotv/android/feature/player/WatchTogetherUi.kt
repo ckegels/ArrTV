@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -274,11 +276,12 @@ fun watchTogetherAvailable(): Boolean {
 fun WatchTogetherAction() {
     if (!watchTogetherAvailable()) return
     val linked by WatchTogether.linked.collectAsStateWithLifecycle()
+    val highlight by WatchTogether.highlight.collectAsStateWithLifecycle()
     com.aeriotv.android.feature.livetv.LiveTvPhoneCircle(
         icon = Icons.Outlined.Groups,
         contentDescription = stringResource(R.string.watch_together_title),
         onClick = { WatchTogether.openSheet() },
-        active = linked,
+        active = linked || highlight,
     )
 }
 
@@ -287,12 +290,88 @@ fun WatchTogetherAction() {
 fun TvWatchTogetherCircle(modifier: Modifier = Modifier) {
     if (!watchTogetherAvailable()) return
     val linked by WatchTogether.linked.collectAsStateWithLifecycle()
+    val highlight by WatchTogether.highlight.collectAsStateWithLifecycle()
     com.aeriotv.android.ui.tv.TvActionCircle(
         icon = Icons.Outlined.Groups,
         contentDescription = stringResource(R.string.watch_together_title),
         onClick = { WatchTogether.openSheet() },
         modifier = modifier,
-        selected = linked,
+        selected = linked || highlight,
         accentGlyph = true,
     )
+}
+
+
+/** How long the start card stays, and the buttons stand out after it. */
+internal const val HINT_SECONDS = 10
+internal const val HIGHLIGHT_SECONDS = 30
+
+/**
+ * At the start of the app: whom this device could watch together with, as a small card in the
+ * top right corner over whatever is playing -- a TV almost always opens a stream at once, so
+ * a dialog on the guide was never seen (the user, 2026-10-18). Ten seconds, never in the way:
+ * it takes no focus; on a TV, OK opens the Watch together list and Back puts it away
+ * (WatchTogether.hintKey); on a phone, a tap opens it. The Watch together buttons stand out
+ * meanwhile.
+ */
+@Composable
+fun WatchTogetherHint() {
+    val offer by WatchTogether.hint.collectAsStateWithLifecycle()
+    LaunchedEffect(offer) {
+        val shown = offer ?: return@LaunchedEffect
+        kotlinx.coroutines.delay(HINT_SECONDS * 1_000L)
+        if (WatchTogether.hint.value == shown) WatchTogether.hint.value = null
+        kotlinx.coroutines.delay((HIGHLIGHT_SECONDS - HINT_SECONDS) * 1_000L)
+        WatchTogether.highlight.value = false
+    }
+    val current = offer ?: return
+    val tv = com.aeriotv.android.ui.settings.rememberIsTvDevice()
+    androidx.compose.ui.window.Popup(
+        alignment = Alignment.TopEnd,
+        offset = androidx.compose.ui.unit.IntOffset(-24, 24),
+        properties = androidx.compose.ui.window.PopupProperties(focusable = false),
+    ) {
+        androidx.compose.material3.Surface(
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+            color = solidDialog(),
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            tonalElevation = 6.dp,
+            shadowElevation = 8.dp,
+            onClick = { WatchTogether.openSheet() },
+            modifier = Modifier.widthIn(max = 340.dp),
+        ) {
+            Row(
+                modifier = androidx.compose.ui.Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                androidx.compose.material3.Icon(
+                    Icons.Outlined.Groups,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Column {
+                    Text(
+                        stringResource(
+                            R.string.watch_together_hint,
+                            deviceOfPerson(
+                                current.name.takeIf { it.isNotBlank() && it != "another device" }
+                                    ?: stringResource(R.string.watch_together_unnamed_device),
+                                current.user,
+                            ),
+                            current.channelName.ifBlank { current.channel.take(8) },
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        stringResource(if (tv) R.string.watch_together_hint_tv else R.string.watch_together_hint_phone),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+        }
+    }
 }

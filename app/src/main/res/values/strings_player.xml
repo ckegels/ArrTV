@@ -123,6 +123,9 @@
     <string name="watch_together_disconnect">Disconnect</string>
     <string name="watch_together_leads">leads</string>
     <string name="watch_together_close">Close</string>
+    <string name="watch_together_hint">%1$s is watching %2$s</string>
+    <string name="watch_together_hint_tv">OK: watch together</string>
+    <string name="watch_together_hint_phone">Tap to watch together</string>
     <string name="player_watch_here">Watch here</string>
     <string name="player_limit_stream_ended_title">Stream ended</string>
     <string name="player_limit_stream_ended_message">This stream was stopped by the server. Press Retry to start it again.</string>

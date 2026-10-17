@@ -85,6 +85,8 @@ internal fun TvNavRail(
     /** "Watch together" above Settings (not a tab): the list of who to join and who is
      *  joined, one Left press from the guide; null hides it (the server has it off). */
     onWatchTogether: (() -> Unit)? = null,
+    /** Watch together stands out (the start card is up, or someone is joined). */
+    watchTogetherHighlighted: Boolean = false,
     /** "Update" action at the very bottom (not a tab); null hides it. */
     onUpdate: (() -> Unit)? = null,
 ) {
@@ -123,7 +125,7 @@ internal fun TvNavRail(
                 TvNavRailRow(
                     icon = Icons.Outlined.Groups,
                     label = stringResource(R.string.watch_together_title),
-                    selected = false,
+                    selected = watchTogetherHighlighted,
                     onClick = onWatchTogether,
                 )
             }

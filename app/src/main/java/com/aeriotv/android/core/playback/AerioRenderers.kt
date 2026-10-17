@@ -532,12 +532,7 @@ private class AerioMediaCodecVideoRenderer(
         // (queueInputBuffer errno 14 after "discarded an unknown buffer"). So let
         // every other vendor take Media3's stock flush-and-reuse path, which never
         // re-attaches the surface (no generation bump, no race) and is also faster.
-        val name = codecInfo.name.lowercase()
-        val needsForcedReinit =
-            name.startsWith("c2.exynos.") ||
-            name.startsWith("omx.exynos.") ||
-            name.startsWith("omx.samsung.")
-        if (!needsForcedReinit) return evaluation
+        if (!isExynos(codecInfo.name)) return evaluation
         return DecoderReuseEvaluation(
             evaluation.decoderName,
             oldFormat,
@@ -545,6 +540,23 @@ private class AerioMediaCodecVideoRenderer(
             DecoderReuseEvaluation.REUSE_RESULT_NO,
             DecoderReuseEvaluation.DISCARD_REASON_WORKAROUND,
         )
+    }
+
+    /**
+     * The same decoders, when the picture moves to another surface: a new decoder on the new
+     * surface instead of setOutputSurface. A Pixel 9 (c2.exynos.h264.decoder, 2026-10-17) that
+     * started a channel while the window went from the mini player to full screen was moved to
+     * a third surface 60 ms into decoding, and showed for minutes a black frame with only a
+     * smeared band of picture at its top -- every frame predicted from references it no longer
+     * had -- while the Chromecast decoded the same bytes cleanly. A fresh decoder costs a moment
+     * of black and the wait for the next key frame, never minutes.
+     */
+    override fun codecNeedsSetOutputSurfaceWorkaround(name: String): Boolean =
+        isExynos(name) || super.codecNeedsSetOutputSurfaceWorkaround(name)
+
+    private fun isExynos(name: String): Boolean {
+        val n = name.lowercase()
+        return n.startsWith("c2.exynos.") || n.startsWith("omx.exynos.") || n.startsWith("omx.samsung.")
     }
 }
 

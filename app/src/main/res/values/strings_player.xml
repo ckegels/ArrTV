@@ -96,7 +96,7 @@
     <string name="player_option_stop_watch_together">Stop watching together</string>
     <string name="watch_together_offer_title">Watch together?</string>
     <string name="watch_together_offer_message">%1$s is watching %2$s on this login. Join it, and from then on whichever of you changes channel, the other follows.</string>
-    <string name="watch_together_offer_message_person">%1$s is watching %2$s on %3$s. Ask to join? %1$s is asked first; once in, you follow their channel changes, and when you change channel they are asked whether to follow.</string>
+    <string name="watch_together_offer_message_person">%1$s is watching %2$s on %3$s. Ask to join? %1$s is asked first; after that, whenever one of you changes channel, the other is asked whether to follow.</string>
     <string name="watch_together_ask">Ask to join</string>
     <string name="watch_together_unnamed_device">Another device</string>
     <string name="watch_together_not_now">Not now</string>

@@ -113,7 +113,12 @@ class AerioExoPlayerHolder @Inject constructor(
      * press->firstFrame is measured end to end (D-pad zap, number entry,
      * channel-list / recents pick, the guide's select press).
      */
-    fun markTunePress(channelName: String?) = tracer.markPress(channelName)
+    fun markTunePress(channelName: String?) {
+        tracer.markPress(channelName)
+        // A channel the viewer picked: on a login held to one device at a time it is
+        // watched here now, even after another device took over (Dispatch More §5a)
+        com.aeriotv.android.core.network.DispatchMore.takeOver()
+    }
 
     /**
      * Observable mirror of [player] so the persistent PlayerView can REBIND
@@ -237,6 +242,13 @@ class AerioExoPlayerHolder @Inject constructor(
     @Volatile private var cachedBufferFloorMs: Int = com.aeriotv.android.feature.settings.bufferMillisFor("default")
 
     init {
+        // One device at a time (Dispatch More): another TV of this login took over. The
+        // server has closed our stream already; stop now rather than play out the buffer
+        prefScope.launch {
+            DispatcharrConnectionLimit.replaced.collect { notice ->
+                withContext(Dispatchers.Main) { stopForOtherDevice(notice) }
+            }
+        }
         // Server rewind keeps from where playback is while behind live
         prefScope.launch {
             runCatching { timeshift.get().serverRewind.positionProvider = { currentRewindWallMs() } }
@@ -2473,6 +2485,9 @@ class AerioExoPlayerHolder @Inject constructor(
             .setMediaMetadata(mediaMetadata)
             .build()
         tracer.markTuneStart(title, "catchup")
+        // Which device this is, for a login held to one device at a time (and the take-over
+        // the viewer asked for): never the last live tune's headers, which said a channel left
+        tuneHeaders = com.aeriotv.android.core.network.DispatchMore.playbackHeaders(url)
         val staleCalls = takeLiveCallTrackers()
         // Archives stitched with timestamp jumps play through (TsTimestampSmoothingDataSource)
         val source = ProgressiveMediaSource.Factory(
@@ -2688,7 +2703,41 @@ class AerioExoPlayerHolder @Inject constructor(
             tuneHeaders + httpHeaders.filterKeys { !it.equals("User-Agent", ignoreCase = true) },
         )
         if (nonUaHeaders.isNotEmpty()) factory.setDefaultRequestProperties(nonUaHeaders)
-        return factory
+        // Watching together in step: the stream's own clock (LivePtsProbe), read along
+        livePtsOrigin = null
+        return LivePtsProbe.Factory(factory) { pts -> livePtsOrigin = pts }
+    }
+
+    /** The first PTS of the live connection playing now (LivePtsProbe), null until seen. */
+    @Volatile private var livePtsOrigin: Long? = null
+
+    /** Watching together in step: the broadcast moment on screen as a PTS (90 kHz), or null
+     *  when it cannot be told -- not live, playing from the rewind buffer, not playing. Main thread. */
+    fun inStepPosition(): Long? {
+        val p = player ?: return null
+        if (isTimeshifting || isCatchup || !p.isPlaying || _connectionLimit.value != null) return null
+        val origin = livePtsOrigin ?: return null
+        return InStep.shown(origin, p.currentPosition)
+    }
+
+    /**
+     * Watching together in step: a fresh connection to the channel playing. A fresh connection
+     * starts as far behind live as any does, on any device, so two devices tuned fresh are in
+     * step; a device only falls behind afterwards (a stall, a pause, a rewind). Waiting instead,
+     * as the one ahead, left a black screen and the paused player lost its connection and
+     * jumped to live again (the Shield and a Pixel, 2026-10-17). Same channel, never a
+     * take-over; out of a rewind too. Main thread.
+     */
+    fun freshTuneForInStep(reason: String): Boolean {
+        val url = lastPlayUrl ?: return false
+        if (isCatchup || _connectionLimit.value != null || PlaybackTracer.urlKind(url) != "live") return false
+        Log.i(TAG, "[TOGETHER] fresh tune ($reason) ch=$currentChannelId")
+        tracer.recover("watch together: fresh tune ($reason)")
+        playUrl(
+            url, lastPlayTitle, lastPlaySubtitle, lastPlayArtworkUri,
+            drmLicenseType = lastPlayDrmType, drmLicenseKey = lastPlayDrmKey,
+        )
+        return true
     }
 
     /**
@@ -3853,10 +3902,51 @@ class AerioExoPlayerHolder @Inject constructor(
         return true
     }
 
+    /** The socket said another device of this login took over: the same stop and
+     *  notice as the refusal of our next request would bring, only at once. Live and
+     *  look back; not while playing from the local rewind buffer (that ends by itself). */
+    private fun stopForOtherDevice(notice: DispatcharrConnectionLimit.Notice) {
+        if (_connectionLimit.value != null || isTimeshifting) return
+        if (isCatchup) {
+            // Paused or not: the server has closed its session either way
+            if (lastCatchupUrl == null) return
+            Log.w(TAG, "[LIMIT] ${notice.kind} (socket) on look back; stopping, waiting for Watch here")
+            tracer.recover("another device took over; stopping the look back")
+            connectionLimitWasCatchup = true
+            _connectionLimit.value = notice
+            stop()
+            return
+        }
+        val url = lastPlayUrl ?: return
+        if (PlaybackTracer.urlKind(url) != "live") return
+        Log.w(TAG, "[LIMIT] ${notice.kind} (socket) \"${notice.title}\"; stopping, waiting for Watch here")
+        tracer.recover("another device took over; stopping")
+        resetCleanEndBudget()
+        stoppingRetryJob?.cancel()
+        stoppingRetryJob = null
+        reconnectUrl = url
+        reconnectChannelId = currentChannelIdForRebuild ?: currentChannelId ?: reconnectChannelId
+        connectionLimitWasCatchup = false
+        liveFailover.resetWalk()
+        liveFailover.publishServerStatus(null)
+        _connectionLimit.value = notice
+        stop()
+    }
+
+    /** Watch together: the notice goes, and the caller tunes the other device's
+     *  channel (or, when it is this one, [retryUnavailable]) -- never a take-over. */
+    fun clearNoticeForJoin() {
+        _connectionLimit.value = null
+    }
+
     /** Retry button of the connection-limit notice: one fresh tune of what
      *  was refused. */
     fun retryConnectionLimit() {
-        if (_connectionLimit.value == null) return
+        val notice = _connectionLimit.value ?: return
+        // "Watch here": this tune takes the stream back from the other device
+        if (notice.kind == DispatcharrConnectionLimit.Kind.OTHER_DEVICE) {
+            com.aeriotv.android.core.network.DispatchMore.takeOver()
+        }
         _connectionLimit.value = null
         if (connectionLimitWasCatchup) {
             val cu = lastCatchupUrl ?: return

@@ -18,6 +18,71 @@ class DispatcharrLiveEventTest {
     }
 
     @Test
+    fun anotherDeviceTookOver() {
+        // Dispatch More v253 (app_one_device.tell), sent the moment it closes this TV's stream
+        val frame = """{"type": "update", "data": {"type": "device_replaced", "user_id": 1, "device": "3f2a9c1e-0b7d-4e21-9a55-0f1c2d3e4f50", "by": "Pixel 9"}}"""
+        assertEquals(
+            DispatcharrLiveEvent.DeviceReplaced("3f2a9c1e-0b7d-4e21-9a55-0f1c2d3e4f50", "Pixel 9"),
+            DispatcharrLiveEvent.parse(frame),
+        )
+        assertNull(DispatcharrLiveEvent.parse("""{"type": "update", "data": {"type": "device_replaced"}}"""))
+    }
+
+    @Test
+    fun theDeviceWatchedTogetherWithChangedChannel() {
+        // Dispatch More v260 (app_links.mirror)
+        val frame = """{"type": "update", "data": {"type": "linked_channel", "user_id": 1, "channel": "6014de0c", "by": "shield-1", "devices": ["pixel-9"]}}"""
+        assertEquals(
+            DispatcharrLiveEvent.LinkedChannel("6014de0c", "shield-1", listOf("pixel-9")),
+            DispatcharrLiveEvent.parse(frame),
+        )
+        // Who took over, so the replaced device can offer to join it
+        val replaced = """{"type": "update", "data": {"type": "device_replaced", "device": "pixel-9", "by": "SHIELD", "by_device": "shield-1"}}"""
+        assertEquals(
+            DispatcharrLiveEvent.DeviceReplaced("pixel-9", "SHIELD", "shield-1"),
+            DispatcharrLiveEvent.parse(replaced),
+        )
+        // Another device joined this one: linked too
+        assertEquals(
+            DispatcharrLiveEvent.LinkJoined("pixel-9", listOf("shield-1")),
+            DispatcharrLiveEvent.parse("""{"type": "update", "data": {"type": "link_joined", "user_id": 1, "by": "pixel-9", "devices": ["shield-1"]}}"""),
+        )
+        // The other device left: this one watches on alone
+        assertEquals(
+            DispatcharrLiveEvent.LinkEnded(listOf("shield-1")),
+            DispatcharrLiveEvent.parse("""{"type": "update", "data": {"type": "link_ended", "user_id": 1, "devices": ["shield-1"]}}"""),
+        )
+    }
+
+    @Test
+    fun watchingTogetherWithOtherPeople() {
+        // Another person's device asks to join this one
+        assertEquals(
+            DispatcharrLiveEvent.LinkRequest("pixel-9", "Pixel 9", "Yves", "TF1", listOf("shield-1")),
+            DispatcharrLiveEvent.parse("""{"type": "update", "data": {"type": "link_request", "user_id": 1, "user_ids": [1, 2], "by": "pixel-9", "name": "Pixel 9", "user": "Yves", "channel": "u1", "channel_name": "TF1", "devices": ["shield-1"]}}"""),
+        )
+        // Let in: tune the channel; turned away, with why
+        assertEquals(
+            DispatcharrLiveEvent.LinkAccepted("SHIELD", "u1", listOf("pixel-9")),
+            DispatcharrLiveEvent.parse("""{"type": "update", "data": {"type": "link_accepted", "user_id": 1, "by": "shield-1", "name": "SHIELD", "channel": "u1", "devices": ["pixel-9"]}}"""),
+        )
+        assertEquals(
+            DispatcharrLiveEvent.LinkDeclined("SHIELD", "not_allowed", listOf("pixel-9")),
+            DispatcharrLiveEvent.parse("""{"type": "update", "data": {"type": "link_declined", "user_id": 1, "name": "SHIELD", "reason": "not_allowed", "devices": ["pixel-9"]}}"""),
+        )
+        // The one who joined changed channel: follow, or stay
+        assertEquals(
+            DispatcharrLiveEvent.LinkFollowRequest("pixel-9", "Pixel 9", "Yves", "u2", "France 2", listOf("shield-1")),
+            DispatcharrLiveEvent.parse("""{"type": "update", "data": {"type": "link_follow_request", "user_id": 1, "by": "pixel-9", "name": "Pixel 9", "user": "Yves", "channel": "u2", "channel_name": "France 2", "devices": ["shield-1"]}}"""),
+        )
+        // Taken out by the leader, and why
+        assertEquals(
+            DispatcharrLiveEvent.LinkEnded(listOf("pixel-9"), "stayed", "SHIELD"),
+            DispatcharrLiveEvent.parse("""{"type": "update", "data": {"type": "link_ended", "user_id": 1, "devices": ["pixel-9"], "reason": "stayed", "by": "shield-1", "name": "SHIELD"}}"""),
+        )
+    }
+
+    @Test
     fun epgImportFinished() {
         assertEquals(DispatcharrLiveEvent.EpgRefreshed(42), DispatcharrLiveEvent.parse(epgDone))
     }

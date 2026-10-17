@@ -127,6 +127,21 @@
     <string name="main_update_error_title">Update problem</string>
     <string name="main_update_try_again">Try again</string>
     <string name="main_update_percent">%1$d%%</string>
+    <string name="main_update_err_publishing">A new release is being published. Try again in a minute.</string>
+    <string name="main_update_err_check">Update check failed: %1$s</string>
+    <string name="main_update_err_space">Not enough free space to download the update.</string>
+    <string name="main_update_err_download">Download failed: %1$s</string>
+    <string name="main_update_err_recording">A recording is in progress. Finish or stop it, then install the update.</string>
+    <string name="main_update_err_missing">The downloaded update is missing. Download it again.</string>
+    <string name="main_update_err_install">Install failed: %1$s</string>
+    <string name="main_update_err_install_status">Install failed (status %1$d)</string>
+    <string name="main_update_err_incomplete">The download is incomplete (size mismatch). Try again.</string>
+    <string name="main_update_err_not_apk">The downloaded file is not a readable APK.</string>
+    <string name="main_update_err_wrong_app">The downloaded APK is not AerioTV (%1$s).</string>
+    <string name="main_update_err_not_newer">The release\'s version code (%1$d) is not newer than the installed one (%2$d), so Android would refuse it.</string>
+    <string name="main_update_err_no_signature">Could not read the APK\'s signing certificate.</string>
+    <string name="main_update_err_wrong_signature">The APK\'s signing certificate does not match this app. Refusing to install.</string>
+    <string name="main_update_err_permission">Open Settings &gt; Apps &gt; Security and allow AerioTV to install apps, then try again.</string>
 
     <!-- ConfigureSourceScreen.kt -->
     <string name="main_configure_title">Configure</string>

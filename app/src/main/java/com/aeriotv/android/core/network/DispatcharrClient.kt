@@ -526,9 +526,156 @@ class DispatcharrClient @Inject constructor() {
                     rewind = (root["rewind"] as? JsonPrimitive)?.booleanOrNull == true,
                     rewindPath = (root["rewind_url"] as? JsonPrimitive)?.contentOrNull
                         ?.takeIf { it.startsWith("/") } ?: DispatchMore.DEFAULT_REWIND_PATH,
+                    linkDevices = (root["link_devices"] as? JsonPrimitive)?.booleanOrNull == true,
+                    linkPath = (root["link_url"] as? JsonPrimitive)?.contentOrNull
+                        ?.takeIf { it.startsWith("/") } ?: DispatchMore.DEFAULT_LINK_PATH,
                 ),
             )
         }.getOrNull()
+
+    /** Watch together (Dispatch More v260): another device of the login watching a channel. */
+    /** A device this one may join. [user]: whose it is when it is another person's (v266), else empty. */
+    data class LinkOffer(
+        val device: String,
+        val name: String,
+        val channel: String,
+        val channelName: String,
+        val user: String = "",
+    )
+
+    /** A device this one watches together with (v266): [user] when another person's, and
+     *  whether it [leads]. */
+    data class LinkMember(val device: String, val name: String, val user: String, val leads: Boolean)
+
+    /** What the server said about this device and watching together; null when it said nothing.
+     *  [leads]: this device's channel changes are followed without asking (v266). */
+    data class LinkState(
+        val linked: Boolean,
+        val channel: String?,
+        val offers: List<LinkOffer>,
+        val leads: Boolean = true,
+        val together: List<LinkMember> = emptyList(),
+    )
+
+    /** How a join went: linked on [channel], or another person's device was asked first (v266). */
+    sealed interface JoinAnswer {
+        data class Linked(val channel: String) : JoinAnswer
+        data class Asked(val name: String, val user: String) : JoinAnswer
+    }
+
+    private fun JsonObject.str(key: String): String? = (this[key] as? JsonPrimitive)?.contentOrNull
+
+    /** GET the link url: what this device (its device header) may join, and whether it is linked. */
+    suspend fun fetchLinkState(baseUrl: String, apiKey: String, path: String): LinkState? {
+        val response = client.get("${baseUrl.trimEnd('/')}$path") { applyAuth(apiKey) }
+        if (response.status.value == 401) throw DispatcharrError.Unauthorized("Link refused: 401")
+        if (!response.status.isSuccess()) return null
+        val root = response.body<JsonElement>() as? JsonObject ?: return null
+        val offers = (root["offers"] as? kotlinx.serialization.json.JsonArray).orEmpty().mapNotNull { item ->
+            val o = item as? JsonObject ?: return@mapNotNull null
+            LinkOffer(
+                device = o.str("device") ?: return@mapNotNull null,
+                name = o.str("name").orEmpty(),
+                channel = o.str("channel") ?: return@mapNotNull null,
+                channelName = o.str("channel_name").orEmpty(),
+                user = o.str("user").orEmpty(),
+            )
+        }
+        val together = (root["together"] as? kotlinx.serialization.json.JsonArray).orEmpty().mapNotNull { item ->
+            val o = item as? JsonObject ?: return@mapNotNull null
+            LinkMember(
+                device = o.str("device") ?: return@mapNotNull null,
+                name = o.str("name").orEmpty(),
+                user = o.str("user").orEmpty(),
+                leads = (o["leads"] as? JsonPrimitive)?.booleanOrNull ?: true,
+            )
+        }
+        return LinkState(
+            linked = (root["linked"] as? JsonPrimitive)?.booleanOrNull == true,
+            channel = root.str("channel"),
+            offers = offers,
+            leads = (root["leads"] as? JsonPrimitive)?.booleanOrNull ?: true,
+            together = together,
+        )
+    }
+
+    /** POST {"join": device}: linked on its channel, asked first when it is another person's
+     *  (202, v266), or null when it is not watching now. */
+    suspend fun joinLink(baseUrl: String, apiKey: String, path: String, device: String): JoinAnswer? {
+        val response = client.post("${baseUrl.trimEnd('/')}$path") {
+            applyAuth(apiKey)
+            contentType(ContentType.Application.Json)
+            setBody(JsonObject(mapOf("join" to JsonPrimitive(device))))
+        }
+        if (response.status.value == 401) throw DispatcharrError.Unauthorized("Link refused: 401")
+        if (!response.status.isSuccess()) return null
+        val body = response.body<JsonElement>() as? JsonObject ?: return null
+        if ((body["pending"] as? JsonPrimitive)?.booleanOrNull == true) {
+            return JoinAnswer.Asked(body.str("name").orEmpty(), body.str("user").orEmpty())
+        }
+        return body.str("channel")?.let { JoinAnswer.Linked(it) }
+    }
+
+    /** POST {"answer": device, "allow"}: another person's request to join this device (v266). */
+    suspend fun answerLink(baseUrl: String, apiKey: String, path: String, device: String, allow: Boolean): Boolean {
+        val response = client.post("${baseUrl.trimEnd('/')}$path") {
+            applyAuth(apiKey)
+            contentType(ContentType.Application.Json)
+            setBody(JsonObject(mapOf("answer" to JsonPrimitive(device), "allow" to JsonPrimitive(allow))))
+        }
+        if (response.status.value == 401) throw DispatcharrError.Unauthorized("Link refused: 401")
+        return response.status.isSuccess()
+    }
+
+    /** POST {"stay": device}: this device stays on its channel, the other person's device leaves (v266). */
+    suspend fun stayInLink(baseUrl: String, apiKey: String, path: String, device: String) {
+        val response = client.post("${baseUrl.trimEnd('/')}$path") {
+            applyAuth(apiKey)
+            contentType(ContentType.Application.Json)
+            setBody(JsonObject(mapOf("stay" to JsonPrimitive(device))))
+        }
+        if (response.status.value == 401) throw DispatcharrError.Unauthorized("Link refused: 401")
+    }
+
+    /** DELETE ?device=: take another person's device out of the group this device leads (v266). */
+    suspend fun removeFromLink(baseUrl: String, apiKey: String, path: String, device: String): Boolean {
+        val response = client.delete("${baseUrl.trimEnd('/')}$path") {
+            applyAuth(apiKey)
+            url { parameters.append("device", device) }
+        }
+        if (response.status.value == 401) throw DispatcharrError.Unauthorized("Link refused: 401")
+        return response.status.isSuccess()
+    }
+
+    /** Watching together in step: another linked device's latest position on the same channel. */
+    data class LinkPosition(val device: String, val name: String, val pts: Long, val atMs: Long)
+
+    /** POST this device's position ({"position": {pts, at}}); the others' come back. */
+    suspend fun reportLinkPosition(baseUrl: String, apiKey: String, path: String, pts: Long, atMs: Long): List<LinkPosition> {
+        val response = client.post("${baseUrl.trimEnd('/')}$path") {
+            applyAuth(apiKey)
+            contentType(ContentType.Application.Json)
+            setBody(JsonObject(mapOf("position" to JsonObject(mapOf("pts" to JsonPrimitive(pts), "at" to JsonPrimitive(atMs))))))
+        }
+        if (response.status.value == 401) throw DispatcharrError.Unauthorized("Link refused: 401")
+        if (!response.status.isSuccess()) return emptyList()
+        val others = ((response.body<JsonElement>() as? JsonObject)?.get("others") as? kotlinx.serialization.json.JsonArray).orEmpty()
+        return others.mapNotNull { item ->
+            val o = item as? JsonObject ?: return@mapNotNull null
+            LinkPosition(
+                device = o.str("device") ?: return@mapNotNull null,
+                name = o.str("name").orEmpty(),
+                pts = (o["pts"] as? JsonPrimitive)?.longOrNull ?: return@mapNotNull null,
+                atMs = (o["at"] as? JsonPrimitive)?.longOrNull ?: return@mapNotNull null,
+            )
+        }
+    }
+
+    /** DELETE the link url: this device stops watching together. */
+    suspend fun leaveLink(baseUrl: String, apiKey: String, path: String) {
+        val response = client.delete("${baseUrl.trimEnd('/')}$path") { applyAuth(apiKey) }
+        if (response.status.value == 401) throw DispatcharrError.Unauthorized("Link refused: 401")
+    }
 
     /** The answer to a problem report: the report's id, or why it was refused. */
     sealed interface ReportAnswer {

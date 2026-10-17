@@ -1,5 +1,7 @@
 package com.aeriotv.android.core.ui
 
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -36,7 +38,8 @@ val EpgNewGreen = Color(0xFF27AE60)
 val EpgPremierePurple = Color(0xFF9B59B6)
 val EpgRepeatGray = Color(0xFF8A8F98)
 
-data class EpgFlag(val label: String, val color: Color)
+/** [key] is the English name the hidden-badges setting stores; [label] is shown. */
+data class EpgFlag(val label: String, val color: Color, val key: String = label)
 
 /**
  * Whether EPG badges (flags + season/episode pill) render. Provided at the Live
@@ -100,11 +103,11 @@ fun epgFlagsOf(
     isFinale: Boolean,
     isRepeat: Boolean,
 ): List<EpgFlag> = buildList {
-    if (isLiveBroadcast) add(EpgFlag("LIVE", EpgLiveRed))
-    if (isNew) add(EpgFlag("NEW", EpgNewGreen))
-    if (isPremiere) add(EpgFlag("PREMIERE", EpgPremierePurple))
-    if (isFinale) add(EpgFlag("FINALE", EpgPremierePurple))
-    if (isRepeat && !isNew) add(EpgFlag("REPEAT", EpgRepeatGray))
+    if (isLiveBroadcast) add(EpgFlag(AppText.get(R.string.core_epg_badge_live), EpgLiveRed, "LIVE"))
+    if (isNew) add(EpgFlag(AppText.get(R.string.core_epg_badge_new), EpgNewGreen, "NEW"))
+    if (isPremiere) add(EpgFlag(AppText.get(R.string.core_epg_badge_premiere), EpgPremierePurple, "PREMIERE"))
+    if (isFinale) add(EpgFlag(AppText.get(R.string.core_epg_badge_finale), EpgPremierePurple, "FINALE"))
+    if (isRepeat && !isNew) add(EpgFlag(AppText.get(R.string.core_epg_badge_repeat), EpgRepeatGray, "REPEAT"))
 }
 
 fun EPGProgramme.epgFlags(): List<EpgFlag> =
@@ -115,7 +118,7 @@ fun ProgramInfoTarget.epgFlags(): List<EpgFlag> =
 
 /** "S3 E5" / "S3" / "E5", or null when neither number is known. */
 fun seasonEpisodeLabel(season: Int?, episode: Int?): String? = when {
-    season != null && episode != null -> "S$season E$episode"
+    season != null && episode != null -> AppText.get(R.string.media_season_episode_short, season, episode)
     season != null -> "S$season"
     episode != null -> "E$episode"
     else -> null
@@ -161,7 +164,7 @@ fun EpgFlagsRow(
     spacing: androidx.compose.ui.unit.Dp = if (compact) 3.dp else 4.dp,
 ) {
     val hidden = LocalHiddenEpgBadges.current
-    val shown = if (hidden.isEmpty()) flags else flags.filter { it.label !in hidden }
+    val shown = if (hidden.isEmpty()) flags else flags.filter { it.key !in hidden }
     if (shown.isEmpty()) return
     Row(
         modifier = modifier,

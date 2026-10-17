@@ -1,5 +1,8 @@
 package com.aeriotv.android.feature.settings
 
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.aeriotv.android.R
 import com.aeriotv.android.ui.scale.subtext
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -104,7 +107,7 @@ fun PlaylistsScreen(
         CenterAlignedTopAppBar(
             title = {
                 Text(
-                    text = "Playlists",
+                    text = stringResource(R.string.settings_playlists_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
@@ -115,7 +118,7 @@ fun PlaylistsScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.common_back),
                             tint = MaterialTheme.colorScheme.primary,
                         )
                     }
@@ -125,12 +128,12 @@ fun PlaylistsScreen(
                 if (isTv) {
                     // Focusable pill inset to the overscan margin; a bare
                     // IconButton has no visible D-pad focus state.
-                    SettingsHeaderTextButton(label = "Add", onClick = onAddPlaylist)
+                    SettingsHeaderTextButton(label = stringResource(R.string.common_add), onClick = onAddPlaylist)
                 } else {
                     IconButton(onClick = onAddPlaylist) {
                         Icon(
                             imageVector = Icons.Filled.Add,
-                            contentDescription = "Add playlist",
+                            contentDescription = stringResource(R.string.settings_playlists_add_playlist),
                             tint = MaterialTheme.colorScheme.primary,
                         )
                     }
@@ -148,8 +151,8 @@ fun PlaylistsScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = if (isTv) "No saved playlists. Select Add above to add one."
-                    else "No saved playlists. Tap + to add one.",
+                    text = if (isTv) stringResource(R.string.settings_playlists_empty_tv)
+                    else stringResource(R.string.settings_playlists_empty_phone),
                     style = MaterialTheme.typography.bodyMedium.subtext(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -223,7 +226,7 @@ fun PlaylistsScreen(
                             {
                                 Icon(
                                     imageVector = Icons.Filled.Menu,
-                                    contentDescription = "Drag to reorder",
+                                    contentDescription = stringResource(R.string.settings_playlists_drag_to_reorder),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier
                                         .draggableHandle(
@@ -253,13 +256,13 @@ fun PlaylistsScreen(
                 title = pl.name,
                 actions = buildList {
                     if (index > 0) {
-                        add(TvMenuAction("Move Up", Icons.Filled.KeyboardArrowUp) { moveTo(index - 1) })
+                        add(TvMenuAction(stringResource(R.string.settings_playlists_move_up), Icons.Filled.KeyboardArrowUp) { moveTo(index - 1) })
                     }
                     if (index in 0 until workingOrder.lastIndex) {
-                        add(TvMenuAction("Move Down", Icons.Filled.KeyboardArrowDown) { moveTo(index + 1) })
+                        add(TvMenuAction(stringResource(R.string.settings_playlists_move_down), Icons.Filled.KeyboardArrowDown) { moveTo(index + 1) })
                     }
-                    add(TvMenuAction("Delete", Icons.Filled.Delete, destructive = true) { pendingDelete = pl })
-                    add(TvMenuAction("Cancel", Icons.Filled.Close) {})
+                    add(TvMenuAction(stringResource(R.string.common_delete), Icons.Filled.Delete, destructive = true) { pendingDelete = pl })
+                    add(TvMenuAction(stringResource(R.string.common_cancel), Icons.Filled.Close) {})
                 },
                 guard = tvGuard,
                 onDismiss = { menuFor = null },
@@ -271,16 +274,15 @@ fun PlaylistsScreen(
     pendingDelete?.let { pl ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text("Delete playlist?") },
+            title = { Text(stringResource(R.string.settings_playlists_delete_title)) },
             text = {
                 Text(
-                    "This removes \"${pl.name}\" and its credentials from this device. " +
-                        if (pl.id == activeId) "The next playlist on the list will be activated." else "",
+                    stringResource(if (pl.id == activeId) R.string.settings_playlists_delete_text_active else R.string.settings_playlists_delete_text, pl.name),
                 )
             },
             confirmButton = {
                 SettingsDialogTextButton(
-                    label = "Delete",
+                    label = stringResource(R.string.common_delete),
                     destructive = true,
                     onClick = {
                         val id = pl.id
@@ -290,7 +292,7 @@ fun PlaylistsScreen(
                 )
             },
             dismissButton = {
-                SettingsDialogTextButton(label = "Cancel", onClick = { pendingDelete = null })
+                SettingsDialogTextButton(label = stringResource(R.string.common_cancel), onClick = { pendingDelete = null })
             },
         )
     }
@@ -338,7 +340,7 @@ private fun PlaylistRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = "${playlist.channelCount} channels • ${playlist.sourceType}",
+                text = pluralStringResource(R.plurals.settings_playlists_row_subtitle, playlist.channelCount, playlist.channelCount, playlist.sourceType),
                 style = MaterialTheme.typography.bodySmall.subtext(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
@@ -348,7 +350,7 @@ private fun PlaylistRow(
         if (isActive) {
             Icon(
                 imageVector = Icons.Filled.CheckCircle,
-                contentDescription = "Active",
+                contentDescription = stringResource(R.string.settings_playlists_active),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp),
             )
@@ -412,7 +414,7 @@ private fun SwipeablePlaylistRow(
                 ) Alignment.CenterStart else Alignment.CenterEnd,
             ) {
                 Text(
-                    text = "Delete",
+                    text = stringResource(R.string.common_delete),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onError,
                     fontWeight = FontWeight.Bold,

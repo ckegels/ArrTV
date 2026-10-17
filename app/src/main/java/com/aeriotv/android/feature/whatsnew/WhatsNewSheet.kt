@@ -43,6 +43,9 @@ import com.aeriotv.android.ui.FormFactorModal
 import com.aeriotv.android.ui.settings.rememberIsTvDevice
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.launch
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * Modal bottom sheet that surfaces the headline changes in a fresh app build.
@@ -88,7 +91,7 @@ private fun ColumnScope.WhatsNewBody(
 ) {
     val isTv = rememberIsTvDevice()
     Text(
-        text = "What's New in v$version",
+        text = stringResource(R.string.main_whats_new_title, version),
         style = MaterialTheme.typography.headlineSmall,
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onSurface,
@@ -214,15 +217,16 @@ private fun WhatsNewRow(
             .padding(horizontal = 8.dp, vertical = 8.dp),
     ) {
         Text(
-            text = item.title,
+            text = stringResource(item.title),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.textAccent,
         )
-        if (item.body.isNotBlank()) {
+        val body = stringResource(item.body)
+        if (body.isNotBlank()) {
             Spacer(Modifier.height(2.dp))
             Text(
-                text = item.body,
+                text = body,
                 style = MaterialTheme.typography.bodyMedium.subtext(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -290,35 +294,35 @@ fun WhatsNewSheetOnDemand(onDismiss: () -> Unit) {
     )
 }
 
-data class WhatsNewItem(val title: String, val body: String)
+data class WhatsNewItem(@StringRes val title: Int, @StringRes val body: Int)
 
 object WhatsNewContent {
     /** Headline changes for the current build. Edit this list and bump
      *  versionName in build.gradle.kts to surface a new sheet on next launch. */
     val CURRENT = listOf(
         WhatsNewItem(
-            title = "Your whole library",
-            body = "Movies and TV Shows no longer stop at 40,000 titles. The catalog is stored on the device as it loads, resumes where it left off after a restart, and never loads the whole library into memory.",
+            title = R.string.main_whats_new_library_title,
+            body = R.string.main_whats_new_library_body,
         ),
         WhatsNewItem(
-            title = "Guide channel column",
-            body = "Channel number, favorite star and catch-up icon sit in a band above the logo, and the logo fills the space below it. Season and episode moved from the guide cells to the program details.",
+            title = R.string.main_whats_new_guide_column_title,
+            body = R.string.main_whats_new_guide_column_body,
         ),
         WhatsNewItem(
-            title = "Playlist switching keeps your data",
-            body = "Switching playlists no longer clears the previous playlist's guide or library, and permissions refresh the moment you switch. Refresh Everything rebuilds the library from scratch.",
+            title = R.string.main_whats_new_playlist_title,
+            body = R.string.main_whats_new_playlist_body,
         ),
         WhatsNewItem(
-            title = "Rounded corners, two toggles",
-            body = "Rounded corners for List view and Guide view are now separate in Settings > Appearance, and guide artwork follows the Guide toggle.",
+            title = R.string.main_whats_new_corners_title,
+            body = R.string.main_whats_new_corners_body,
         ),
         WhatsNewItem(
-            title = "Android TV: Guide only",
-            body = "The List view is retired on TV. Live TV always opens the Guide, and its options live under Guide Presentation in Appearance.",
+            title = R.string.main_whats_new_tv_guide_title,
+            body = R.string.main_whats_new_tv_guide_body,
         ),
         WhatsNewItem(
-            title = "Fixes",
-            body = "Switching streams on a slow provider no longer freezes the picture. The interface no longer runs off the screen after a resolution switch on the Google TV Streamer. Crash reports are captured automatically for the log export.",
+            title = R.string.main_whats_new_fixes_title,
+            body = R.string.main_whats_new_fixes_body,
         ),
     )
 }

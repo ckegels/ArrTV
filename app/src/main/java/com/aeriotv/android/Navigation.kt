@@ -1,5 +1,7 @@
 package com.aeriotv.android
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.core.locale.AppText
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -231,7 +233,7 @@ fun AerioTVNavHost(
     fun toastPlayingOnTv() {
         android.widget.Toast.makeText(
             navHostContext,
-            "Playing on ${companionTvName ?: "TV"}",
+            navHostContext.getString(R.string.main_playing_on, companionTvName ?: navHostContext.getString(R.string.main_tv_fallback)),
             android.widget.Toast.LENGTH_SHORT,
         ).show()
     }
@@ -320,7 +322,7 @@ fun AerioTVNavHost(
                     navController.navigate(
                         Routes.recordingPlayer(
                             target.playbackUrl,
-                            target.title.ifBlank { "Recording" },
+                            target.title.ifBlank { AppText.get(R.string.main_recording_fallback) },
                         ),
                     ) { launchSingleTop = true }
                     onDeepLinkConsumed()
@@ -572,9 +574,9 @@ fun AerioTVNavHost(
                         syncVm.clearRestoreProgress()
                     }
                     val message = when {
-                        activated -> "Signed in as ${signedInEmail.orEmpty()}. Restoring your data..."
-                        signedInEmail != null -> "Signed in as $signedInEmail. No playlists in Drive yet -- set one up below."
-                        else -> "Signed in. No playlists in Drive yet."
+                        activated -> context.getString(R.string.main_signed_in_restoring, signedInEmail.orEmpty())
+                        signedInEmail != null -> context.getString(R.string.main_signed_in_no_playlists, signedInEmail)
+                        else -> context.getString(R.string.main_signed_in_no_playlists_plain)
                     }
                     android.widget.Toast.makeText(
                         context,
@@ -654,7 +656,7 @@ fun AerioTVNavHost(
                     if (activity == null) {
                         android.widget.Toast.makeText(
                             context,
-                            "Sign-in needs a foreground activity. Try again.",
+                            context.getString(R.string.main_sign_in_needs_activity),
                             android.widget.Toast.LENGTH_SHORT,
                         ).show()
                         return@start
@@ -666,7 +668,7 @@ fun AerioTVNavHost(
                             googleSignInInFlight = false
                             android.widget.Toast.makeText(
                                 context,
-                                "Sign-in cancelled or failed.",
+                                context.getString(R.string.settings2_sync_sign_in_failed),
                                 android.widget.Toast.LENGTH_SHORT,
                             ).show()
                             return@launch
@@ -685,7 +687,7 @@ fun AerioTVNavHost(
                                 googleSignInInFlight = false
                                 android.widget.Toast.makeText(
                                     context,
-                                    "Drive authorization failed.",
+                                    context.getString(R.string.settings2_sync_drive_auth_failed),
                                     android.widget.Toast.LENGTH_SHORT,
                                 ).show()
                             }
@@ -776,20 +778,16 @@ fun AerioTVNavHost(
                 if (welcomeNotConfiguredDialog) {
                     com.aeriotv.android.ui.scale.AlertDialog(
                         onDismissRequest = { welcomeNotConfiguredDialog = false },
-                        title = { androidx.compose.material3.Text("Drive Sync isn't set up yet") },
+                        title = { androidx.compose.material3.Text(stringResource(R.string.main_drive_not_set_up)) },
                         text = {
                             androidx.compose.material3.Text(
-                                "This AerioTV build doesn't have a Google Cloud OAuth Web " +
-                                    "Client ID baked in. Add GOOGLE_DRIVE_WEB_CLIENT_ID to " +
-                                    "local.properties (and register this APK's signing-cert " +
-                                    "SHA-1 in the same Cloud project) before Sign in with " +
-                                    "Google can load.",
+                                stringResource(R.string.main_drive_not_configured_text),
                             )
                         },
                         confirmButton = {
                             androidx.compose.material3.TextButton(
                                 onClick = { welcomeNotConfiguredDialog = false },
-                            ) { androidx.compose.material3.Text("Got it") }
+                            ) { androidx.compose.material3.Text(stringResource(R.string.settings2_sync_got_it)) }
                         },
                         containerColor = MaterialTheme.colorScheme.surface,
                     )
@@ -952,7 +950,7 @@ fun AerioTVNavHost(
                         ) {
                             android.widget.Toast.makeText(
                                 navHostContext,
-                                "Playing on $castDevice",
+                                AppText.get(R.string.main_playing_on, castDevice),
                                 android.widget.Toast.LENGTH_SHORT,
                             ).show()
                             return@MainScaffold
@@ -1543,7 +1541,7 @@ fun AerioTVNavHost(
                         com.aeriotv.android.feature.player.PhoneVodMini.Info(
                             key = url,
                             videoId = episodeUuid,
-                            title = episode?.displayName ?: "Episode",
+                            title = episode?.displayName ?: stringResource(R.string.main_episode_fallback),
                             posterUrl = parentSeriesPoster,
                             meta = epProgressMeta,
                             isDvr = false,
@@ -1555,14 +1553,14 @@ fun AerioTVNavHost(
                 )
                 VODPlayerScreen(
                     streamUrl = resolved?.url.orEmpty(),
-                    title = episode?.displayName ?: "Episode",
+                    title = episode?.displayName ?: stringResource(R.string.main_episode_fallback),
                     startFromBeginning = epFromStart,
                     progressMeta = epProgressMeta,
                     // Audit #53/#38: never replay the API key to a session URL
                     // that resolved OFF the server's origin.
                     httpHeaders = if (resolved?.authSafe == false) emptyMap() else headers,
                     onClose = { if (!epMiniToken.minimized) navController.popBackStack() },
-                    loadingMessage = resolveError ?: if (resolved == null) "Loading…" else null,
+                    loadingMessage = resolveError ?: if (resolved == null) stringResource(R.string.common_loading) else null,
                     videoId = episodeUuid,
                     posterUrl = parentSeriesPoster,
                     versionOptions = versionOptions,
@@ -1771,7 +1769,7 @@ fun AerioTVNavHost(
                         com.aeriotv.android.feature.player.PhoneVodMini.Info(
                             key = url,
                             videoId = movieUuid,
-                            title = movie?.displayName ?: "On Demand",
+                            title = movie?.displayName ?: stringResource(R.string.ondemand_title),
                             posterUrl = movie?.posterUrl,
                             meta = null,
                             isDvr = false,
@@ -1783,13 +1781,13 @@ fun AerioTVNavHost(
                 )
                 VODPlayerScreen(
                     streamUrl = resolved?.url.orEmpty(),
-                    title = movie?.displayName ?: "On Demand",
+                    title = movie?.displayName ?: stringResource(R.string.ondemand_title),
                     startFromBeginning = movieFromStart,
                     // Audit #53/#38: never replay the API key to a session URL
                     // that resolved OFF the server's origin.
                     httpHeaders = if (resolved?.authSafe == false) emptyMap() else headers,
                     onClose = { if (!movieMiniToken.minimized) navController.popBackStack() },
-                    loadingMessage = resolveError ?: if (resolved == null) "Loading…" else null,
+                    loadingMessage = resolveError ?: if (resolved == null) stringResource(R.string.common_loading) else null,
                     videoId = movieUuid,
                     posterUrl = movie?.posterUrl,
                     versionOptions = versionOptions,
@@ -1923,7 +1921,7 @@ fun AerioTVNavHost(
                         com.aeriotv.android.feature.player.PhoneVodMini.Info(
                             key = playbackUrl,
                             videoId = recordingProgressId(playbackUrl, recId),
-                            title = title.ifBlank { "Recording" },
+                            title = title.ifBlank { AppText.get(R.string.main_recording_fallback) },
                             posterUrl = null,
                             meta = recProgressMeta,
                             isDvr = isDvr,
@@ -1939,7 +1937,7 @@ fun AerioTVNavHost(
                 )
                 VODPlayerScreen(
                     streamUrl = playbackUrl,
-                    title = title.ifBlank { "Recording" },
+                    title = title.ifBlank { stringResource(R.string.main_recording_fallback) },
                     httpHeaders = headers,
                     catchupStartMillis = csStart,
                     catchupEndMillis = csEnd,

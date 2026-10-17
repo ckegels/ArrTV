@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.player
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -165,11 +167,11 @@ fun CommercialBreakSkipper(
                 .padding(horizontal = 14.dp, vertical = 8.dp),
         ) {
             if (shownSkipped != null) {
-                Text("Skipped an ad break (${CommercialBreaks.length(shownSkipped)})", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Text("◀ Back to watch it", color = Color.White.copy(alpha = 0.75f), fontSize = 11.sp)
+                Text(stringResource(R.string.player_ad_skipped, CommercialBreaks.length(shownSkipped)), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.player_ad_back_to_watch), color = Color.White.copy(alpha = 0.75f), fontSize = 11.sp)
             } else if (shownCurrent != null) {
-                Text("Skip ad ›", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                Text("Press OK · ${CommercialBreaks.length(shownCurrent)}", color = Color.White.copy(alpha = 0.75f), fontSize = 11.sp)
+                Text(stringResource(R.string.player_ad_skip), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.player_ad_press_ok, CommercialBreaks.length(shownCurrent)), color = Color.White.copy(alpha = 0.75f), fontSize = 11.sp)
             }
         }
     }

@@ -28,6 +28,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 
 /**
  * GH #71: direct channel-number entry from a TV remote's digit keys, shared
@@ -127,7 +129,7 @@ class ChannelNumberEntryState(
         val entry = digits
         digits = ""
         if (entry.isEmpty()) return
-        if (!onCommit(entry)) showMessage("No channel ${normalizeChannelNumber(entry)}")
+        if (!onCommit(entry)) showMessage(AppText.get(R.string.livetv_no_channel_number, normalizeChannelNumber(entry)))
     }
 
     fun cancel() {

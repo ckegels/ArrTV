@@ -38,6 +38,8 @@ import androidx.compose.ui.unit.sp
 import com.aeriotv.android.ui.FormFactorModal
 import java.util.Calendar
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * Guide "Jump To" (Roman via Discord 2026-09-06; Apple parity with
@@ -60,27 +62,14 @@ fun GuideJumpSheet(
     }
     // One pill per day of loaded EPG, past and future (the caller measures it).
     val dayOffsets = remember(daysBack, daysAhead) { (-daysBack.coerceIn(0, 14)..daysAhead.coerceIn(1, 14)).toList() }
-    val slots = remember {
-        listOf(
-            "Same Time" to -1, "Morning" to 7, "Afternoon" to 13,
-            "Evening" to 18, "Prime Time" to 20, "Late" to 23,
-        )
-    }
+    val slots = jumpSlots()
     var dayOffset by remember { mutableStateOf(0) }
     var slotHour by remember { mutableStateOf(-1) }
 
     // "Today, Sep 10" / "Tomorrow, Sep 11" / "Sat, Sep 12" (Logan 2026-09-10:
     // every day pill carries its date; tvOS GuideJumpSheet.dayLabel).
-    fun dayLabel(offset: Int): String {
-        val c = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, offset) }
-        val name = when (offset) {
-            -1 -> "Yesterday"
-            0 -> "Today"
-            1 -> "Tomorrow"
-            else -> java.text.SimpleDateFormat("EEE", Locale.getDefault()).format(c.time)
-        }
-        return name + ", " + java.text.SimpleDateFormat("MMM d", Locale.getDefault()).format(c.time)
-    }
+    val dayWords = jumpDayWords()
+    fun dayLabel(offset: Int): String = jumpDayLabel(today, offset, dayWords)
     fun target(): Long {
         val c = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, dayOffset) }
         if (slotHour >= 0) {
@@ -104,9 +93,9 @@ fun GuideJumpSheet(
     }
     FormFactorModal(onDismiss = onDismiss, tvWidthFraction = 0.6f, sheetMaxWidth = 560.dp) {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
-            Text("Jump To", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.livetv_jump_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(14.dp))
-            Text("Day", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.textAccent)
+            Text(stringResource(R.string.livetv_jump_day), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.textAccent)
             Spacer(Modifier.height(6.dp))
             androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 dayOffsets.forEach { offset ->
@@ -122,14 +111,20 @@ fun GuideJumpSheet(
                 }
             }
             Spacer(Modifier.height(14.dp))
-            Text("Time", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.textAccent)
+            Text(stringResource(R.string.livetv_jump_time), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.textAccent)
             Spacer(Modifier.height(6.dp))
             androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 slots.forEach { (label, hour) ->
                     val text = when (hour) {
                         -1 -> label
-                        else -> "$label " + java.text.SimpleDateFormat("h a", Locale.getDefault())
-                            .format((today.clone() as Calendar).apply { set(Calendar.HOUR_OF_DAY, hour) }.time)
+                        else -> stringResource(
+                            R.string.livetv_jump_slot_with_hour,
+                            label,
+                            java.text.SimpleDateFormat(
+                                android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), "j"),
+                                Locale.getDefault(),
+                            ).format((today.clone() as Calendar).apply { set(Calendar.HOUR_OF_DAY, hour) }.time),
+                        )
                     }
                     FilterChip(
                         selected = slotHour == hour,
@@ -144,9 +139,9 @@ fun GuideJumpSheet(
             }
             Spacer(Modifier.height(18.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                OutlinedButton(onClick = { onBackToNow(); onDismiss() }) { Text("Back to Now") }
+                OutlinedButton(onClick = { onBackToNow(); onDismiss() }) { Text(stringResource(R.string.livetv_jump_back_to_now)) }
                 Spacer(Modifier.width(10.dp))
-                Button(onClick = { onJump(target()); onDismiss() }) { Text("Go") }
+                Button(onClick = { onJump(target()); onDismiss() }) { Text(stringResource(R.string.livetv_jump_go)) }
             }
             Spacer(Modifier.height(8.dp))
         }
@@ -172,20 +167,12 @@ internal fun GuideJumpTvContent(
         Calendar.getInstance().apply { timeInMillis = now; set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
     }
     val dayOffsets = remember(daysBack, daysAhead) { (-daysBack.coerceIn(0, 14)..daysAhead.coerceIn(1, 14)).toList() }
-    val slots = remember {
-        listOf("Same Time" to -1, "Morning" to 7, "Afternoon" to 13, "Evening" to 18, "Prime Time" to 20, "Late" to 23)
-    }
+    val slots = jumpSlots()
     var dayOffset by remember { mutableStateOf(0) }
     var slotHour by remember { mutableStateOf(-1) }
     val clockMode = com.aeriotv.android.core.ui.rememberClockMode()
-    fun dayLabel(offset: Int): String {
-        val c = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, offset) }
-        val name = when (offset) {
-            -1 -> "Yesterday"; 0 -> "Today"; 1 -> "Tomorrow"
-            else -> java.text.SimpleDateFormat("EEE", Locale.getDefault()).format(c.time)
-        }
-        return name + ", " + java.text.SimpleDateFormat("MMM d", Locale.getDefault()).format(c.time)
-    }
+    val dayWords = jumpDayWords()
+    fun dayLabel(offset: Int): String = jumpDayLabel(today, offset, dayWords)
     fun target(): Long {
         val c = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, dayOffset) }
         if (slotHour >= 0) { c.set(Calendar.HOUR_OF_DAY, slotHour); c.set(Calendar.MINUTE, 0) } else {
@@ -228,12 +215,12 @@ internal fun GuideJumpTvContent(
         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("Jump To", fontSize = 19.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-        dayGroup("Today", listOf(0))
-        dayGroup("Upcoming", dayOffsets.filter { it > 0 })
-        dayGroup("Previous", dayOffsets.filter { it < 0 }.reversed())
+        Text(stringResource(R.string.livetv_jump_title), fontSize = 19.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        dayGroup(stringResource(R.string.livetv_today), listOf(0))
+        dayGroup(stringResource(R.string.livetv_jump_upcoming), dayOffsets.filter { it > 0 })
+        dayGroup(stringResource(R.string.livetv_jump_previous), dayOffsets.filter { it < 0 }.reversed())
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("Time", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.livetv_jump_time), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
             pillRow {
                 items(slots.size, key = { slots[it].second }) { i ->
                     val (label, hour) = slots[i]
@@ -242,12 +229,22 @@ internal fun GuideJumpTvContent(
             }
         }
         Text(
-            java.text.SimpleDateFormat("EEEE, MMMM d, yyyy 'at' h:mm a", Locale.getDefault()).format(java.util.Date(target())),
+            stringResource(
+                R.string.livetv_jump_target_at,
+                java.text.SimpleDateFormat(
+                    android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), "EEEEMMMMdyyyy"),
+                    Locale.getDefault(),
+                ).format(java.util.Date(target())),
+                java.text.SimpleDateFormat(
+                    android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), "jmm"),
+                    Locale.getDefault(),
+                ).format(java.util.Date(target())),
+            ),
             fontSize = 11.sp.subtext(), color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 4.dp)) {
-            com.aeriotv.android.ui.tv.TvPill("Go", selected = true, onClick = { onJump(target()); onDismiss() })
-            com.aeriotv.android.ui.tv.TvPill("Back to Now", selected = false, onClick = { onBackToNow(); onDismiss() })
+            com.aeriotv.android.ui.tv.TvPill(stringResource(R.string.livetv_jump_go), selected = true, onClick = { onJump(target()); onDismiss() })
+            com.aeriotv.android.ui.tv.TvPill(stringResource(R.string.livetv_jump_back_to_now), selected = false, onClick = { onBackToNow(); onDismiss() })
         }
     }
 }
@@ -290,4 +287,42 @@ fun GuideJumpTvOverlay(
             GuideJumpTvContent(daysBack, daysAhead, onJump, onBackToNow, onDismiss, firstPillFocus = firstPill)
         }
     }
+}
+
+/** The Jump To time slots: label and hour (-1 = keep the current time). */
+@Composable
+private fun jumpSlots(): List<Pair<String, Int>> = listOf(
+    stringResource(R.string.livetv_jump_slot_same_time) to -1,
+    stringResource(R.string.livetv_jump_slot_morning) to 7,
+    stringResource(R.string.livetv_jump_slot_afternoon) to 13,
+    stringResource(R.string.livetv_jump_slot_evening) to 18,
+    stringResource(R.string.livetv_jump_slot_prime_time) to 20,
+    stringResource(R.string.livetv_jump_slot_late) to 23,
+)
+
+/** Yesterday / Today / Tomorrow and the "day, date" pattern, read once per composition. */
+private data class JumpDayWords(val yesterday: String, val today: String, val tomorrow: String, val dayWithDate: String)
+
+@Composable
+private fun jumpDayWords() = JumpDayWords(
+    yesterday = stringResource(R.string.livetv_yesterday),
+    today = stringResource(R.string.livetv_today),
+    tomorrow = stringResource(R.string.livetv_tomorrow),
+    dayWithDate = stringResource(R.string.livetv_day_with_date),
+)
+
+/** "Today, Sep 10" / "Sat, Sep 12": the day name and the date in the device's order. */
+private fun jumpDayLabel(today: Calendar, offset: Int, words: JumpDayWords): String {
+    val c = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, offset) }
+    val name = when (offset) {
+        -1 -> words.yesterday
+        0 -> words.today
+        1 -> words.tomorrow
+        else -> java.text.SimpleDateFormat("EEE", Locale.getDefault()).format(c.time)
+    }
+    val date = java.text.SimpleDateFormat(
+        android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), "MMMd"),
+        Locale.getDefault(),
+    ).format(c.time)
+    return String.format(words.dayWithDate, name, date)
 }

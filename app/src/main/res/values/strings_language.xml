@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="language_header">Language</string>
+    <string name="language_footer">Device language follows your TV\'s language: French when it is set to French, English otherwise. Pick a language to use it in this app only.</string>
+    <string name="language_system">Device language</string>
+</resources>

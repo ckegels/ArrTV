@@ -1,5 +1,7 @@
 package com.aeriotv.android.core.network
 
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -63,10 +65,10 @@ class DispatchMoreReports @Inject constructor(
     ) {
         sendScope.launch {
             val answer = runCatching { send(what, happenedAtMs, streamUrl, player, extra) }
-                .getOrElse { DispatcharrClient.ReportAnswer.Refused(it.message ?: "Could not reach the server") }
+                .getOrElse { DispatcharrClient.ReportAnswer.Refused(it.message ?: AppText.get(R.string.core_dispatchmore_unreachable_plain)) }
             val text = when (answer) {
-                is DispatcharrClient.ReportAnswer.Sent -> "Report sent (report ${answer.id})"
-                is DispatcharrClient.ReportAnswer.Refused -> "Report not sent: ${answer.message}"
+                is DispatcharrClient.ReportAnswer.Sent -> AppText.get(R.string.core_report_sent, answer.id.toString())
+                is DispatcharrClient.ReportAnswer.Refused -> AppText.get(R.string.core_report_not_sent, answer.message)
             }
             withContext(Dispatchers.Main) {
                 android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show()
@@ -87,11 +89,11 @@ class DispatchMoreReports @Inject constructor(
         extra: Map<String, Any?>,
     ): DispatcharrClient.ReportAnswer = withContext(Dispatchers.IO) {
         val server = DispatchMore.serverFor(streamUrl)
-            ?: return@withContext DispatcharrClient.ReportAnswer.Refused("This server does not take reports")
+            ?: return@withContext DispatcharrClient.ReportAnswer.Refused(AppText.get(R.string.core_dispatchmore_reports_not_taken))
         val base = DispatchMore.originOf(streamUrl)
-            ?: return@withContext DispatcharrClient.ReportAnswer.Refused("Not a channel of this server")
+            ?: return@withContext DispatcharrClient.ReportAnswer.Refused(AppText.get(R.string.core_dispatchmore_not_a_channel))
         val playlist = dao.firstActive()?.takeIf { !it.apiKey.isNullOrBlank() }
-            ?: return@withContext DispatcharrClient.ReportAnswer.Refused("No Dispatcharr login to send it with")
+            ?: return@withContext DispatcharrClient.ReportAnswer.Refused(AppText.get(R.string.core_dispatchmore_no_login_report))
         val ref = DispatchMore.channelRef(streamUrl)
         val report = JsonObject(
             buildMap {
@@ -116,7 +118,7 @@ class DispatchMoreReports @Inject constructor(
             auth.withApiKeyRetry(playlist.id) { key ->
                 client.sendAppReport(base, key, server.reportPath, report)
             }
-        }.getOrElse { DispatcharrClient.ReportAnswer.Refused(it.message ?: "Could not send the report") }
+        }.getOrElse { DispatcharrClient.ReportAnswer.Refused(it.message ?: AppText.get(R.string.core_report_could_not_send)) }
         Log.i(TAG, "problem report: $answer")
         answer
     }

@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.ondemand
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import com.aeriotv.android.ui.theme.forText
 import com.aeriotv.android.ui.scale.subtext
 import com.aeriotv.android.ui.theme.textAccent
@@ -221,7 +223,7 @@ internal fun TvEpisodeCard(
                         .background(Color.Black.copy(alpha = 0.55f))
                         .padding(horizontal = 5.dp, vertical = 2.dp),
                 ) {
-                    Text(text = "E$n", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(text = stringResource(R.string.ondemand_episode_short, n), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
             if (watched) {
@@ -277,7 +279,7 @@ internal fun TvEpisodeCard(
         TvActionMenuDialog(
             title = title,
             actions = listOf(
-                TvMenuAction(if (watched) "Mark as Unwatched" else "Mark as Watched") { onToggleWatched() },
+                TvMenuAction(stringResource(if (watched) R.string.ondemand_mark_unwatched else R.string.ondemand_mark_watched)) { onToggleWatched() },
             ),
             guard = guard,
             onDismiss = { menuOpen = false },
@@ -298,7 +300,7 @@ internal fun TvDetailsBlock(
     if (facts.isEmpty() && footer == null) return
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = TV_DETAIL_INSET)) {
         Text(
-            text = "Details",
+            text = stringResource(R.string.media_details),
             style = MaterialTheme.typography.titleMedium,
             // tvOS .headlineSmall is SEMIbold, not bold (Typography.swift).
             fontWeight = FontWeight.SemiBold,
@@ -347,7 +349,7 @@ internal fun TvRelatedSection(
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
-            text = "Available Related Titles",
+            text = stringResource(R.string.ondemand_available_related),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onBackground,
@@ -368,7 +370,7 @@ internal fun TvRelatedSection(
                     modifier = Modifier.width(100.dp),
                     longPressActions = listOf(
                         TvMenuAction(
-                            if (watchlisted(item)) "Remove from Watchlist" else "Add to Watchlist",
+                            stringResource(if (watchlisted(item)) R.string.media_remove_from_watchlist else R.string.media_add_to_watchlist),
                         ) { onToggleWatchlist(item) },
                     ),
                 )
@@ -437,7 +439,7 @@ internal fun TvDetailHero(
             verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
             Text(
-                text = title.ifBlank { "Untitled" },
+                text = title.ifBlank { stringResource(R.string.livetv_untitled) },
                 fontSize = 26.sp,
                 lineHeight = 30.sp,
                 fontWeight = FontWeight.Bold,

@@ -4,10 +4,14 @@ import com.aeriotv.android.core.network.LiveCaption
 import com.aeriotv.android.core.network.LiveCaptions
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Before
 import org.junit.Test
 
 /** Generated captions: which channel, which line at which stream time, what to say instead. */
 class GeneratedCaptionsTest {
+    @Before
+    fun englishStrings() = com.aeriotv.android.testutil.EnglishStrings.install()
+
     private val cues = listOf(
         LiveCaption(1, 100.0, 102.0, "Goedenavond"),
         LiveCaption(2, 102.5, 105.0, "en welkom"),

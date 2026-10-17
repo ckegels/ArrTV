@@ -116,4 +116,13 @@ class DispatcharrLiveEventTest {
             """{"type": "update", "data": {"type": "m3u_refresh", "status": "success", "action": "parsing", "channels_created": "many"}}""",
         ).forEach { DispatcharrLiveEvent.parse(it) }
     }
+
+    @Test
+    fun lookBackMovedThisChannel() {
+        val frame = """{"type": "update", "data": {"type": "lookback_moved", "channel": "6f4c3991-f5e6-474e-8e00-a970a654c1d1", "stream": "24KITCHEN (TiviBridge)", "text": "Moved to 24KITCHEN (TiviBridge) for another viewer"}}"""
+        assertEquals(
+            DispatcharrLiveEvent.LookBackMoved("6f4c3991-f5e6-474e-8e00-a970a654c1d1", "Moved to 24KITCHEN (TiviBridge) for another viewer"),
+            DispatcharrLiveEvent.parse(frame),
+        )
+    }
 }

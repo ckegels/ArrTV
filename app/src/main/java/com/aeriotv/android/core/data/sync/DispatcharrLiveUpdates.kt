@@ -272,6 +272,8 @@ class DispatcharrLiveUpdates @Inject constructor(
                         guide = event.guide,
                     )
                 DispatcharrLiveEvent.RecordingsChanged -> Unit
+                is DispatcharrLiveEvent.LookBackMoved ->
+                    com.aeriotv.android.core.playback.CatchupRoom.moved(event.channelUuid, event.text)
             }
         }
     }

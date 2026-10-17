@@ -2121,6 +2121,10 @@ private fun ExoTile(
             isTv = false,
             compact = true,
             onRetry = {
+                // "Watch here": the tile takes the stream back from the other device
+                if (notice.kind == com.aeriotv.android.core.playback.DispatcharrConnectionLimit.Kind.OTHER_DEVICE) {
+                    com.aeriotv.android.core.network.DispatchMore.takeOver()
+                }
                 tileRetrySerial.intValue += 1
                 tileRetryRef.value?.invoke()
             },

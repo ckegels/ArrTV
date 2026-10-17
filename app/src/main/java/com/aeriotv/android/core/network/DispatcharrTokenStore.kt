@@ -15,9 +15,13 @@ import kotlinx.serialization.json.longOrNull
  * Per-playlist live JWT cache. Holds the access + refresh pair plus a
  * best-effort expiry timestamp parsed from the access token's `exp` claim
  * so callers can pre-emptively refresh before the server returns 401.
- * Process-scoped only — nothing is persisted to disk; the playlist row's
- * username/password are the only durable credential and re-login from them
- * is the recovery path when the cache is cold.
+ * The pair is also kept in the app's private storage (next to the playlist
+ * row's saved username/password, which a login would use anyway), so a
+ * fresh start of the app refreshes instead of logging in: Dispatcharr
+ * rate-limits `/api/accounts/token/` by address, and every device behind one
+ * VPN address -- plus a TV started a few times in a row -- shares that limit
+ * (the Shield's live socket refused with HTTP 429, 2026-10-18, so a watch
+ * together "you're in" never reached it).
  *
  * Mirrors iOS [DispatcharrTokenStore](Aerio/Networking/DispatcharrDirectConnect.swift)
  * lines 96-267. Differences from iOS:
@@ -30,7 +34,12 @@ import kotlinx.serialization.json.longOrNull
  *    serialization instead of Foundation Base64 + JSONSerialization.
  */
 @Singleton
-class DispatcharrTokenStore @Inject constructor() {
+class DispatcharrTokenStore @Inject constructor(
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context,
+) {
+    private val saved: android.content.SharedPreferences by lazy {
+        context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+    }
 
     private data class TokenPair(
         val access: String,
@@ -40,11 +49,26 @@ class DispatcharrTokenStore @Inject constructor() {
 
     private val pairs = ConcurrentHashMap<String, TokenPair>()
 
+    /** The pair in memory, or the one kept from before this start. */
+    private fun pair(playlistId: String): TokenPair? = pairs[playlistId] ?: runCatching {
+        val kept = saved.getString(playlistId, null) ?: return@runCatching null
+        val (access, refresh) = kept.split("\n", limit = 2).takeIf { it.size == 2 } ?: return@runCatching null
+        TokenPair(access, refresh, expiry(access) ?: Instant.EPOCH).also { pairs[playlistId] = it }
+    }.getOrNull()
+
+    private fun keep(playlistId: String, pair: TokenPair?) {
+        runCatching {
+            saved.edit().apply {
+                if (pair == null) remove(playlistId) else putString(playlistId, pair.access + "\n" + pair.refresh)
+            }.apply()
+        }
+    }
+
     /** Current access token for [playlistId], or null when never logged in. */
-    fun accessToken(playlistId: String): String? = pairs[playlistId]?.access
+    fun accessToken(playlistId: String): String? = pair(playlistId)?.access
 
     /** Current refresh token for [playlistId], or null when never logged in. */
-    fun refreshToken(playlistId: String): String? = pairs[playlistId]?.refresh
+    fun refreshToken(playlistId: String): String? = pair(playlistId)?.refresh
 
     /**
      * True when the cached access token's `exp` claim is in the past or
@@ -54,14 +78,16 @@ class DispatcharrTokenStore @Inject constructor() {
      * should treat that as "needs login".
      */
     fun accessIsExpired(playlistId: String, slackSeconds: Long = 30): Boolean {
-        val pair = pairs[playlistId] ?: return true
+        val pair = pair(playlistId) ?: return true
         return pair.accessExpiresAt.isBefore(Instant.now().plusSeconds(slackSeconds))
     }
 
     /** Cache a freshly-issued JWT pair after a successful login. */
     fun store(playlistId: String, access: String, refresh: String) {
         val exp = expiry(access) ?: Instant.now().plusSeconds(1500)
-        pairs[playlistId] = TokenPair(access = access, refresh = refresh, accessExpiresAt = exp)
+        val pair = TokenPair(access = access, refresh = refresh, accessExpiresAt = exp)
+        pairs[playlistId] = pair
+        keep(playlistId, pair)
     }
 
     /**
@@ -70,19 +96,23 @@ class DispatcharrTokenStore @Inject constructor() {
      * only emits a new access.
      */
     fun storeRefreshedAccess(playlistId: String, access: String) {
-        val existing = pairs[playlistId] ?: return
+        val existing = pair(playlistId) ?: return
         val exp = expiry(access) ?: Instant.now().plusSeconds(1500)
-        pairs[playlistId] = existing.copy(access = access, accessExpiresAt = exp)
+        val pair = existing.copy(access = access, accessExpiresAt = exp)
+        pairs[playlistId] = pair
+        keep(playlistId, pair)
     }
 
     /** Drop the cached pair for one playlist. Call on delete / explicit logout. */
     fun clear(playlistId: String) {
         pairs.remove(playlistId)
+        keep(playlistId, null)
     }
 
     /** Drop every cached pair. Used by the iCloud-equivalent data-clear flow. */
     fun clearAll() {
         pairs.clear()
+        runCatching { saved.edit().clear().apply() }
     }
 
     /**
@@ -110,5 +140,6 @@ class DispatcharrTokenStore @Inject constructor() {
 
     private companion object {
         const val TAG = "DispatcharrTokenStore"
+        const val PREFS = "dispatcharr_tokens"
     }
 }

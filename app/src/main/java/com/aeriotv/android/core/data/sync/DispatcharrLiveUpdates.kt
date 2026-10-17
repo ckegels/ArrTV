@@ -274,6 +274,55 @@ class DispatcharrLiveUpdates @Inject constructor(
                 DispatcharrLiveEvent.RecordingsChanged -> Unit
                 is DispatcharrLiveEvent.LookBackMoved ->
                     com.aeriotv.android.core.playback.CatchupRoom.moved(event.channelUuid, event.text)
+                // This TV was replaced by another of the login's: stop now, not once the
+                // buffer has played out (which looked like nothing stopped at all)
+                is DispatcharrLiveEvent.DeviceReplaced ->
+                    if (event.device == com.aeriotv.android.core.network.DispatchMore.deviceId) {
+                        com.aeriotv.android.core.playback.DispatcharrConnectionLimit.replacedNow(event.by, event.byDevice)
+                    }
+                // Watching together: the other device left, this one plays on alone
+                is DispatcharrLiveEvent.LinkEnded ->
+                    if (com.aeriotv.android.core.network.DispatchMore.deviceId in event.devices) {
+                        com.aeriotv.android.core.network.WatchTogether.linkEnded(event.reason, event.name)
+                    }
+                // Watching together with other people (v266): asked to let one in, let in or
+                // not, asked whether to follow the one who joined
+                is DispatcharrLiveEvent.LinkRequest ->
+                    if (com.aeriotv.android.core.network.DispatchMore.deviceId in event.devices) {
+                        com.aeriotv.android.core.network.WatchTogether.askedToJoin(
+                            com.aeriotv.android.core.network.WatchTogether.JoinRequest(
+                                event.by, event.name, event.user, event.channelName,
+                            ),
+                        )
+                    }
+                is DispatcharrLiveEvent.LinkAccepted ->
+                    if (com.aeriotv.android.core.network.DispatchMore.deviceId in event.devices) {
+                        com.aeriotv.android.core.network.WatchTogether.accepted(event.channel)
+                    }
+                is DispatcharrLiveEvent.LinkDeclined ->
+                    if (com.aeriotv.android.core.network.DispatchMore.deviceId in event.devices) {
+                        com.aeriotv.android.core.network.WatchTogether.declined(event.name, event.reason)
+                    }
+                is DispatcharrLiveEvent.LinkFollowRequest ->
+                    if (com.aeriotv.android.core.network.DispatchMore.deviceId in event.devices) {
+                        com.aeriotv.android.core.network.WatchTogether.askedToFollow(
+                            com.aeriotv.android.core.network.WatchTogether.FollowRequest(
+                                event.by, event.name, event.user, event.channel, event.channelName,
+                            ),
+                        )
+                    }
+                // Watching together: another device joined this one, which is linked too now
+                // (and so reports where it is, which keeps the two in step)
+                is DispatcharrLiveEvent.LinkJoined ->
+                    if (com.aeriotv.android.core.network.DispatchMore.deviceId in event.devices) {
+                        com.aeriotv.android.core.network.WatchTogether.linkJoined(resync = true)
+                    }
+                // Watching together: the other device changed channel, this one follows
+                is DispatcharrLiveEvent.LinkedChannel ->
+                    if (com.aeriotv.android.core.network.DispatchMore.deviceId in event.devices) {
+                        com.aeriotv.android.core.network.WatchTogether.linkJoined()
+                        com.aeriotv.android.core.network.WatchTogether.followChannel(event.channel)
+                    }
             }
         }
     }

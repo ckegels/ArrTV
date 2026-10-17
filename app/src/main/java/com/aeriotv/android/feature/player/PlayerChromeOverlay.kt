@@ -817,7 +817,7 @@ fun PlayerChromeOverlay(
 
     if (useInfoBar && infoBar != null) {
         PlayerInfoBarOverlay(
-            visible = pillVisible && !inPip,
+            visible = pillVisible && !inPip && !moreOpen,
             expanded = chromeVisible,
             channel = channel,
             programme = nowProgramme,
@@ -840,65 +840,72 @@ fun PlayerChromeOverlay(
             onInteraction = onInteraction,
             paused = isPlayerPaused,
             onTogglePause = onRewindTogglePause,
+            transport = timeshiftState?.takeIf { it.buffering }?.let { ts ->
+                val head = maxOf(ts.headWallMs, ts.tailWallMs + 1)
+                InfoBarTransport(
+                    tailWallMs = ts.tailWallMs,
+                    headWallMs = head,
+                    positionWallMs = if (ts.timeshifting) timeshiftPositionWallMs.coerceIn(ts.tailWallMs, head) else head,
+                    onSeekWall = onRewindSeekWall,
+                    onGoLive = onGoLive,
+                )
+            },
+            onOpenOptions = { moreOpen = true },
         )
-        // Options menu (hold OK), centered on the screen: a zero-height
-        // anchor as wide as the menu sits at the center; the menu is taller
-        // than half the screen, so it neither fits below nor above the anchor
-        // and the Material position rules center it on the anchor instead.
-        Box(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .size(width = INFO_BAR_MENU_WIDTH, height = 0.dp),
-        ) {
-            PlayerMoreMenu(
-                modifier = Modifier.width(INFO_BAR_MENU_WIDTH),
-                expanded = moreOpen,
-                onDismiss = { moreOpen = false },
-                isTv = true,
-                canRecord = canRecord,
-                audioOnly = audioOnly,
-                sleepActive = sleepRemainingMillis != null,
-                scaleLabel = videoScaleLabel,
-                onCycleScale = onCycleVideoScale,
-                onSubtitles = {
-                    moreOpen = false
-                    onShowSubtitles()
-                },
-                onAudioTracks = {
-                    moreOpen = false
-                    onShowAudioTracks()
-                },
-                onPlaybackSpeed = {
-                    moreOpen = false
-                    onShowPlaybackSpeed()
-                },
-                onRecord = {
-                    moreOpen = false
-                    recordCurrent()
-                },
-                onSleepTimer = {
-                    moreOpen = false
-                    sleepOpen = true
-                },
-                onStreamInfo = {
-                    moreOpen = false
-                    onShowStreamInfo()
-                },
-                canSwitchStream = canSwitchStream,
-                onSwitchStream = {
-                    moreOpen = false
-                    onShowSwitchStream()
-                },
-                onAudioOnly = {
-                    moreOpen = false
-                    onToggleAudioOnly()
-                },
-                onMultiview = {
-                    moreOpen = false
-                    onAddToMultiview()
-                },
+        // Options menu (hold OK, or Down from the card row): a row of icons
+        // sliding up from the bottom, the list's options left to right. The
+        // info bar steps aside while it is up and comes back when it closes.
+        val close = { moreOpen = false }
+        val options = buildList {
+            // Asked each time the menu opens: the server's switch and the
+            // stream can both have changed since the screen was drawn.
+            val report = ProblemReportMenu.action
+            if (moreOpen && report != null && report.available()) {
+                add(PlayerOption("report", Icons.Outlined.Flag, "Send report") { close(); report.open() })
+            }
+            val guideChoice = GuideChoiceMenu.action
+            if (moreOpen && guideChoice != null && guideChoice.available()) {
+                add(PlayerOption("guide", Icons.Outlined.EventNote, "Wrong guide?") { close(); guideChoice.open() })
+            }
+            add(PlayerOption("subtitles", Icons.Outlined.ClosedCaption, "Subtitles") { close(); onShowSubtitles() })
+            add(PlayerOption("audio", Icons.Outlined.GraphicEq, "Audio track") { close(); onShowAudioTracks() })
+            add(PlayerOption("speed", Icons.Outlined.Speed, "Speed") { close(); onShowPlaybackSpeed() })
+            // Stays open so repeated presses cycle; the value shows the mode
+            add(PlayerOption("scale", Icons.Outlined.AspectRatio, "Video scale", value = videoScaleLabel) {
+                onCycleVideoScale()
+            })
+            if (canRecord) {
+                add(PlayerOption("record", Icons.Filled.FiberManualRecord, "Record", iconTint = Color(0xFFFF4757)) {
+                    close(); recordCurrent()
+                })
+            }
+            val sleeping = sleepRemainingMillis != null
+            add(
+                PlayerOption(
+                    "sleep", if (sleeping) Icons.Filled.Bedtime else Icons.Outlined.Bedtime, "Sleep timer",
+                    value = sleepRemainingMillis?.let { "${(it / 60_000L).coerceAtLeast(0L)} min" },
+                    active = sleeping,
+                ) { close(); sleepOpen = true },
+            )
+            add(PlayerOption("info", Icons.Outlined.Info, "Stream info") { close(); onShowStreamInfo() })
+            if (canSwitchStream) {
+                add(PlayerOption("switch", Icons.Outlined.SwapHoriz, "Switch stream") { close(); onShowSwitchStream() })
+            }
+            add(PlayerOption("multiview", Icons.Outlined.GridView, "Multiview") { close(); onAddToMultiview() })
+            add(
+                PlayerOption(
+                    "audioOnly", if (audioOnly) Icons.Filled.MusicNote else Icons.Outlined.MusicNote,
+                    if (audioOnly) "Show video" else "Audio only", active = audioOnly,
+                ) { close(); onToggleAudioOnly() },
             )
         }
+        InfoBarOptionsBar(
+            visible = moreOpen && !inPip,
+            options = options,
+            onDismiss = close,
+            onInteraction = onInteraction,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 
     // Scrub HUD (tvOS DpadScrubHUD parity): the timeline alone over the
@@ -1063,7 +1070,6 @@ private fun CenterAnchoredPillRow(
 private val TV_TIMELINE_INSET = 56.dp
 
 /** Info bar style: width of the centered Options menu. */
-private val INFO_BAR_MENU_WIDTH = 300.dp
 
 /** Frosted capsule carrying the video format readout ("1080p · 59.94 fps"). */
 @Composable

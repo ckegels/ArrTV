@@ -111,6 +111,18 @@ class MainActivity : ComponentActivity() {
      * press when it lands inside the double-press window AND the mini-player
      * is showing. That keeps single-press OK working in all other contexts.
      */
+    /**
+     * The corner mini is what the guide-context keys act on: its session Active
+     * AND the window drawn as the mini. A look back started from the guide's
+     * preview leaves the session Active under the fullscreen catch-up player
+     * (catch-up never becomes the mini session), and holding Right to scrub
+     * then ran the mini's close -- window Hidden, holder stopped -- while the
+     * scrub re-tuned: sound over the grey app background (2026-10-02).
+     */
+    private fun miniOnScreen(): Boolean =
+        miniPlayerSession.state.value is MiniPlayerSession.State.Active &&
+            exoWindowState.mode.value == ExoWindowState.Mode.Mini
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         // The mini-player no longer hijacks OK. Previously, while the mini was
         // Active, EVERY D-pad Select was consumed (double-press = resume), which
@@ -127,7 +139,7 @@ class MainActivity : ComponentActivity() {
         if (event.action == KeyEvent.ACTION_DOWN && isTelevisionDevice() &&
             (event.keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE ||
                 event.keyCode == KeyEvent.KEYCODE_MEDIA_PLAY) &&
-            miniPlayerSession.state.value is MiniPlayerSession.State.Active
+            miniOnScreen()
         ) {
             // Remote Control map: guide-context playPause slot (mini up =
             // guide frontmost). Default = resumePlayer (today's behavior).
@@ -173,7 +185,7 @@ class MainActivity : ComponentActivity() {
             // Only the two mini-player actions run here; any other mapping
             // (Settings > Remote Control) is the guide grid's to dispatch, so
             // the hold must reach Compose untouched.
-            if (miniPlayerSession.state.value is MiniPlayerSession.State.Active &&
+            if (miniOnScreen() &&
                 (rightLongAction == com.aeriotv.android.core.remote.GuideRemoteAction.CLOSE_MINI_PLAYER ||
                     rightLongAction == com.aeriotv.android.core.remote.GuideRemoteAction.RESUME_PLAYER)
             ) {

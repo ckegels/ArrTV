@@ -525,6 +525,9 @@ class DispatcharrClient @Inject constructor() {
                     fastFailover = (root["fast_failover"] as? JsonPrimitive)?.booleanOrNull == true,
                     stallPath = (root["stall_url"] as? JsonPrimitive)?.contentOrNull
                         ?.takeIf { it.startsWith("/") } ?: DispatchMore.DEFAULT_STALL_PATH,
+                    guideChoice = (root["guide_choice"] as? JsonPrimitive)?.booleanOrNull == true,
+                    guideChoicePath = (root["guide_choice_url"] as? JsonPrimitive)?.contentOrNull
+                        ?.takeIf { it.startsWith("/") } ?: DispatchMore.DEFAULT_GUIDE_CHOICE_PATH,
                 ),
             )
         }.getOrNull()
@@ -591,6 +594,133 @@ class DispatcharrClient @Inject constructor() {
         ).joinToString(" ").ifBlank { null }
         return response.status.value to action
     }
+
+    /** A programme on a guide, as the guide choice lists it. */
+    data class GuideProgramme(val title: String, val startMs: Long?, val endMs: Long?)
+
+    /** One guide a channel could be on, with what is on it now and next. */
+    data class GuideOption(
+        val epgId: Int,
+        val name: String,
+        val source: String,
+        val score: Int?,
+        val now: GuideProgramme?,
+        val next: GuideProgramme?,
+    )
+
+    /** The guide choice's list: the channel's guide now, and the others it could be;
+     *  [more] when asking again with these shown finds further ones (v217). */
+    data class GuideChoices(
+        val current: GuideOption?,
+        val guides: List<GuideOption>,
+        val reading: Boolean,
+        val more: Boolean = false,
+    )
+
+    sealed interface GuideAnswer {
+        data class Listed(val choices: GuideChoices) : GuideAnswer
+        data class Chosen(val guide: GuideOption?) : GuideAnswer
+        /** 403: switched off; 404: channel or guide gone; 409: the guide has nothing on now. */
+        data class Refused(val status: Int, val message: String) : GuideAnswer
+    }
+
+    /**
+     * GET the guides a channel could be on (Dispatch More v216, contract 7a):
+     * only guides with a programme on now, best first. [channel] is the
+     * channel's UUID or number id, as its stream URL carries it. [shown] asks
+     * for the next page: the guides already listed, left out of the answer.
+     */
+    suspend fun fetchGuideChoices(
+        baseUrl: String,
+        apiKey: String,
+        path: String,
+        channel: String,
+        shown: List<Int> = emptyList(),
+    ): GuideAnswer {
+        val response = try {
+            client.get("${baseUrl.trimEnd('/')}$path") {
+                applyAuth(apiKey)
+                url {
+                    parameters.append("channel", channel)
+                    if (shown.isNotEmpty()) parameters.append("shown", shown.joinToString(","))
+                }
+            }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            return GuideAnswer.Refused(0, "Could not reach the server: ${e.message ?: e::class.simpleName}")
+        }
+        if (response.status.value == 401) throw DispatcharrError.Unauthorized("Guide list refused: 401")
+        val body = runCatching { response.body<JsonElement>() as? JsonObject }.getOrNull()
+        if (!response.status.isSuccess() || body == null) return guideRefusal(response.status.value, body)
+        val guides = (body["guides"] as? kotlinx.serialization.json.JsonArray).orEmpty()
+            .mapNotNull { (it as? JsonObject)?.let(::guideOption) }
+        return GuideAnswer.Listed(
+            GuideChoices(
+                current = (body["current"] as? JsonObject)?.let(::guideOption),
+                guides = guides,
+                reading = (body["reading"] as? JsonPrimitive)?.booleanOrNull == true,
+                more = (body["more"] as? JsonPrimitive)?.booleanOrNull == true,
+            ),
+        )
+    }
+
+    /** POST the chosen guide: the channel is on it from then on, for everybody. */
+    suspend fun chooseGuide(baseUrl: String, apiKey: String, path: String, channel: String, epgId: Int): GuideAnswer {
+        val response = try {
+            client.post("${baseUrl.trimEnd('/')}$path") {
+                applyAuth(apiKey)
+                contentType(ContentType.Application.Json)
+                setBody(
+                    JsonObject(
+                        mapOf(
+                            "channel" to (channel.toIntOrNull()?.let { JsonPrimitive(it) } ?: JsonPrimitive(channel)),
+                            "epg_id" to JsonPrimitive(epgId),
+                        ),
+                    ),
+                )
+            }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            return GuideAnswer.Refused(0, "Could not reach the server: ${e.message ?: e::class.simpleName}")
+        }
+        if (response.status.value == 401) throw DispatcharrError.Unauthorized("Guide choice refused: 401")
+        val body = runCatching { response.body<JsonElement>() as? JsonObject }.getOrNull()
+        if (!response.status.isSuccess()) return guideRefusal(response.status.value, body)
+        return GuideAnswer.Chosen((body?.get("guide") as? JsonObject)?.let(::guideOption))
+    }
+
+    private fun guideRefusal(status: Int, body: JsonObject?): GuideAnswer.Refused =
+        GuideAnswer.Refused(
+            status,
+            (body?.get("error") as? JsonPrimitive)?.contentOrNull ?: when (status) {
+                403 -> "Changing the guide is switched off on the server"
+                404 -> "That channel or guide no longer exists"
+                else -> "The server answered $status"
+            },
+        )
+
+    private fun guideOption(entry: JsonObject): GuideOption? {
+        val id = (entry["epg_id"] as? JsonPrimitive)?.intOrNull ?: return null
+        val source = when (val s = entry["source"]) {
+            is JsonObject -> (s["name"] as? JsonPrimitive)?.contentOrNull
+            is JsonPrimitive -> s.contentOrNull
+            else -> null
+        }.orEmpty()
+        return GuideOption(
+            epgId = id,
+            name = (entry["name"] as? JsonPrimitive)?.contentOrNull.orEmpty(),
+            source = source,
+            score = (entry["score"] as? JsonPrimitive)?.intOrNull,
+            now = (entry["now"] as? JsonObject)?.let(::guideProgramme),
+            next = (entry["next"] as? JsonObject)?.let(::guideProgramme),
+        )
+    }
+
+    private fun guideProgramme(entry: JsonObject): GuideProgramme = GuideProgramme(
+        title = (entry["title"] as? JsonPrimitive)?.contentOrNull.orEmpty(),
+        startMs = (entry["start"] as? JsonPrimitive)?.contentOrNull?.let { runCatching { java.time.Instant.parse(it).toEpochMilli() }.getOrNull() },
+        endMs = (entry["end"] as? JsonPrimitive)?.contentOrNull?.let { runCatching { java.time.Instant.parse(it).toEpochMilli() }.getOrNull() },
+    )
 
     // Cast audio, 2026-09-13: the /api/core/outputprofiles/ fetch and the
     // stereo-AAC pick that lived here are GONE. Cast sessions ingest the

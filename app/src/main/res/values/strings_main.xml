@@ -145,8 +145,8 @@
     <string name="main_configure_username">Username</string>
     <string name="main_configure_password">Password</string>
     <string name="main_configure_missing_api_key">API key</string>
-    <string name="main_configure_dispatcharr_username_placeholder">Dispatcharr admin username</string>
-    <string name="main_configure_dispatcharr_password_placeholder">Dispatcharr admin password</string>
+    <string name="main_configure_dispatcharr_username_placeholder">Your Dispatcharr username</string>
+    <string name="main_configure_dispatcharr_password_placeholder">Your Dispatcharr password</string>
     <string name="main_configure_dispatcharr_password_hint">Use your Dispatcharr Dashboard password (System -> Users -> Account tab), not your Dispatcharr XC password.</string>
     <string name="main_configure_userpass_info">Save credentials and refresh automatically. AerioTV signs in with these credentials, then keeps your session alive in the background. If your Dispatcharr admin rotates your API key, AerioTV silently re-authenticates without prompting. Credentials are stored in encrypted Android storage.</string>
     <string name="main_configure_xc_username_placeholder">XC Username</string>
@@ -166,8 +166,8 @@
         <item quantity="one">%1$d field needs attention.</item>
         <item quantity="other">%1$d fields need attention.</item>
     </plurals>
-    <string name="main_configure_vod_enabled">Fetch On Demand from this playlist</string>
-    <string name="main_configure_vod_enabled_info">When off, this playlist\'s movies and TV shows aren\'t loaded into On Demand. Useful if you only want Live TV from this server, or if you have a second playlist that already provides On Demand. You can change this later in Settings.</string>
+    <string name="main_configure_vod_enabled">Load Movies &amp; TV Shows</string>
+    <string name="main_configure_vod_enabled_info">Off: only Live TV and the guide load, which is quicker on a TV box. Turn it on now or later in Settings › Playlists › Edit Playlist.</string>
     <string name="main_configure_dvr_destination">Default Recording Destination</string>
     <string name="main_configure_dvr_destination_server">Server (Dispatcharr)</string>
     <string name="main_configure_dvr_destination_device">This device</string>
@@ -235,4 +235,17 @@
     <string name="main_pl_using_local">Local server reachable, using local URL</string>
     <string name="main_pl_using_remote">Using remote URL</string>
     <string name="main_pl_switch_failed">Switch failed: %1$s</string>
+
+    <!-- First run: language step, Dispatcharr-first welcome, other sources -->
+    <string name="main_onboarding_language_title">Language · Langue</string>
+    <string name="main_onboarding_language_subtitle">Choose the language for %1$s. You can change it later in Settings › Appearance.</string>
+    <string name="main_welcome_connect_dispatcharr">Connect to Dispatcharr</string>
+    <string name="main_welcome_connect_dispatcharr_subtitle">Sign in with your Dispatcharr username and password. Works best with Dispatch More on the server.</string>
+    <string name="main_welcome_other_sources">Other options</string>
+    <string name="main_welcome_other_sources_header">Other sources (not supported)</string>
+    <string name="main_choose_unsupported_header">Not supported</string>
+    <string name="main_choose_unsupported_note">%1$s is built for Dispatcharr with Dispatch More. Xtream Codes and M3U playlists still play, but they are not supported: live updates, server recordings, problem reports and guide choice need Dispatcharr.</string>
+    <string name="main_choose_other_title">Other sources</string>
+    <string name="main_configure_server_details">Server details</string>
+    <string name="main_configure_sign_in">Sign in</string>
 </resources>

@@ -189,6 +189,16 @@ class PlaylistViewModel @Inject constructor(
         private const val CATALOG_RETRY_MS = 15_000L
         private const val RETRY_SUFFIX = "-retry"
 
+        /** ensureGuideCovers: how close to an edge, and how far one step widens. */
+        private const val GUIDE_EDGE_MARGIN_AHEAD_MS = 2L * 3_600_000L
+        private const val GUIDE_EDGE_MARGIN_BACK_MS = 1L * 3_600_000L
+        private const val GUIDE_WIDEN_AHEAD_MS = 12L * 3_600_000L
+        private const val GUIDE_WIDEN_BACK_MS = 6L * 3_600_000L
+
+        /** Low-memory profile: the guide's in-memory span around now. */
+        private const val LOW_MEMORY_BACK_MS = 3L * 3_600_000L
+        private const val LOW_MEMORY_AHEAD_MS = 12L * 3_600_000L
+
         const val ALL_GROUPS = "All"
         /** Pinned Favorites group inside Live TV (Apple parity: Favorites is a
          *  channel group, not a tab). Never a provider group name. */
@@ -1169,14 +1179,48 @@ class PlaylistViewModel @Inject constructor(
         val dayMs = 24L * 60L * 60L * 1000L
         val backBoundMs = now - retentionDays * dayMs
         val forwardBoundMs = now + windowHours * 60L * 60L * 1000L
+        // Low-memory profile: a few hours back and half a day ahead instead of
+        // a day either side (about a third of the rows); the guide widens as
+        // the user scrolls towards an edge (ensureGuideRange) or jumps.
+        val low = repository.lowMemory
+        val backSpan = if (low) LOW_MEMORY_BACK_MS else guideLaunchSpanDays * dayMs
+        val aheadSpan = if (low) LOW_MEMORY_AHEAD_MS else guideLaunchSpanDays * dayMs
         val wantedFrom = if (guideBackThroughMs > 0L) {
-            minOf(guideBackThroughMs, now - guideLaunchSpanDays * dayMs)
+            minOf(guideBackThroughMs, now - backSpan)
         } else {
-            now - guideLaunchSpanDays * dayMs
+            now - backSpan
         }
         val from = maxOf(backBoundMs, wantedFrom)
-        val to = minOf(forwardBoundMs, maxOf(now + guideLaunchSpanDays * dayMs, guideForwardThroughMs))
+        val to = minOf(forwardBoundMs, maxOf(now + aheadSpan, guideForwardThroughMs))
         return from to to
+    }
+
+    /** The playlist's hard Guide Days limits around now (back, forward). */
+    private fun guideBounds(playlist: PlaylistEntity): Pair<Long, Long> {
+        val guideDays = resolveGuideDays(playlist.epgRetentionDays)
+        val retentionDays = guideDays ?: GUIDE_DAYS_ALL_MAX_BACK
+        val windowHours = ((guideDays ?: GUIDE_DAYS_ALL_MAX_AHEAD) * 24).coerceAtLeast(24)
+        val now = System.currentTimeMillis()
+        return (now - retentionDays * 86_400_000L) to (now + windowHours * 3_600_000L)
+    }
+
+    /**
+     * The guide shows [viewStartMs]..[viewEndMs]: widen the in-memory guide
+     * when that comes near either edge of what is loaded (12 h ahead / 6 h
+     * back per step), so scrolling never runs into empty cells. Needed by the
+     * low-memory profile's narrow window; harmless at the normal day-wide one.
+     * Stops at the playlist's Guide Days limits.
+     */
+    fun ensureGuideCovers(viewStartMs: Long, viewEndMs: Long) {
+        val playlist = _state.value.playlist ?: return
+        val (from, to) = guideWindow(playlist)
+        val (backBound, forwardBound) = guideBounds(playlist)
+        when {
+            viewEndMs > to - GUIDE_EDGE_MARGIN_AHEAD_MS && to < forwardBound - 60_000L ->
+                ensureGuideRange(0L, minOf(forwardBound, viewEndMs + GUIDE_WIDEN_AHEAD_MS))
+            viewStartMs < from + GUIDE_EDGE_MARGIN_BACK_MS && from > backBound + 60_000L ->
+                ensureGuideRange(maxOf(backBound, viewStartMs - GUIDE_WIDEN_BACK_MS), 0L)
+        }
     }
 
     /**

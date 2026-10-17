@@ -19,6 +19,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -254,6 +257,35 @@ fun GeneralSettingsScreen(
                             label = if (secs == 1) "1 second" else "$secs seconds",
                             selected = timeoutSecs.toInt() == secs,
                             onClick = { viewModel.setNetworkTimeoutSecs(secs.toDouble()) },
+                        )
+                    }
+                }
+
+                // Low-memory profile (core/system/DeviceMemory): Auto follows
+                // the device's RAM; On / Off force it.
+                val memContext = androidx.compose.ui.platform.LocalContext.current
+                var memoryMode by remember { mutableStateOf(com.aeriotv.android.core.system.DeviceMemory.mode(memContext)) }
+                val memoryDetected = remember { com.aeriotv.android.core.system.DeviceMemory.detected(memContext) }
+                SettingsSection(
+                    header = "Memory",
+                    footer = "Low-memory mode keeps a shorter stretch of the guide in memory (it loads " +
+                        "more as you scroll) and uses a smaller image cache. For devices with little " +
+                        "RAM, where everything slows down when memory runs out. Restart the app for " +
+                        "the image cache to follow.",
+                ) {
+                    listOf(
+                        com.aeriotv.android.core.system.DeviceMemory.AUTO to
+                            "Automatic (this device: ${if (memoryDetected) "on" else "off"})",
+                        com.aeriotv.android.core.system.DeviceMemory.ON to "Low-memory mode on",
+                        com.aeriotv.android.core.system.DeviceMemory.OFF to "Low-memory mode off",
+                    ).forEach { (mode, label) ->
+                        SettingsSelectionRow(
+                            label = label,
+                            selected = memoryMode == mode,
+                            onClick = {
+                                com.aeriotv.android.core.system.DeviceMemory.setMode(memContext, mode)
+                                memoryMode = mode
+                            },
                         )
                     }
                 }

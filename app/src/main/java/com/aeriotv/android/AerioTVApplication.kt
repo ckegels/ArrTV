@@ -105,7 +105,11 @@ class AerioTVApplication : Application(), Configuration.Provider, SingletonImage
         return ImageLoader.Builder(context)
             .memoryCache {
                 MemoryCache.Builder()
-                    .maxSizeBytes(64L * 1024L * 1024L)
+                    // Low-memory profile: 24 MB (64 MB took a large share of
+                    // a 1 GB device's RAM).
+                    .maxSizeBytes(
+                        (if (com.aeriotv.android.core.system.DeviceMemory.isLow(context)) 24L else 64L) * 1024L * 1024L,
+                    )
                     .build()
             }
             .diskCache {

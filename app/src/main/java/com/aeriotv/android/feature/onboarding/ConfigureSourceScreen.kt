@@ -7,6 +7,9 @@ import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -125,6 +128,13 @@ fun ConfigureSourceScreen(
         )
     }
 
+    // A server picked from the welcome page's network scan arrives with its
+    // address filled in: ask only for the login, with the server's own
+    // settings folded away under "Server details" (still changeable).
+    val isDispatcharr = sourceType == SourceType.DispatcharrApiKey || sourceType == SourceType.DispatcharrUserPass
+    val fromDiscovery = remember(sourceType) { isDispatcharr && state.url.isNotBlank() }
+    var detailsOpen by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+
     val cardIcon: ImageVector
     val cardTitle: String
     val cardSubtitle: String
@@ -207,6 +217,36 @@ fun ConfigureSourceScreen(
                 Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            if (fromDiscovery) {
+                SourceTypeCard(
+                    icon = Icons.Outlined.Dns,
+                    title = state.name.ifBlank { "Dispatcharr" },
+                    subtitle = state.url,
+                )
+                DispatcharrLoginFields(state, viewModel, dispatcharrAuthMode, showInfo = false)
+                ConfigureStatusAndSubmit(sourceType, state, viewModel, dispatcharrAuthMode, compact = true)
+                // The one choice worth making at sign-in, right under it: off by
+                // default so the first load is Live TV and the guide only.
+                VodEnabledRow(checked = state.vodEnabled, onCheckedChange = viewModel::onVodEnabledChange)
+                ServerDetailsToggle(open = detailsOpen, onToggle = { detailsOpen = !detailsOpen })
+                if (detailsOpen) {
+                    DispatcharrServerFields(
+                        state = state,
+                        viewModel = viewModel,
+                        authMode = dispatcharrAuthMode,
+                        onAuthModeChange = { mode ->
+                            dispatcharrAuthMode = mode
+                            viewModel.onSourceTypeChange(
+                                if (mode == DispatcharrAuthMode.ApiKey) SourceType.DispatcharrApiKey
+                                else SourceType.DispatcharrUserPass,
+                            )
+                        },
+                    )
+                    DvrDestinationRow(server = state.dvrDestinationServer, onSelect = viewModel::onDvrDestinationChange)
+                    GuideHistoryRow(selectedDays = state.epgRetentionDays, onSelect = viewModel::onEpgRetentionDaysChange)
+                }
+                Spacer(Modifier.height(24.dp))
+            } else {
             SourceTypeCard(icon = cardIcon, title = cardTitle, subtitle = cardSubtitle)
 
             when (sourceType) {
@@ -270,8 +310,29 @@ fun ConfigureSourceScreen(
                 onSelect = viewModel::onEpgRetentionDaysChange,
             )
 
+            ConfigureStatusAndSubmit(sourceType, state, viewModel, dispatcharrAuthMode, compact = false)
+
+            Spacer(Modifier.height(24.dp))
+            }
+        }
+        }
+        }
+    }
+    }
+}
+
+/** Validation line, error, and the Test Connection / Sign in button. */
+@Composable
+private fun ConfigureStatusAndSubmit(
+    sourceType: SourceType,
+    state: PlaylistViewModel.UiState,
+    viewModel: PlaylistViewModel,
+    dispatcharrAuthMode: DispatcharrAuthMode,
+    compact: Boolean,
+) {
             val validation = validate(sourceType, state, dispatcharrAuthMode)
-            if (validation != null) {
+            // The found-server form is two fields: the disabled button says enough.
+            if (validation != null && !compact) {
                 InfoBanner(text = validation)
             }
             state.error?.let { msg ->
@@ -310,25 +371,46 @@ fun ConfigureSourceScreen(
                     )
                     Spacer(Modifier.size(10.dp))
                     Text(
-                        text = stringResource(R.string.main_configure_test_connection),
+                        text = stringResource(if (compact) R.string.main_configure_sign_in else R.string.main_configure_test_connection),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
-        }
-        }
-        }
-    }
+}
+
+/** "Server details" row that folds the found server's settings in and out. */
+@Composable
+private fun ServerDetailsToggle(open: Boolean, onToggle: () -> Unit) {
+    androidx.compose.foundation.layout.Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .dpadFocusRing(RoundedCornerShape(12.dp))
+            .clickable(onClick = onToggle)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.main_configure_server_details),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            imageVector = if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
 enum class DispatcharrAuthMode { UsernamePassword, ApiKey }
 
+/** The server half of [DispatcharrFields]: name, addresses and the login type. */
 @Composable
-private fun DispatcharrFields(
+private fun DispatcharrServerFields(
     state: PlaylistViewModel.UiState,
     viewModel: PlaylistViewModel,
     authMode: DispatcharrAuthMode,
@@ -343,7 +425,6 @@ private fun DispatcharrFields(
             enabled = !state.isLoading,
         )
     }
-
     LabeledField(label = stringResource(R.string.main_configure_server_url)) {
         IconTextField(
             value = state.url,
@@ -353,15 +434,29 @@ private fun DispatcharrFields(
             enabled = !state.isLoading,
         )
     }
-
     LanUrlField(state = state, viewModel = viewModel)
+    SegmentedAuthControl(selected = authMode, onSelect = onAuthModeChange, enabled = !state.isLoading)
+}
 
-    SegmentedAuthControl(
-        selected = authMode,
-        onSelect = onAuthModeChange,
-        enabled = !state.isLoading,
-    )
+@Composable
+private fun DispatcharrFields(
+    state: PlaylistViewModel.UiState,
+    viewModel: PlaylistViewModel,
+    authMode: DispatcharrAuthMode,
+    onAuthModeChange: (DispatcharrAuthMode) -> Unit,
+) {
+    DispatcharrServerFields(state, viewModel, authMode, onAuthModeChange)
+    DispatcharrLoginFields(state, viewModel, authMode, showInfo = true)
+}
 
+/** The login half of [DispatcharrFields]: API key, or username and password. */
+@Composable
+private fun DispatcharrLoginFields(
+    state: PlaylistViewModel.UiState,
+    viewModel: PlaylistViewModel,
+    authMode: DispatcharrAuthMode,
+    showInfo: Boolean,
+) {
     when (authMode) {
         DispatcharrAuthMode.ApiKey -> {
             LabeledField(label = stringResource(R.string.main_configure_admin_api_key)) {
@@ -383,7 +478,7 @@ private fun DispatcharrFields(
                     enabled = !state.isLoading,
                 )
             }
-            InfoBanner(
+            if (showInfo) InfoBanner(
                 text = stringResource(R.string.main_configure_api_key_info),
             )
         }
@@ -409,7 +504,7 @@ private fun DispatcharrFields(
                 style = MaterialTheme.typography.bodySmall.subtext(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            InfoBanner(
+            if (showInfo) InfoBanner(
                 text = stringResource(R.string.main_configure_userpass_info),
             )
         }

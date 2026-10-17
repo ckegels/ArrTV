@@ -251,9 +251,11 @@ fun WhatsNewGate() {
     LaunchedEffect(lastSeen) {
         val seen = lastSeen ?: return@LaunchedEffect
         if (shownThisSession) return@LaunchedEffect
-        if (seen.isBlank()) {
+        if (seen.isBlank() || !BuildConfig.SHOW_WHATS_NEW) {
             // First-ever install: seed silently. The onboarding flow is the
             // more relevant first-launch surface, no need to also pop this.
+            // A build without What's New (aerio.showWhatsNew=false) seeds
+            // every version the same way, so nothing waits on the sheet.
             prefs.setLastSeenWhatsNewVersion(current)
         } else if (seen != current) {
             visible = true

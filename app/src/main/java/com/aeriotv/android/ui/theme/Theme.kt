@@ -16,11 +16,11 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-val LocalAppTheme = staticCompositionLocalOf { AppTheme.Aerio }
+val LocalAppTheme = staticCompositionLocalOf { AppTheme.Default }
 
 @Composable
 fun AerioTVTheme(
-    appTheme: AppTheme = AppTheme.Aerio,
+    appTheme: AppTheme = AppTheme.Default,
     customAccent: Color? = null,
     // Orthogonal appearance axis. Defaults to Dark so any caller that has not
     // yet threaded the preference (and every existing install) is unchanged.

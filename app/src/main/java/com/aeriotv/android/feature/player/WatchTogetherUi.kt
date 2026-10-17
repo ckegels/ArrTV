@@ -59,6 +59,9 @@ fun WatchTogetherPrompts() {
         Countdown(request) { WatchTogether.answer(allow = true) }.let { left ->
             val focus = remember { FocusRequester() }
             AlertDialog(
+                containerColor = solidDialog(),
+                titleContentColor = MaterialTheme.colorScheme.onSurface,
+                textContentColor = MaterialTheme.colorScheme.onSurface,
                 onDismissRequest = { WatchTogether.answer(allow = false) },
                 title = { Text(stringResource(R.string.watch_together_title)) },
                 text = {
@@ -90,6 +93,9 @@ fun WatchTogetherPrompts() {
             val focus = remember { FocusRequester() }
             val who = deviceOfPerson(request.name, request.user)
             AlertDialog(
+                containerColor = solidDialog(),
+                titleContentColor = MaterialTheme.colorScheme.onSurface,
+                textContentColor = MaterialTheme.colorScheme.onSurface,
                 onDismissRequest = { WatchTogether.stay() },
                 title = { Text(stringResource(R.string.watch_together_follow_title, who)) },
                 text = {
@@ -117,6 +123,10 @@ fun WatchTogetherPrompts() {
         }
     }
 }
+
+/** The pop-ups come up over a playing picture: a solid box, never the see-through one. */
+@Composable
+private fun solidDialog() = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 1f)
 
 /** Seconds left on this request's pop-up; [onEnd] when they run out. */
 @Composable
@@ -156,6 +166,9 @@ fun WatchTogetherSheet() {
     val close = { WatchTogether.sheetOpen.value = false }
     val firstFocus = remember { FocusRequester() }
     AlertDialog(
+        containerColor = solidDialog(),
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurface,
         onDismissRequest = close,
         title = { Text(stringResource(R.string.watch_together_title)) },
         text = {
@@ -216,7 +229,9 @@ private fun OfferRow(offer: DispatcharrClient.LinkOffer, modifier: Modifier, onJ
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        Button(onClick = onJoin, modifier = modifier) { Text(stringResource(R.string.player_join_other_device)) }
+        Button(onClick = onJoin, modifier = modifier) {
+            Text(stringResource(if (offer.user.isNotBlank()) R.string.watch_together_ask else R.string.player_join_other_device))
+        }
     }
 }
 

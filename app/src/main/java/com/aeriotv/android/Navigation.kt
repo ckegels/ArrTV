@@ -930,15 +930,18 @@ fun AerioTVNavHost(
                         onDismissRequest = { watchOffer = null },
                         title = { androidx.compose.material3.Text(stringResource(R.string.watch_together_offer_title)) },
                         text = {
+                            // The server's stand-in for a device that never said its name is
+                            // English: in the app's own language instead
+                            val deviceName = offer.name.takeIf { it.isNotBlank() && it != "another device" }
+                                ?: stringResource(R.string.watch_together_unnamed_device)
+                            val channelName = offer.channelName.ifBlank { offer.channel.take(8) }
                             androidx.compose.material3.Text(
-                                stringResource(
-                                    R.string.watch_together_offer_message,
-                                    // The server's stand-in for a device that never said its
-                                    // name is English: in the app's own language instead
-                                    offer.name.takeIf { it.isNotBlank() && it != "another device" }
-                                        ?: stringResource(R.string.watch_together_unnamed_device),
-                                    offer.channelName.ifBlank { offer.channel.take(8) },
-                                ),
+                                // Another person's device (v266): asked first, and they lead
+                                if (offer.user.isNotBlank()) {
+                                    stringResource(R.string.watch_together_offer_message_person, offer.user, channelName, deviceName)
+                                } else {
+                                    stringResource(R.string.watch_together_offer_message, deviceName, channelName)
+                                },
                             )
                         },
                         confirmButton = {
@@ -948,7 +951,14 @@ fun AerioTVNavHost(
                                     com.aeriotv.android.core.network.WatchTogether.join(offer.device)
                                 },
                                 modifier = Modifier.focusRequester(joinFocus),
-                            ) { androidx.compose.material3.Text(stringResource(R.string.player_join_other_device)) }
+                            ) {
+                                androidx.compose.material3.Text(
+                                    stringResource(
+                                        if (offer.user.isNotBlank()) R.string.watch_together_ask
+                                        else R.string.player_join_other_device,
+                                    ),
+                                )
+                            }
                         },
                         dismissButton = {
                             androidx.compose.material3.TextButton(onClick = { watchOffer = null }) {

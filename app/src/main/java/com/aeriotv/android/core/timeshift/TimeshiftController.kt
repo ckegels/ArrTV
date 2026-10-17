@@ -235,12 +235,13 @@ class TimeshiftController @Inject constructor(
                     // release the corpse and fall through to a fresh start.
                     releaseRetained(adopted)
                 }
+                val budget = store.freeSpaceBudgetBytes()
                 val writer = store.startSession(
                     channelId = channelId,
                     channelName = channelName,
                     depthMs = depthMin * 60_000L,
                     retentionMs = FIXED_RETENTION_MS,
-                    budgetBytes = store.freeSpaceBudgetBytes(),
+                    budgetBytes = budget,
                     protectedDirs = retained.values.map { it.writer.sessionDir }.toSet(),
                 )
                 currentChannelId = channelId
@@ -251,7 +252,9 @@ class TimeshiftController @Inject constructor(
                     tailWallMs = writer.sessionStartMs,
                     headWallMs = writer.sessionStartMs,
                 )
-                Log.i(TAG, "buffering started for $channelName")
+                // A full disk leaves the buffer one segment deep: a pause then
+                // resumes at live. Say so, so it is visible in a report.
+                Log.i(TAG, "buffering started for $channelName (room for ${budget / (1024 * 1024)} MB)")
             }.onFailure {
                 Log.w(TAG, "session start failed: $it")
                 activeWriter = null

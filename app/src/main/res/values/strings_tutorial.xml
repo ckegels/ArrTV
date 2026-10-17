@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Remote tutorial: first-run offer and the pages. -->
+<resources>
+    <string name="tutorial_offer_title">Get to know your remote?</string>
+    <string name="tutorial_offer_text">A short tour of what each button does in the guide and while you watch. You can open it again in Settings › Remote Control.</string>
+    <string name="tutorial_offer_start">Start the tutorial</string>
+    <string name="tutorial_offer_later">Later</string>
+    <string name="tutorial_next">Next</string>
+    <string name="tutorial_done">Done</string>
+    <string name="tutorial_skip">Skip</string>
+    <string name="tutorial_page_of">%1$d / %2$d</string>
+    <string name="tutorial_hold">Hold</string>
+    <string name="tutorial_twice">Twice</string>
+    <string name="tutorial_basics_title">Your remote</string>
+    <string name="tutorial_basics_intro">Everything in the app works with these few buttons. “Hold” means keep the button pressed for about a second.</string>
+    <string name="tutorial_basics_arrows">Move around the screen</string>
+    <string name="tutorial_basics_ok">Choose, confirm, play</string>
+    <string name="tutorial_basics_ok_hold">More options for what is selected</string>
+    <string name="tutorial_basics_back">Go back one step</string>
+    <string name="tutorial_basics_home">Leave the app (TV home screen)</string>
+    <string name="tutorial_guide_title">In the guide</string>
+    <string name="tutorial_guide_intro">The guide lists every channel with what is on now and later.</string>
+    <string name="tutorial_guide_updown">Move between channels</string>
+    <string name="tutorial_guide_leftright_time">Move earlier or later in time</string>
+    <string name="tutorial_guide_back">Back to the top channel</string>
+    <string name="tutorial_watch_title">While watching</string>
+    <string name="tutorial_watch_intro">A channel plays full screen; the buttons below work without anything on screen.</string>
+    <string name="tutorial_watch_back">Shrink to a small player in a corner and browse</string>
+    <string name="tutorial_watch_back_twice">Stop watching</string>
+    <string name="tutorial_controls_title">Player controls</string>
+    <string name="tutorial_controls_intro">Press OK while watching to show the program details and the controls.</string>
+    <string name="tutorial_controls_leftright">Move along the row: TV guide, history and the other channels</string>
+    <string name="tutorial_controls_ok">Use the selected button</string>
+    <string name="tutorial_controls_down">Row with TV guide, history and the next channels</string>
+    <string name="tutorial_controls_ok_hold">Options: subtitles, audio, record, sleep timer…</string>
+    <string name="tutorial_controls_back">Hide the controls</string>
+    <string name="tutorial_end_title">You are all set</string>
+    <string name="tutorial_end_text">Enjoy watching! You can see this tour again in Settings › Remote Control, where you can also change what the buttons do.</string>
+    <string name="tutorial_settings_header">Tutorial</string>
+    <string name="tutorial_settings_open">Show the remote tutorial</string>
+    <string name="tutorial_settings_open_subtitle">The app shows each button in the guide and while watching</string>
+    <!-- Live tour: the app is driven by itself, a remote at the side shows each press -->
+    <string name="tutorial_demo_title">Remote tour</string>
+    <string name="tutorial_demo_stop">Back: stop the tour</string>
+    <string name="tutorial_demo_close">Close it again</string>
+    <string name="tutorial_demo_now">Back to what is on now</string>
+    <string name="tutorial_demo_guide_back">Leave full screen: the channel keeps playing while you browse the guide</string>
+    <string name="tutorial_demo_mini_back">Back to full screen</string>
+    <string name="tutorial_demo_catchup_note">Shows with this symbol can be watched again from the start, though it is not always reliable.</string>
+    <string name="tutorial_demo_your_turn">Your turn! Press Back or OK to finish.</string>
+</resources>

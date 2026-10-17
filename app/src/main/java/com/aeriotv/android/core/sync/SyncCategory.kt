@@ -1,55 +1,58 @@
 package com.aeriotv.android.core.sync
 
+import androidx.annotation.StringRes
+import com.aeriotv.android.R
+
 /**
  * One category of synced data. iOS mirrors the same taxonomy under iCloud
  * Sync > Sync Categories. Each category persists to its own Drive AppData
  * file ([fileName]) so partial-category sync is atomic.
  */
 enum class SyncCategory(
-    val displayName: String,
-    val subtitle: String,
+    @StringRes val displayNameRes: Int,
+    @StringRes val subtitleRes: Int,
     val fileName: String,
     val storageSuffix: String,
 ) {
     Playlists(
-        displayName = "Playlists & Servers",
-        subtitle = "M3U URLs, Dispatcharr servers, Xtream credentials (server-side only)",
+        displayNameRes = R.string.core_sync_category_playlists,
+        subtitleRes = R.string.core_sync_category_playlists_subtitle,
         fileName = "playlists.v1.json",
         storageSuffix = "playlists",
     ),
     WatchProgress(
-        displayName = "Watch Progress",
-        subtitle = "Resume points for movies, episodes, and recordings",
+        displayNameRes = R.string.core_sync_category_watch_progress,
+        subtitleRes = R.string.core_sync_category_watch_progress_subtitle,
         fileName = "watch_progress.v1.json",
         storageSuffix = "watch_progress",
     ),
     Reminders(
-        displayName = "Reminders",
-        subtitle = "Scheduled program reminders",
+        displayNameRes = R.string.core_sync_category_reminders,
+        subtitleRes = R.string.core_sync_category_reminders_subtitle,
         fileName = "reminders.v1.json",
         storageSuffix = "reminders",
     ),
     Favorites(
-        displayName = "Favorites",
-        subtitle = "Favorite channels + your manual order",
+        displayNameRes = R.string.core_sync_category_favorites,
+        subtitleRes = R.string.core_sync_category_favorites_subtitle,
         fileName = "favorites.v1.json",
         storageSuffix = "favorites",
     ),
     Watchlist(
-        displayName = "Watchlist",
-        subtitle = "Movies and TV shows you saved for later, plus titles you hid",
+        displayNameRes = R.string.core_sync_category_watchlist,
+        subtitleRes = R.string.core_sync_category_watchlist_subtitle,
         fileName = "watchlist.v1.json",
         storageSuffix = "watchlist",
     ),
     Preferences(
-        displayName = "App Preferences",
-        subtitle = "Theme, appearance mode, accent color, default tab, hidden groups, palette overrides",
+        displayNameRes = R.string.core_sync_category_preferences,
+        subtitleRes = R.string.core_sync_category_preferences_subtitle,
         fileName = "preferences.v1.json",
         storageSuffix = "preferences",
     ),
     Credentials(
-        displayName = "Credentials",
-        subtitle = "Server passwords + API keys (Drive AppData is private to the app)",
+        displayNameRes = R.string.core_sync_category_credentials,
+        subtitleRes = R.string.core_sync_category_credentials_subtitle,
         fileName = "credentials.v1.json",
         storageSuffix = "credentials",
     );

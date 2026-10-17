@@ -80,6 +80,9 @@ import com.aeriotv.android.ui.textfield.rememberSecretRevealState
 import com.aeriotv.android.ui.tv.TvKeyboardOnOkHost
 import com.aeriotv.android.ui.tv.dpadFocusEscape
 import com.aeriotv.android.ui.tv.tvFormFieldInput
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * Configure-source form. Mirrors iOS App Store screenshots IMG_1078 (Dispatcharr
@@ -128,19 +131,18 @@ fun ConfigureSourceScreen(
     when (sourceType) {
         SourceType.DispatcharrApiKey, SourceType.DispatcharrUserPass -> {
             cardIcon = Icons.Filled.Key
-            cardTitle = "Dispatcharr Direct Connect"
-            cardSubtitle = "Connect to Dispatcharr with your admin login or a personal API key " +
-                    "(*AerioTV is not officially affiliated with the Dispatcharr project)"
+            cardTitle = stringResource(R.string.main_source_dispatcharr_title)
+            cardSubtitle = stringResource(R.string.main_source_dispatcharr_subtitle)
         }
         SourceType.XtreamCodes -> {
             cardIcon = Icons.Filled.Tv
             cardTitle = "Xtream Codes"
-            cardSubtitle = "Xtream Codes API. Live TV, VOD movies & series."
+            cardSubtitle = stringResource(R.string.main_source_xtream_subtitle)
         }
         SourceType.M3uUrl -> {
             cardIcon = Icons.Filled.Description
             cardTitle = "M3U + EPG"
-            cardSubtitle = "Any M3U playlist URL. Works with Dispatcharr, any IPTV provider."
+            cardSubtitle = stringResource(R.string.main_source_m3u_subtitle)
         }
     }
 
@@ -149,7 +151,7 @@ fun ConfigureSourceScreen(
         TopAppBar(
             title = {
                 Text(
-                    "Configure",
+                    stringResource(R.string.main_configure_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     // See ChooseSourceTypeScreen: hiding the TV back arrow
@@ -169,7 +171,7 @@ fun ConfigureSourceScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.common_back),
                             tint = MaterialTheme.colorScheme.primary,
                         )
                     }
@@ -308,7 +310,7 @@ fun ConfigureSourceScreen(
                     )
                     Spacer(Modifier.size(10.dp))
                     Text(
-                        text = "Test Connection",
+                        text = stringResource(R.string.main_configure_test_connection),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -332,17 +334,17 @@ private fun DispatcharrFields(
     authMode: DispatcharrAuthMode,
     onAuthModeChange: (DispatcharrAuthMode) -> Unit,
 ) {
-    LabeledField(label = "Name") {
+    LabeledField(label = stringResource(R.string.main_configure_name)) {
         IconTextField(
             value = state.name,
             onValueChange = viewModel::onNameChange,
-            placeholder = "My IPTV Server",
+            placeholder = stringResource(R.string.main_configure_name_placeholder),
             leading = Icons.Outlined.Sell,
             enabled = !state.isLoading,
         )
     }
 
-    LabeledField(label = "Server URL") {
+    LabeledField(label = stringResource(R.string.main_configure_server_url)) {
         IconTextField(
             value = state.url,
             onValueChange = viewModel::onUrlChange,
@@ -362,19 +364,19 @@ private fun DispatcharrFields(
 
     when (authMode) {
         DispatcharrAuthMode.ApiKey -> {
-            LabeledField(label = "Admin API Key") {
+            LabeledField(label = stringResource(R.string.main_configure_admin_api_key)) {
                 val apiKeyReveal = rememberSecretRevealState()
                 IconTextField(
                     value = state.apiKey,
                     onValueChange = viewModel::onApiKeyChange,
-                    placeholder = "Paste your admin API key",
+                    placeholder = stringResource(R.string.main_configure_admin_api_key_placeholder),
                     leading = Icons.Filled.Key,
                     visualTransformation = apiKeyReveal.transformation,
                     trailing = {
                         SecretRevealIconButton(
                             state = apiKeyReveal,
                             iconSize = 18.dp,
-                            contentLabel = "API key",
+                            contentLabel = stringResource(R.string.main_secret_label_api_key),
                         )
                     },
                     trailingFocused = { apiKeyReveal.controlFocused },
@@ -382,40 +384,33 @@ private fun DispatcharrFields(
                 )
             }
             InfoBanner(
-                text = "Use a Dispatcharr Admin API Key (System -> Users -> Edit User -> API & XC). " +
-                        "This enables native Dispatcharr endpoints for Live TV, Guide, Movies, " +
-                        "and TV Shows. If your admin rotates the key, you'll need to re-enter it " +
-                        "here. For hands-off auto-refresh, switch to Username & Password.",
+                text = stringResource(R.string.main_configure_api_key_info),
             )
         }
         DispatcharrAuthMode.UsernamePassword -> {
-            LabeledField(label = "Username") {
+            LabeledField(label = stringResource(R.string.main_configure_username)) {
                 IconTextField(
                     value = state.username,
                     onValueChange = viewModel::onUsernameChange,
-                    placeholder = "Dispatcharr admin username",
+                    placeholder = stringResource(R.string.main_configure_dispatcharr_username_placeholder),
                     leading = Icons.Outlined.Person,
                     enabled = !state.isLoading,
                 )
             }
             PasswordField(
-                label = "Password",
+                label = stringResource(R.string.main_configure_password),
                 value = state.password,
                 onValueChange = viewModel::onPasswordChange,
-                placeholder = "Dispatcharr admin password",
+                placeholder = stringResource(R.string.main_configure_dispatcharr_password_placeholder),
                 enabled = !state.isLoading,
             )
             Text(
-                text = "Use your Dispatcharr Dashboard password (System -> Users -> Account tab), " +
-                        "not your Dispatcharr XC password.",
+                text = stringResource(R.string.main_configure_dispatcharr_password_hint),
                 style = MaterialTheme.typography.bodySmall.subtext(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             InfoBanner(
-                text = "Save credentials and refresh automatically. AerioTV signs in with these " +
-                        "credentials, then keeps your session alive in the background. If your " +
-                        "Dispatcharr admin rotates your API key, AerioTV silently re-authenticates " +
-                        "without prompting. Credentials are stored in encrypted Android storage.",
+                text = stringResource(R.string.main_configure_userpass_info),
             )
         }
     }
@@ -423,16 +418,16 @@ private fun DispatcharrFields(
 
 @Composable
 private fun XtreamFields(state: PlaylistViewModel.UiState, viewModel: PlaylistViewModel) {
-    LabeledField(label = "Name") {
+    LabeledField(label = stringResource(R.string.main_configure_name)) {
         IconTextField(
             value = state.name,
             onValueChange = viewModel::onNameChange,
-            placeholder = "My IPTV Server",
+            placeholder = stringResource(R.string.main_configure_name_placeholder),
             leading = Icons.Outlined.Sell,
             enabled = !state.isLoading,
         )
     }
-    LabeledField(label = "Server URL") {
+    LabeledField(label = stringResource(R.string.main_configure_server_url)) {
         IconTextField(
             value = state.url,
             onValueChange = viewModel::onUrlChange,
@@ -442,41 +437,39 @@ private fun XtreamFields(state: PlaylistViewModel.UiState, viewModel: PlaylistVi
         )
     }
     LanUrlField(state = state, viewModel = viewModel)
-    LabeledField(label = "Username") {
+    LabeledField(label = stringResource(R.string.main_configure_username)) {
         IconTextField(
             value = state.username,
             onValueChange = viewModel::onUsernameChange,
-            placeholder = "XC Username",
+            placeholder = stringResource(R.string.main_configure_xc_username_placeholder),
             leading = Icons.Outlined.Person,
             enabled = !state.isLoading,
         )
     }
     PasswordField(
-        label = "Password",
+        label = stringResource(R.string.main_configure_password),
         value = state.password,
         onValueChange = viewModel::onPasswordChange,
-        placeholder = "XC Password",
+        placeholder = stringResource(R.string.main_configure_xc_password_placeholder),
         enabled = !state.isLoading,
     )
     InfoBanner(
-        text = "Enter your Xtream Codes server URL and credentials. Dispatcharr users: use your " +
-                "Dispatcharr URL with the Xtream Codes username and password from Dispatcharr's " +
-                "User settings.",
+        text = stringResource(R.string.main_configure_xtream_info),
     )
 }
 
 @Composable
 private fun M3uFields(state: PlaylistViewModel.UiState, viewModel: PlaylistViewModel) {
-    LabeledField(label = "Name") {
+    LabeledField(label = stringResource(R.string.main_configure_name)) {
         IconTextField(
             value = state.name,
             onValueChange = viewModel::onNameChange,
-            placeholder = "My IPTV Server",
+            placeholder = stringResource(R.string.main_configure_name_placeholder),
             leading = Icons.Outlined.Sell,
             enabled = !state.isLoading,
         )
     }
-    LabeledField(label = "M3U URL") {
+    LabeledField(label = stringResource(R.string.main_configure_m3u_url)) {
         IconTextField(
             value = state.url,
             onValueChange = viewModel::onUrlChange,
@@ -502,14 +495,14 @@ private fun M3uFields(state: PlaylistViewModel.UiState, viewModel: PlaylistViewM
                 }
             }
         }
-        ImportFileLink(label = "Import M3U from a file instead") {
+        ImportFileLink(label = stringResource(R.string.main_configure_import_m3u)) {
             // M3U MIME registration is a mess in the wild (x-mpegurl,
             // audio/mpegurl, octet-stream, text/plain) -- accept anything,
             // like iOS's [.data, .plainText] allowance.
             m3uPicker.launch(arrayOf("*/*"))
         }
     }
-    LabeledField(label = "EPG URL (optional)") {
+    LabeledField(label = stringResource(R.string.main_configure_epg_url)) {
         IconTextField(
             value = state.epgUrl,
             onValueChange = viewModel::onEpgUrlChange,
@@ -528,13 +521,12 @@ private fun M3uFields(state: PlaylistViewModel.UiState, viewModel: PlaylistViewM
                 }
             }
         }
-        ImportFileLink(label = "Import XMLTV from a file instead") {
+        ImportFileLink(label = stringResource(R.string.main_configure_import_xmltv)) {
             epgPicker.launch(arrayOf("*/*"))
         }
     }
     InfoBanner(
-        text = "Paste your M3U playlist URL. Works with Dispatcharr's /output/m3u, any IPTV " +
-                "provider, or a direct .m3u file link.",
+        text = stringResource(R.string.main_configure_m3u_info),
     )
 }
 
@@ -596,7 +588,7 @@ private suspend fun importPickedFile(
  */
 @Composable
 private fun LanUrlField(state: PlaylistViewModel.UiState, viewModel: PlaylistViewModel) {
-    LabeledField(label = "LAN URL (optional)") {
+    LabeledField(label = stringResource(R.string.main_configure_lan_url)) {
         IconTextField(
             value = state.lanUrl,
             onValueChange = viewModel::onLanUrlChange,
@@ -606,8 +598,7 @@ private fun LanUrlField(state: PlaylistViewModel.UiState, viewModel: PlaylistVie
         )
     }
     Text(
-        text = "AerioTV uses this URL automatically whenever your server is reachable on " +
-                "the local network, and the public one above otherwise. No setup needed.",
+        text = stringResource(R.string.main_configure_lan_url_info),
         style = MaterialTheme.typography.bodySmall.subtext(),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -687,7 +678,7 @@ private fun PasswordField(
                 SecretRevealIconButton(
                     state = reveal,
                     iconSize = 18.dp,
-                    contentLabel = "password",
+                    contentLabel = stringResource(R.string.main_secret_label_password),
                 )
             },
             trailingFocused = { reveal.controlFocused },
@@ -716,14 +707,14 @@ private fun SegmentedAuthControl(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         SegmentItem(
-            label = "Username & Password",
+            label = stringResource(R.string.main_configure_auth_userpass),
             isSelected = selected == DispatcharrAuthMode.UsernamePassword,
             enabled = enabled,
             modifier = Modifier.weight(1f),
             onClick = { onSelect(DispatcharrAuthMode.UsernamePassword) },
         )
         SegmentItem(
-            label = "API Key",
+            label = stringResource(R.string.main_configure_auth_api_key),
             isSelected = selected == DispatcharrAuthMode.ApiKey,
             enabled = enabled,
             modifier = Modifier.weight(1f),
@@ -760,13 +751,14 @@ private fun SegmentItem(
     }
 }
 
+@Composable
 private fun validate(
     sourceType: SourceType,
     state: PlaylistViewModel.UiState,
     authMode: DispatcharrAuthMode,
 ): String? {
-    val missing = mutableListOf<String>()
-    if (state.url.isBlank()) missing += "Server URL"
+    val missing = mutableListOf<Int>()
+    if (state.url.isBlank()) missing += R.string.main_configure_server_url
     when (sourceType) {
         // Dispatcharr accepts EITHER an admin API key OR a username +
         // password -- they're alternatives, never both. Validate against
@@ -781,23 +773,23 @@ private fun validate(
             val hasUserPass = state.username.isNotBlank() && state.password.isNotBlank()
             if (!hasApiKey && !hasUserPass) {
                 if (authMode == DispatcharrAuthMode.ApiKey) {
-                    missing += "API key"
+                    missing += R.string.main_configure_missing_api_key
                 } else {
-                    if (state.username.isBlank()) missing += "Username"
-                    if (state.password.isBlank()) missing += "Password"
+                    if (state.username.isBlank()) missing += R.string.main_configure_username
+                    if (state.password.isBlank()) missing += R.string.main_configure_password
                 }
             }
         }
         SourceType.XtreamCodes -> {
-            if (state.username.isBlank()) missing += "Username"
-            if (state.password.isBlank()) missing += "Password"
+            if (state.username.isBlank()) missing += R.string.main_configure_username
+            if (state.password.isBlank()) missing += R.string.main_configure_password
         }
         SourceType.M3uUrl -> Unit
     }
     return when {
         missing.isEmpty() -> null
-        missing.size == 1 -> "${missing.first()} is required."
-        else -> "${missing.size} fields need attention."
+        missing.size == 1 -> stringResource(R.string.main_configure_field_required, stringResource(missing.first()))
+        else -> pluralStringResource(R.plurals.main_configure_fields_need_attention, missing.size, missing.size)
     }
 }
 
@@ -831,7 +823,7 @@ private fun VodEnabledRow(
                 ),
         ) {
             Text(
-                text = "Fetch On Demand from this playlist",
+                text = stringResource(R.string.main_configure_vod_enabled),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.Medium,
@@ -848,7 +840,7 @@ private fun VodEnabledRow(
             )
         }
         Text(
-            text = "When off, this playlist's movies and TV shows aren't loaded into On Demand. Useful if you only want Live TV from this server, or if you have a second playlist that already provides On Demand. You can change this later in Settings.",
+            text = stringResource(R.string.main_configure_vod_enabled_info),
             style = MaterialTheme.typography.bodySmall.subtext(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp),
@@ -869,14 +861,17 @@ private fun DvrDestinationRow(
 ) {
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
         Text(
-            text = "Default Recording Destination",
+            text = stringResource(R.string.main_configure_dvr_destination),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onBackground,
             fontWeight = FontWeight.Medium,
         )
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(true to "Server (Dispatcharr)", false to "This device").forEach { (isServer, label) ->
+            listOf(
+                true to stringResource(R.string.main_configure_dvr_destination_server),
+                false to stringResource(R.string.main_configure_dvr_destination_device),
+            ).forEach { (isServer, label) ->
                 val selected = isServer == server
                 Text(
                     text = label,
@@ -896,7 +891,7 @@ private fun DvrDestinationRow(
             }
         }
         Text(
-            text = "Where recordings are saved by default. Server recording requires a Dispatcharr admin account. You can change this later in Settings > DVR.",
+            text = stringResource(R.string.main_configure_dvr_destination_info),
             style = MaterialTheme.typography.bodySmall.subtext(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp),
@@ -911,7 +906,7 @@ private fun GuideHistoryRow(
 ) {
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
         Text(
-            text = "Guide Days",
+            text = stringResource(R.string.main_configure_guide_days),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onBackground,
             fontWeight = FontWeight.Medium,
@@ -923,9 +918,8 @@ private fun GuideHistoryRow(
                 val selected = days == sanitizeGuideDays(selectedDays)
                 Text(
                     text = when (days) {
-                        0 -> "All Available"
-                        1 -> "1 Day"
-                        else -> "$days Days"
+                        0 -> stringResource(R.string.main_configure_guide_days_all)
+                        else -> pluralStringResource(R.plurals.main_configure_guide_days_count, days, days)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (selected) MaterialTheme.colorScheme.onPrimary
@@ -943,7 +937,7 @@ private fun GuideHistoryRow(
             }
         }
         Text(
-            text = "How many days of guide data to load, back and ahead. Dispatcharr only; other sources show what their guide carries.",
+            text = stringResource(R.string.main_configure_guide_days_info),
             style = MaterialTheme.typography.bodySmall.subtext(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp),

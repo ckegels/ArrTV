@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.player
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import android.app.Activity
 import android.media.AudioManager
 import android.view.WindowManager
@@ -309,7 +311,7 @@ fun BoxScope.PlayerEdgeAdjustOverlay(
                     level <= 0f -> Icons.AutoMirrored.Filled.VolumeOff
                     else -> Icons.AutoMirrored.Filled.VolumeUp
                 },
-                contentDescription = if (EdgeAdjustSignal.kind == EdgeAdjustKind.Brightness) "Brightness" else "Volume",
+                contentDescription = stringResource(if (EdgeAdjustSignal.kind == EdgeAdjustKind.Brightness) R.string.player_brightness else R.string.player_volume),
                 tint = Color.White,
             )
             Box(

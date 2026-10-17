@@ -27,7 +27,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.aeriotv.android.R
 import com.aeriotv.android.core.category.ProgramCategory
 import com.aeriotv.android.core.category.parseHex
 import com.aeriotv.android.ui.settings.SettingsDialogTextButton
@@ -58,18 +60,18 @@ fun HexPickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             SettingsDialogTextButton(
-                label = "Save",
+                label = stringResource(R.string.common_save),
                 onClick = { if (isValid) onSave(sanitized) },
                 enabled = isValid && sanitized != currentHex.uppercase(),
             )
         },
         dismissButton = {
             Row {
-                SettingsDialogTextButton(label = "Reset", onClick = onReset)
-                SettingsDialogTextButton(label = "Cancel", onClick = onDismiss)
+                SettingsDialogTextButton(label = stringResource(R.string.settings2_hex_reset), onClick = onReset)
+                SettingsDialogTextButton(label = stringResource(R.string.common_cancel), onClick = onDismiss)
             }
         },
-        title = { Text("${bucket.displayName} Color") },
+        title = { Text(stringResource(R.string.settings2_hex_title, stringResource(bucket.labelRes))) },
         text = {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -87,12 +89,13 @@ fun HexPickerDialog(
                     Spacer(Modifier.size(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Default ${bucket.defaultHex}",
+                            text = stringResource(R.string.settings2_hex_default, bucket.defaultHex),
                             style = MaterialTheme.typography.bodySmall.subtext(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
-                            text = if (isValid) "Preview $sanitized" else "Enter 6-char hex",
+                            text = if (isValid) stringResource(R.string.settings2_hex_preview, sanitized)
+                            else stringResource(R.string.settings2_hex_enter),
                             style = MaterialTheme.typography.bodySmall.subtext(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -105,7 +108,7 @@ fun HexPickerDialog(
                         val cleaned = raw.removePrefix("#").uppercase().filter { it in HEX_CHARS }.take(6)
                         input = cleaned
                     },
-                    label = { Text("Hex color (e.g. ${bucket.defaultHex})") },
+                    label = { Text(stringResource(R.string.settings2_hex_field_label, bucket.defaultHex)) },
                     singleLine = true,
                     keyboardOptions = com.aeriotv.android.ui.textfield.aerioTextFieldKeyboardOptions(
                         keyboardType = androidx.compose.ui.text.input.KeyboardType.Ascii,

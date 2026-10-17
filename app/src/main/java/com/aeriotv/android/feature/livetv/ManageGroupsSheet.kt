@@ -59,6 +59,9 @@ import androidx.compose.ui.unit.dp
 import com.aeriotv.android.ui.scale.Dialog
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * How the Live TV channel groups are ordered. Default keeps the playlist's
@@ -74,6 +77,15 @@ enum class GroupSortMode {
             Default -> "Default"
             Alphabetical -> "A-Z"
             Manual -> "Manual"
+        }
+
+    /** [label] in the app's language, for display. */
+    @get:StringRes
+    val labelRes: Int
+        get() = when (this) {
+            Default -> R.string.common_default
+            Alphabetical -> R.string.livetv_group_sort_az
+            Manual -> R.string.livetv_group_sort_manual
         }
 
     companion object {
@@ -197,7 +209,7 @@ fun ManageGroupsSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Manage Groups",
+                    text = stringResource(R.string.livetv_manage_groups),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
@@ -207,7 +219,7 @@ fun ManageGroupsSheet(
                     onSave(working.toSet())
                     onDismiss()
                 }) {
-                    Text("Done", color = MaterialTheme.colorScheme.textAccent)
+                    Text(stringResource(R.string.common_done), color = MaterialTheme.colorScheme.textAccent)
                 }
             }
             if (reorderEnabled) {
@@ -218,7 +230,7 @@ fun ManageGroupsSheet(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Order",
+                        text = stringResource(R.string.livetv_group_order),
                         style = MaterialTheme.typography.bodySmall.subtext(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 4.dp, end = 4.dp),
@@ -227,7 +239,7 @@ fun ManageGroupsSheet(
                         val selected = mode == sortMode
                         TextButton(onClick = { onSortModeChange(mode) }) {
                             Text(
-                                text = mode.label,
+                                text = stringResource(mode.labelRes),
                                 color = if (selected) MaterialTheme.colorScheme.textAccent
                                 else MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
@@ -243,14 +255,14 @@ fun ManageGroupsSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = if (manualReorder) "Drag to reorder, check to show or hide."
-                    else "Check groups to show, uncheck to hide.",
+                    text = if (manualReorder) stringResource(R.string.livetv_manage_groups_hint_manual)
+                    else stringResource(R.string.livetv_manage_groups_hint),
                     style = MaterialTheme.typography.bodySmall.subtext(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
                 TextButton(onClick = { working = mutableSetOf() }) {
-                    Text("All", color = MaterialTheme.colorScheme.textAccent)
+                    Text(stringResource(R.string.common_all), color = MaterialTheme.colorScheme.textAccent)
                 }
                 Box(
                     modifier = Modifier
@@ -258,7 +270,7 @@ fun ManageGroupsSheet(
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                 )
                 TextButton(onClick = { working = allGroups.toMutableSet() }) {
-                    Text("None", color = MaterialTheme.colorScheme.textAccent)
+                    Text(stringResource(R.string.common_none), color = MaterialTheme.colorScheme.textAccent)
                 }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
@@ -292,7 +304,7 @@ fun ManageGroupsSheet(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = "All Channels",
+                        text = stringResource(R.string.livetv_group_all_channels),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.SemiBold,
@@ -313,7 +325,7 @@ fun ManageGroupsSheet(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "No groups available",
+                        text = stringResource(R.string.livetv_no_groups_available),
                         style = MaterialTheme.typography.bodyMedium.subtext(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -372,7 +384,7 @@ fun ManageGroupsSheet(
                                 )
                                 Icon(
                                     imageVector = Icons.Filled.Menu,
-                                    contentDescription = "Drag to reorder",
+                                    contentDescription = stringResource(R.string.livetv_drag_to_reorder),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier
                                         .draggableHandle(
@@ -490,9 +502,9 @@ fun TvGroupPicker(
             Column(modifier = Modifier.padding(vertical = 20.dp)) {
                 Text(
                     text = if (manualReorder) {
-                        "Hold OK on a group to move it, then use up and down. OK or Back to finish."
+                        stringResource(R.string.livetv_manage_groups_tv_hint_manual)
                     } else {
-                        "Toggle groups on or off to show or hide them."
+                        stringResource(R.string.livetv_manage_groups_tv_hint)
                     },
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -524,7 +536,7 @@ fun TvGroupPicker(
                                     .padding(horizontal = 16.dp, vertical = 8.dp),
                             ) {
                                 Text(
-                                    text = mode.label,
+                                    text = stringResource(mode.labelRes),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                                     color = if (selected) MaterialTheme.colorScheme.textAccent
@@ -540,12 +552,12 @@ fun TvGroupPicker(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = "Sidebar layout",
+                            text = stringResource(R.string.livetv_sidebar_layout),
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(start = 4.dp, end = 14.dp),
                         )
-                        listOf("overlay" to "Overlay", "shift" to "Shift guide").forEach { (mode, label) ->
+                        listOf("overlay" to R.string.livetv_sidebar_overlay, "shift" to R.string.livetv_sidebar_shift).forEach { (mode, labelId) ->
                             val selected = mode == sidebarLayout
                             var chipFocused by remember { mutableStateOf(false) }
                             Box(
@@ -566,7 +578,7 @@ fun TvGroupPicker(
                                     .padding(horizontal = 16.dp, vertical = 8.dp),
                             ) {
                                 Text(
-                                    text = label,
+                                    text = stringResource(labelId),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                                     color = if (selected) MaterialTheme.colorScheme.textAccent
@@ -576,7 +588,7 @@ fun TvGroupPicker(
                         }
                     }
                     Text(
-                        text = "Shift guide moves the TV Guide over so the sidebar never covers programs.",
+                        text = stringResource(R.string.livetv_sidebar_shift_hint),
                         style = MaterialTheme.typography.bodySmall.subtext(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 28.dp, vertical = 2.dp),
@@ -594,7 +606,7 @@ fun TvGroupPicker(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = "No groups available",
+                            text = stringResource(R.string.livetv_no_groups_available),
                             style = MaterialTheme.typography.bodyMedium.subtext(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -646,7 +658,7 @@ fun TvGroupPicker(
                         )
                         Spacer(Modifier.width(12.dp))
                         Text(
-                            text = "All Channels",
+                            text = stringResource(R.string.livetv_group_all_channels),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -752,9 +764,9 @@ fun TvGroupPicker(
                             )
                             Text(
                                 text = when {
-                                    isMoving -> "Moving"
-                                    visible -> "On"
-                                    else -> "Off"
+                                    isMoving -> stringResource(R.string.livetv_group_moving)
+                                    visible -> stringResource(R.string.common_on)
+                                    else -> stringResource(R.string.common_off)
                                 },
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,

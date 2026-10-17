@@ -47,6 +47,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.aeriotv.android.ui.tv.tvFocusScale
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * Shared tvOS-style Settings building blocks (mirrors the `TVSettings*` row
@@ -187,7 +189,7 @@ fun SettingsSelectionRow(
             Spacer(Modifier.width(12.dp))
             Icon(
                 imageVector = Icons.Filled.Check,
-                contentDescription = "Selected",
+                contentDescription = stringResource(R.string.common_selected),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(22.dp),
             )
@@ -261,7 +263,7 @@ fun OnOffIndicator(on: Boolean) {
         )
         Spacer(Modifier.width(8.dp))
         Text(
-            text = if (on) "On" else "Off",
+            text = stringResource(if (on) R.string.common_on else R.string.common_off),
             style = settingsRowTitleStyle(),
             color = if (on) onColor else offColor,
             fontWeight = FontWeight.SemiBold,
@@ -441,7 +443,7 @@ fun SettingsDetailTopBar(title: String, onBack: () -> Unit) {
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = stringResource(R.string.common_back),
                         tint = MaterialTheme.colorScheme.primary,
                     )
                 }

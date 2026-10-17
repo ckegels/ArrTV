@@ -55,6 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.aeriotv.android.R
 import com.aeriotv.android.feature.onboarding.components.SourceTypeCard
+import androidx.compose.ui.res.stringResource
 
 /**
  * Cold-start welcome surface. Mirrors iOS App Store screenshot IMG_1076: AerioTV
@@ -232,13 +233,13 @@ private fun BrandBlock(alignStart: Boolean = false) {
         )
         Spacer(Modifier.height(2.dp))
         Text(
-            text = "Your IPTV & Media Hub",
+            text = stringResource(R.string.main_welcome_tagline),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.textAccent,
         )
         Spacer(Modifier.height(2.dp))
         Text(
-            text = "Android TV · Phone · Tablet",
+            text = stringResource(R.string.main_welcome_devices),
             style = MaterialTheme.typography.bodySmall.subtext(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -248,7 +249,7 @@ private fun BrandBlock(alignStart: Boolean = false) {
 @Composable
 private fun SupportedTypesGroup(alignStart: Boolean = false) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        SupportedTypeRow(icon = Icons.Filled.Key, label = "Dispatcharr Direct Connect", alignStart = alignStart)
+        SupportedTypeRow(icon = Icons.Filled.Key, label = stringResource(R.string.main_source_dispatcharr_title), alignStart = alignStart)
         SupportedTypeRow(icon = Icons.Filled.Tv, label = "Xtream Codes", alignStart = alignStart)
         SupportedTypeRow(icon = Icons.Filled.Description, label = "M3U + EPG", alignStart = alignStart)
     }
@@ -269,8 +270,8 @@ private fun SyncCard(inProgress: Boolean, onClick: (() -> Unit)?) {
             .clip(RoundedCornerShape(16.dp))
             .clickable(enabled = !inProgress, onClick = onClick),
         icon = Icons.Filled.CloudOff,
-        title = "Sync via Google Account",
-        subtitle = "Sign in to mirror playlists, watch progress, reminders, and preferences across your devices.",
+        title = stringResource(R.string.main_welcome_sync_title),
+        subtitle = stringResource(R.string.main_welcome_sync_subtitle),
         trailing = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -283,7 +284,7 @@ private fun SyncCard(inProgress: Boolean, onClick: (() -> Unit)?) {
                         .background(MaterialTheme.colorScheme.decorSecondary),
                 )
                 Text(
-                    text = if (inProgress) "..." else "Off",
+                    text = if (inProgress) "..." else stringResource(R.string.common_off),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onBackground,
@@ -302,7 +303,7 @@ private fun ConnectServerRow(onClick: () -> Unit) {
             .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
         icon = Icons.Outlined.Hub,
-        title = "Connect a Server",
+        title = stringResource(R.string.main_welcome_connect_server),
         subtitle = null,
         trailing = {
             Icon(
@@ -318,7 +319,7 @@ private fun ConnectServerRow(onClick: () -> Unit) {
 private fun SkipRow(onSkip: () -> Unit) {
     TextButton(onClick = onSkip) {
         Text(
-            text = "Skip for now",
+            text = stringResource(R.string.main_welcome_skip_for_now),
             color = MaterialTheme.colorScheme.textAccent,
             style = MaterialTheme.typography.bodyMedium,
         )

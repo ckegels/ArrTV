@@ -166,6 +166,21 @@ android {
         buildConfig = true
     }
 
+    // The app's languages (res/values = English, values-fr = French). Library
+    // translations into other languages are left out, so a screen never mixes
+    // English with, say, German library text.
+    androidResources {
+        localeFilters += listOf("en", "fr")
+    }
+
+    // Settings -> Appearance -> Language can pick a language the device is not
+    // set to, so an app bundle must keep every language in the base APK.
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"

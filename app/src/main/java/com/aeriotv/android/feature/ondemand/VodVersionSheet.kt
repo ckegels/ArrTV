@@ -1,5 +1,8 @@
 package com.aeriotv.android.feature.ondemand
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -151,7 +154,7 @@ fun DispatcharrVODProviderRelation.toVodProviderOption(
     learned: VodLearnedStream? = null,
 ): VodProviderOption? {
     val account = m3uAccount ?: return null
-    val name = account.name?.takeIf { it.isNotBlank() } ?: "Source ${account.id}"
+    val name = account.name?.takeIf { it.isNotBlank() } ?: AppText.get(R.string.ondemand_source_n, account.id.toString())
     // Account + container, then whatever was MEASURED for this copy
     // (resolution, codec, audio, bitrate) by the server, this device, or both.
     // Nothing about picture or sound is derived from the provider's own title:
@@ -222,14 +225,14 @@ fun VodVersionPickerSheet(
                 .verticalScroll(rememberScrollState()),
         ) {
             Text(
-                text = "Version",
+                text = stringResource(R.string.ondemand_version),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(Modifier.height(12.dp))
             VodVersionRow(
-                label = "Auto (recommended)",
+                label = stringResource(R.string.ondemand_version_auto_recommended),
                 selected = selected == null,
                 onClick = { onSelect(null) },
             )

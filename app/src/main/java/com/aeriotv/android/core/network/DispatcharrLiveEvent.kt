@@ -54,6 +54,9 @@ sealed interface DispatcharrLiveEvent {
         val guide: Boolean = false,
     ) : DispatcharrLiveEvent
 
+    /** Dispatch More v248: this channel was moved to another stream so someone could look back. */
+    data class LookBackMoved(val channelUuid: String, val text: String) : DispatcharrLiveEvent
+
     /** A recording was scheduled, started, stopped, changed or removed. */
     data object RecordingsChanged : DispatcharrLiveEvent
 
@@ -72,7 +75,7 @@ sealed interface DispatcharrLiveEvent {
          */
         fun parse(text: String): DispatcharrLiveEvent? {
             if (!text.contains("m3u_refresh") && !text.contains("epg_refresh") &&
-                !text.contains("channels_changed") &&
+                !text.contains("channels_changed") && !text.contains("lookback_moved") &&
                 !text.contains("recording") && !text.contains("connection_established")
             ) return null
             val root = runCatching { json.parseToJsonElement(text) as? JsonObject }.getOrNull() ?: return null
@@ -96,6 +99,10 @@ sealed interface DispatcharrLiveEvent {
                     (data["channels"] as? kotlinx.serialization.json.JsonArray)
                         ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.orEmpty(),
                     guide = (data["guide"] as? JsonPrimitive)?.contentOrNull == "true",
+                )
+                "lookback_moved" -> LookBackMoved(
+                    data.string("channel") ?: return null,
+                    data.string("text") ?: "Moved to another stream for another viewer",
                 )
                 in RECORDING_TYPES -> RecordingsChanged
                 else -> null

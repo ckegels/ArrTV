@@ -1370,6 +1370,11 @@ class DispatcharrClient @Inject constructor() {
      *  channel uuid - both fall back to the XC /timeshift/ path). */
     sealed class CatchupSessionResult {
         data class Created(val session: CatchupSessionResponse) : CatchupSessionResult()
+        /** Dispatch More v248 look-back priority: 202, another viewer is being moved off the
+         *  archive's provider; poll [catchupRoom] until ready or refused. */
+        data class MakingRoom(val session: CatchupSessionResponse) : CatchupSessionResult()
+        /** 409: nobody could be moved ("unavailable due to current viewing priorities"). */
+        data class Refused(val message: String, val retryAfterSeconds: Int) : CatchupSessionResult()
         data object Unsupported : CatchupSessionResult()
         data class Error(val message: String) : CatchupSessionResult()
     }
@@ -1412,10 +1417,22 @@ class DispatcharrClient @Inject constructor() {
             )
         }
         when {
+            response.status.value == 202 -> {
+                val session: CatchupSessionResponse = response.body()
+                android.util.Log.i("DispatcharrCatchup", "native session minted id=${session.sessionId.take(8)}; the server makes room")
+                CatchupSessionResult.MakingRoom(session)
+            }
             response.status.isSuccess() -> {
                 val session: CatchupSessionResponse = response.body()
                 android.util.Log.i("DispatcharrCatchup", "native session minted id=${session.sessionId.take(8)} start=$startIso")
                 CatchupSessionResult.Created(session)
+            }
+            response.status.value == 409 -> {
+                val body = runCatching { json.parseToJsonElement(response.bodyAsText()) as? JsonObject }.getOrNull()
+                CatchupSessionResult.Refused(
+                    (body?.get("error") as? JsonPrimitive)?.contentOrNull ?: "Unavailable due to current viewing priorities",
+                    (body?.get("retry_after") as? JsonPrimitive)?.contentOrNull?.toIntOrNull() ?: 0,
+                )
             }
             response.status.value == 404 ->
                 // Endpoint absent (pre-PR-#1432 server) or channel unknown;
@@ -1425,6 +1442,26 @@ class DispatcharrClient @Inject constructor() {
                 CatchupSessionResult.Error("HTTP ${response.status.value} on catch-up session mint")
         }
     }.getOrElse { CatchupSessionResult.Error(it.message ?: "catch-up session mint failed") }
+
+    /** Look-back priority's progress (Dispatch More v248). */
+    @Serializable
+    data class CatchupRoomStep(val step: String = "", val text: String = "")
+
+    @Serializable
+    data class CatchupRoomStatus(
+        val state: String = "making_room",
+        val step: String = "",
+        val text: String = "",
+        val steps: List<CatchupRoomStep> = emptyList(),
+        @SerialName("retry_after") val retryAfter: Int = 0,
+    )
+
+    /** GET /api/catchup/sessions/<id>/room/: how making room is going; null if unknown. */
+    suspend fun catchupRoom(baseUrl: String, apiKey: String, sessionId: String): CatchupRoomStatus? =
+        runCatching {
+            val response = client.get("${baseUrl.trimEnd('/')}/api/catchup/sessions/$sessionId/room/") { applyAuth(apiKey) }
+            if (response.status.isSuccess()) response.body<CatchupRoomStatus>() else null
+        }.getOrNull()
 
     /**
      * Best-effort revoke of a native catch-up session when the player

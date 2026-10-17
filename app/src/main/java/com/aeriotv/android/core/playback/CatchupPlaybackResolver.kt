@@ -91,7 +91,45 @@ class CatchupPlaybackResolver @Inject constructor(
 
         class Unsupported :
             Failure("Catch-up is available on Dispatcharr and Xtream Codes sources.")
+
+        /** The archive's provider is in use by another viewer and the server could not move
+         *  them (Dispatch More look-back priority), with when to try again. */
+        class Busy(message: String) : Failure(message)
     }
+
+    /**
+     * Dispatch More v248 look-back priority: the mint answered 202 while the server moves another
+     * viewer off the archive's provider. Shows each step it reports (CatchupRoom) until it is
+     * ready (play the session) or refused (Failure.Busy). Bounded: the session's handshake is 60 s.
+     */
+    private suspend fun awaitRoom(base: String, apiKey: String, sessionId: String): Boolean {
+        val deadline = System.currentTimeMillis() + 45_000
+        try {
+            while (System.currentTimeMillis() < deadline) {
+                val room = dispatcharrClient.catchupRoom(base, apiKey, sessionId)
+                if (room != null) {
+                    CatchupRoom.show(room.steps.map { it.text }.ifEmpty { listOf(room.text) })
+                    when (room.state) {
+                        "ready" -> {
+                            kotlinx.coroutines.delay(600)
+                            return true
+                        }
+                        "refused" -> {
+                            kotlinx.coroutines.delay(1_500)
+                            throw Failure.Busy(busyText(room.text, room.retryAfter))
+                        }
+                    }
+                }
+                kotlinx.coroutines.delay(500)
+            }
+            throw Failure.Busy(busyText("Unavailable due to current viewing priorities", 0))
+        } finally {
+            CatchupRoom.clear()
+        }
+    }
+
+    private fun busyText(text: String, retryAfterSeconds: Int): String =
+        if (retryAfterSeconds > 0) "$text. Try again in ${(retryAfterSeconds + 59) / 60} min." else "$text."
 
     suspend fun resolve(
         playlist: PlaylistEntity,
@@ -134,6 +172,17 @@ class CatchupPlaybackResolver @Inject constructor(
                                 channelUuid = channelUuid,
                             )
                         }
+                        is DispatcharrClient.CatchupSessionResult.MakingRoom -> {
+                            nativeSupportCache[base] = true
+                            awaitRoom(base, apiKey, minted.session.sessionId)
+                            return@runCatching Playback(
+                                url = base + minted.session.playbackUrl,
+                                panelTimeZoneId = "UTC",
+                                channelUuid = channelUuid,
+                            )
+                        }
+                        is DispatcharrClient.CatchupSessionResult.Refused ->
+                            throw Failure.Busy(busyText(minted.message, minted.retryAfterSeconds))
                         DispatcharrClient.CatchupSessionResult.Unsupported ->
                             nativeSupportCache[base] = false
                         is DispatcharrClient.CatchupSessionResult.Error -> {
@@ -237,8 +286,13 @@ class CatchupPlaybackResolver @Inject constructor(
             // server default window.
             durationMinutes = programmeMinutes(absStartMillis, programmeEndMillis),
         )
-        return (minted as? DispatcharrClient.CatchupSessionResult.Created)
-            ?.let { base + it.session.playbackUrl }
+        return when (minted) {
+            is DispatcharrClient.CatchupSessionResult.Created -> base + minted.session.playbackUrl
+            is DispatcharrClient.CatchupSessionResult.MakingRoom ->
+                runCatching { awaitRoom(base, apiKey, minted.session.sessionId) }.getOrNull()
+                    ?.let { base + minted.session.playbackUrl }
+            else -> null
+        }
     }
 
     /** Task #183: report the local playhead / pause state for the native

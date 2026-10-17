@@ -602,6 +602,16 @@ class SettingsViewModel @Inject constructor(
         playlistRepository.observeActivePlaylist()
             .map { com.aeriotv.android.core.network.DispatcharrLiveEligibility.of(it) }
             .distinctUntilChanged()
+    // Compact modern layout (TV): preset + left navigation rail.
+    val compactModernLayout: Flow<Boolean> = prefs.compactModernLayout
+    fun setCompactModernLayout(value: Boolean) {
+        viewModelScope.launch { prefs.setCompactModernLayout(value) }
+    }
+
+    /** The ArrTV look in one press (AppPreferences.applyArrTvLook). */
+    fun applyArrTvLook() {
+        viewModelScope.launch { prefs.applyArrTvLook() }
+    }
 
     // Multiview (Phase 11c)
     val multiviewAudioFocusStyle: Flow<String> = prefs.multiviewAudioFocusStyle

@@ -538,6 +538,7 @@ fun GuideScreen(
     // Start catch-up playback of one already-aired cell. Shared by the grid's
     // primary action (single tap / OK) and the long-press menu's "Watch from
     // Start", so both go through one resolve + navigate path.
+    val catchupContext = androidx.compose.ui.platform.LocalContext.current
     val startCatchup: (M3UChannel, EPGProgramme) -> Unit = { channel, cell ->
         viewModel.playCatchup(channel, cell) { result ->
             result.onSuccess { r ->
@@ -545,6 +546,12 @@ fun GuideScreen(
                 // guide that composes again after the replay lands back here.
                 if (isTv) GuideCatchupReturn.set(channel.id, cell.startMillis, grid.viewportStartMs)
                 onPlayCatchup(channel.id, r.url, cell.title, cell.startMillis, cell.endMillis, r.panelTimeZoneId, r.channelUuid.orEmpty())
+            }
+            // The archive's provider is in use and nobody could be moved: say so
+            result.onFailure { t ->
+                if (t is com.aeriotv.android.core.playback.CatchupPlaybackResolver.Failure.Busy) {
+                    android.widget.Toast.makeText(catchupContext, t.message, android.widget.Toast.LENGTH_LONG).show()
+                }
             }
         }
     }

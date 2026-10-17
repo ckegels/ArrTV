@@ -35,6 +35,7 @@ object DispatchMore {
     const val DEFAULT_REPORT_PATH = "/api/core/app-reports/"
     const val DEFAULT_STALL_PATH = "/api/core/app-stall/"
     const val DEFAULT_GUIDE_CHOICE_PATH = "/api/core/app-guide/"
+    const val DEFAULT_REWIND_PATH = "/api/channels/rewind/"
 
     /** What one server said on /api/core/capabilities/. */
     @Serializable
@@ -59,6 +60,10 @@ object DispatchMore {
          *  Choose another" under the report. */
         val guideChoice: Boolean = false,
         val guideChoicePath: String = DEFAULT_GUIDE_CHOICE_PATH,
+        /** Server rewind (v248): the server keeps a recording of the watched channel, so
+         *  pause and rewind need nothing on this device (core/timeshift/ServerRewind.kt). */
+        val rewind: Boolean = false,
+        val rewindPath: String = DEFAULT_REWIND_PATH,
     )
 
     // The formats the server accepts; anything else it ignores.

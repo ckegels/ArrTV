@@ -58,6 +58,17 @@ fun GeneralSettingsScreen(
         .collectAsStateWithLifecycle(initialValue = true)
     val backgroundRefreshIntervalMins by viewModel.backgroundRefreshIntervalMins
         .collectAsStateWithLifecycle(initialValue = 360)
+    val dispatcharrLiveUpdates by viewModel.dispatcharrLiveUpdates
+        .collectAsStateWithLifecycle(initialValue = false)
+    val arrTvOptimizations by viewModel.arrTvOptimizations
+        .collectAsStateWithLifecycle(initialValue = emptyMap())
+    val arrTvWaits by viewModel.arrTvWaits
+        .collectAsStateWithLifecycle(initialValue = emptyMap())
+    // Null until the active playlist has been read. That read can queue behind
+    // heavy guide work at launch for tens of seconds, and a row rendered as
+    // disabled meanwhile is skipped by D-pad focus, so it reads as broken.
+    val dispatcharrLiveEligibility: com.aeriotv.android.core.network.DispatcharrLiveEligibility? by viewModel
+        .dispatcharrLiveEligibility.collectAsStateWithLifecycle(initialValue = null)
     val timeoutSecs by viewModel.networkTimeoutSecs.collectAsStateWithLifecycle(initialValue = 15.0)
     val maxRetries by viewModel.maxRetries.collectAsStateWithLifecycle(initialValue = 3)
 
@@ -163,6 +174,73 @@ fun GeneralSettingsScreen(
                     }
                 }
 
+                // MARK: Live updates
+                // Dispatcharr's change notifications. The row stays visible for
+                // every source type and greys out with the reason, so users of
+                // an API key login learn what would enable it.
+                val liveAvailable = dispatcharrLiveEligibility ==
+                    com.aeriotv.android.core.network.DispatcharrLiveEligibility.AVAILABLE
+                SettingsSection(
+                    header = "Live updates",
+                    footer = "While AerioTV is open, Dispatcharr tells it when a playlist or EPG refresh finishes, " +
+                        "and the channel list and guide update within seconds instead of on the next refresh.",
+                ) {
+                    SettingsToggleRow(
+                        title = "Update automatically when Dispatcharr changes",
+                        checked = liveAvailable && dispatcharrLiveUpdates,
+                        onCheckedChange = { if (liveAvailable) viewModel.setDispatcharrLiveUpdates(it) },
+                        // Focusable while still checking; greyed out only once known unavailable.
+                        enabled = dispatcharrLiveEligibility == null || liveAvailable,
+                        subtitle = when (dispatcharrLiveEligibility) {
+                            null -> "Checking your playlist\u2026"
+                            com.aeriotv.android.core.network.DispatcharrLiveEligibility.AVAILABLE -> null
+                            com.aeriotv.android.core.network.DispatcharrLiveEligibility.NEEDS_PASSWORD_LOGIN ->
+                                "Requires logging in to Dispatcharr with username and password (not an API key)."
+                            com.aeriotv.android.core.network.DispatcharrLiveEligibility.NOT_DISPATCHARR ->
+                                "Only available for Dispatcharr playlists."
+                            com.aeriotv.android.core.network.DispatcharrLiveEligibility.NO_PLAYLIST ->
+                                "Add a Dispatcharr playlist to use this."
+                        },
+                    )
+                }
+
+                // MARK: arrTV optimizations
+                // One switch per optimization, all on by default: switched off,
+                // that part does nothing and the app behaves as before it, so
+                // any of them can be ruled out when something goes wrong.
+                SettingsSection(
+                    header = "arrTV optimizations",
+                    footer = "Faster, smarter playback with a Dispatch More server. Turn one off if you suspect it; " +
+                        "the others keep working.",
+                ) {
+                    com.aeriotv.android.core.playback.ArrTvOptimization.entries.forEach { o ->
+                        SettingsToggleRow(
+                            title = o.title,
+                            checked = arrTvOptimizations[o] ?: true,
+                            onCheckedChange = { viewModel.setArrTvOptimization(o, it) },
+                            subtitle = o.subtitle,
+                        )
+                    }
+                }
+
+                // The waits "Leave a stream that is slow to start" uses, in seconds.
+                SettingsSection(
+                    header = "Wait for a picture",
+                    footer = "How long a stream may take to show a picture before the channel's next stream is tried: " +
+                        "the channel's usual start time scaled up, at least these, never past the longest. " +
+                        "With no other stream to go to, the stream is never left.",
+                ) {
+                    com.aeriotv.android.core.playback.ArrTvWait.entries.forEach { w ->
+                        val secs = arrTvWaits[w] ?: w.default
+                        SecondsStepperRow(
+                            title = w.title,
+                            seconds = secs,
+                            range = w.range,
+                            onChange = { viewModel.setArrTvWait(w, it) },
+                        )
+                    }
+                }
+
                 // MARK: Network
                 //
                 // tvOS Network (s_10) presents Request Timeout as a selection list
@@ -241,3 +319,43 @@ private val BG_REFRESH_INTERVAL_OPTIONS: List<BgRefreshIntervalOption> = listOf(
     BgRefreshIntervalOption(1440, "Every 24 hours"),
     BgRefreshIntervalOption(2880, "Every 48 hours"),
 )
+
+/** A wait in whole seconds, stepped with - and + (easy with a remote), like Max Retries. */
+@Composable
+private fun SecondsStepperRow(title: String, seconds: Int, range: IntRange, onChange: (Int) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .settingsRowCard(focused = false)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(
+            onClick = { if (seconds > range.first) onChange(seconds - 1) },
+            enabled = seconds > range.first,
+            modifier = Modifier.dpadFocusRing(CircleShape),
+        ) {
+            Icon(Icons.Filled.Remove, contentDescription = "Shorter")
+        }
+        Text(
+            text = "$seconds s",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.textAccent,
+            fontWeight = FontWeight.Bold,
+        )
+        IconButton(
+            onClick = { if (seconds < range.last) onChange(seconds + 1) },
+            enabled = seconds < range.last,
+            modifier = Modifier.dpadFocusRing(CircleShape),
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = "Longer")
+        }
+    }
+}

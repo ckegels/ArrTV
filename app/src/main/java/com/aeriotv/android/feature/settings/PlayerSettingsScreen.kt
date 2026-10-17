@@ -53,6 +53,7 @@ fun PlayerSettingsScreen(
     val isTv = rememberIsTvDevice()
 
     val infoBarStyle by viewModel.playerInfoBarStyle.collectAsStateWithLifecycle(initialValue = false)
+    val sideChannelList by viewModel.playerSideChannelList.collectAsStateWithLifecycle(initialValue = false)
     val cardChannelLogo by viewModel.playerCardShowChannelLogo
         .collectAsStateWithLifecycle(initialValue = true)
     val cardChannelName by viewModel.playerCardShowChannelName
@@ -124,6 +125,19 @@ fun PlayerSettingsScreen(
                             subtitle = "Replaces the info card and control buttons",
                             checked = infoBarStyle,
                             onCheckedChange = viewModel::setPlayerInfoBarStyle,
+                        )
+                    }
+                    SettingsSection(
+                        header = "Channel list from the side",
+                        footer = "Left in the player opens a list of the channels, with what is on " +
+                            "each, sliding in from the side. Off, the same press goes to the main " +
+                            "guide, with the channel playing in the corner.",
+                    ) {
+                        SettingsToggleRow(
+                            title = "Channel list from the side",
+                            subtitle = "Off: the main guide instead",
+                            checked = sideChannelList,
+                            onCheckedChange = viewModel::setPlayerSideChannelList,
                         )
                     }
                 }

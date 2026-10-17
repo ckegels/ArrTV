@@ -4,6 +4,8 @@ import com.aeriotv.android.ui.scale.subtext
 import com.aeriotv.android.ui.theme.textAccent
 import com.aeriotv.android.ui.theme.forText
 import androidx.compose.foundation.background
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -27,6 +29,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -143,69 +146,7 @@ fun GuidePreviewBanner(
     miniActive: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
-    val artKey = program?.let { p -> p.dispatcharrProgramId?.let { "pid:$it" } ?: ("t:" + cleanPreviewTitle(p.title)) }
-    LaunchedEffect(artKey) {
-        val p = program ?: return@LaunchedEffect
-        val key = artKey ?: return@LaunchedEffect
-        if (previewArt.containsKey(key)) return@LaunchedEffect
-        val entry = EntryPointAccessors.fromApplication(context.applicationContext, ProgramInfoEntryPoint::class.java)
-        var url: String? = null
-        val pid = p.dispatcharrProgramId
-        val playlist = entry.appPreferences()
-        // Program detail icon (Direct Connect) first. Same order and the same
-        // URL rules as Apple's GuidePreviewArtCache (Logan 2026-09-17: the
-        // two platforms showed different art for the same program).
-        var detailSkipped = false
-        if (pid != null) {
-            val base = ActivePlaylistBase.baseUrl
-            val playlistId = ActivePlaylistBase.playlistId
-            if (base == null || playlistId == null) {
-                // The playlist globals are not set yet on the first focus
-                // after launch. Do not cache a miss for that; retry next time.
-                detailSkipped = true
-            } else {
-                url = runCatching {
-                    withContext(Dispatchers.IO) {
-                        val broker = entry.dispatcharrAuth()
-                        val client = entry.dispatcharrClient()
-                        broker.withApiKeyRetry(playlistId) { k ->
-                            client.getProgramDetail(base, k, pid).bestPosterString?.let { raw ->
-                                resolvePreviewArtUrl(raw, base)
-                            }
-                        }
-                    }
-                }.getOrNull()
-            }
-        }
-        if (url == null && p.title.isNotBlank() && playlist.programPostersTmdbEnabled.first()) {
-            val apiKey = playlist.tmdbApiKey.first()
-            if (apiKey.isNotBlank()) {
-                val isMovie = p.category.lowercase().let { it.contains("movie") || it.contains("film") }
-                url = runCatching {
-                    withContext(Dispatchers.IO) {
-                        // One typed search hit (Apple's lookupArt): landscape
-                        // backdrop first, poster only when there is no
-                        // backdrop. No second poster-only search, which is
-                        // what produced portrait art here while Apple showed
-                        // the landscape card.
-                        val tmdb = entry.tmdbService()
-                        val art = tmdb.lookupArt(cleanPreviewTitle(p.title), isMovie, apiKey)
-                        art?.backdrop?.takeIf { it.isNotBlank() }?.let { tmdb.imageUrlFor(it, "w780") }
-                            ?: art?.poster?.takeIf { it.isNotBlank() }?.let { tmdb.imageUrlFor(it, "w500") }
-                    }
-                }.getOrNull()
-            }
-        }
-        // Last stop: the program's OWN icon from the feed (XMLTV `<icon src>`).
-        // Sports events ("Tomorrow at 21:00 - Villarreal v Real Betis") match
-        // nothing on TMDB, but the feed ships a real picture for them.
-        if (url == null) url = p.iconUrl?.takeIf { it.isNotBlank() }
-        // A miss caused by the skipped detail step is not final.
-        if (url != null || !detailSkipped) previewArt[key] = url
-    }
-    val art = artKey?.let { previewArt[it] }
-    val artKnown = artKey != null && previewArt.containsKey(artKey)
+    val (art, artKnown) = rememberPreviewArt(program)
     androidx.compose.runtime.DisposableEffect(Unit) {
         onDispose {
             com.aeriotv.android.feature.player.MiniPlayerChrome
@@ -359,6 +300,258 @@ fun GuidePreviewBanner(
             }
         }
     }
+}
+
+/**
+ * Compact modern layout (TiviMate): the top section of the guide. The live
+ * video sits large at the top left (a slot the corner mini fills, see
+ * MiniPlayerChrome.videoSlotPx; the programme art shows there when nothing
+ * plays); beside it the focused programme's title, time with progress and
+ * minutes left, and description; a favorite star and the group name at the
+ * top right. The description is the banner's one focus target (OK opens
+ * Program Info), as in the stock banner.
+ */
+object TiviGuideBanner {
+    val videoHeight = 180.dp
+    /** The video plus the gap under it; the page's own 16 dp top margin
+     *  sits above (the video starts 16 dp from the top, TiviMate ~12). */
+    val height = videoHeight + 8.dp
+}
+
+@Composable
+fun TiviGuideBanner(
+    program: EPGProgramme?,
+    channel: M3UChannel?,
+    nowMs: Long,
+    groupName: String?,
+    isFavorite: Boolean,
+    miniActive: Boolean,
+    onOpenInfo: () -> Unit,
+    descriptionFocus: FocusRequester,
+    downTarget: FocusRequester?,
+    upTarget: FocusRequester?,
+    onDown: (() -> Boolean)? = null,
+    modifier: Modifier = Modifier,
+) {
+    val (art, artKnown) = rememberPreviewArt(program)
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose { com.aeriotv.android.feature.player.MiniPlayerChrome.videoSlotPx.value = null }
+    }
+    val colors = MaterialTheme.colorScheme
+    val clockMode = rememberClockMode()
+    val fmt = remember(clockMode) { ClockFormat.short(clockMode) }
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(TiviGuideBanner.height)
+            .padding(start = 12.dp, end = 20.dp, bottom = 8.dp),
+    ) {
+        // The video slot: 16:9, rounded. The mini window (mounted at the
+        // activity root) is placed over it. Without playback the programme
+        // art (or the channel logo) shows at its own shape inside the slot:
+        // the slot keeps its place and size, so nothing else moves, but the
+        // picture is not boxed in black bars.
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier
+                .height(TiviGuideBanner.videoHeight)
+                .width(TiviGuideBanner.videoHeight * 16f / 9f)
+                .onGloballyPositioned {
+                    com.aeriotv.android.feature.player.MiniPlayerChrome.videoSlotPx.value = it.boundsInRoot()
+                }
+                .then(
+                    if (miniActive) Modifier.clip(RoundedCornerShape(TIVI_VIDEO_CORNER)).background(Color.Black)
+                    else Modifier,
+                ),
+            contentAlignment = Alignment.TopStart,
+        ) {
+            if (!miniActive) {
+                val model = art ?: channel?.tvgLogo?.takeIf { artKnown && it.isNotBlank() }
+                if (model != null) {
+                    var aspect by remember(model) { androidx.compose.runtime.mutableFloatStateOf(0f) }
+                    val slotW = TiviGuideBanner.videoHeight * 16f / 9f
+                    val slotH = TiviGuideBanner.videoHeight
+                    // Fit the picture's own shape into the slot.
+                    val (w, h) = when {
+                        aspect <= 0f -> slotW to slotH
+                        aspect >= 16f / 9f -> slotW to slotW / aspect
+                        else -> slotH * aspect to slotH
+                    }
+                    AsyncImage(
+                        model = model, contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        onSuccess = { st ->
+                            val iw = st.result.image.width.toFloat()
+                            val ih = st.result.image.height.toFloat()
+                            if (iw > 0f && ih > 0f) aspect = iw / ih
+                        },
+                        modifier = Modifier
+                            .size(width = w, height = h)
+                            .clip(RoundedCornerShape(TIVI_VIDEO_CORNER))
+                            // Hidden until its shape is known (no jump).
+                            .then(if (aspect <= 0f) Modifier.alpha(0f) else Modifier),
+                    )
+                }
+            }
+        }
+        androidx.compose.foundation.layout.Spacer(Modifier.width(20.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.Top) {
+                val title = program?.let { p ->
+                    listOfNotNull(p.title, seasonEpisodeLabel(p.season, p.episode)).joinToString(" ")
+                } ?: channel?.name.orEmpty()
+                Text(
+                    title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = colors.onBackground,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f).padding(top = 6.dp),
+                )
+                Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(start = 12.dp)) {
+                    androidx.compose.material3.Icon(
+                        imageVector = if (isFavorite) androidx.compose.material.icons.Icons.Filled.Star
+                        else androidx.compose.material.icons.Icons.Outlined.StarBorder,
+                        contentDescription = null,
+                        tint = colors.onBackground,
+                        modifier = Modifier.size(22.dp),
+                    )
+                    if (!groupName.isNullOrBlank()) {
+                        Text(
+                            groupName, fontSize = 15.sp, fontWeight = FontWeight.Medium,
+                            color = colors.onBackground, maxLines = 1,
+                            modifier = Modifier.padding(top = 10.dp),
+                        )
+                    }
+                }
+            }
+            if (program != null) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                    Text(
+                        fmt.format(java.util.Date(program.startMillis)) + " \u2014 " + fmt.format(java.util.Date(program.endMillis)),
+                        fontSize = 16.sp, color = colors.onBackground, maxLines = 1,
+                    )
+                    if (program.startMillis <= nowMs && nowMs < program.endMillis) {
+                        val total = (program.endMillis - program.startMillis).coerceAtLeast(1L)
+                        val frac = ((nowMs - program.startMillis).toFloat() / total).coerceIn(0f, 1f)
+                        androidx.compose.foundation.layout.Spacer(Modifier.width(14.dp))
+                        androidx.compose.foundation.layout.Box(
+                            Modifier.width(44.dp).height(3.dp).clip(RoundedCornerShape(2.dp))
+                                .background(colors.onBackground.copy(alpha = 0.3f)),
+                        ) {
+                            androidx.compose.foundation.layout.Box(
+                                Modifier.fillMaxWidth(frac).height(3.dp).background(colors.onBackground),
+                            )
+                        }
+                        androidx.compose.foundation.layout.Spacer(Modifier.width(12.dp))
+                        val left = ((program.endMillis - nowMs + 59_999L) / 60_000L).toInt()
+                        Text(
+                            if (left >= 60) "${left / 60} h ${left % 60} min" else "$left min",
+                            fontSize = 16.sp, color = colors.onBackground, maxLines = 1,
+                        )
+                    }
+                }
+                if (program.description.isNotBlank()) {
+                    val interaction = remember { MutableInteractionSource() }
+                    var focused by remember { androidx.compose.runtime.mutableStateOf(false) }
+                    Text(
+                        program.description, fontSize = 15.sp, lineHeight = 19.sp,
+                        color = colors.onBackground.copy(alpha = 0.9f).forText(),
+                        maxLines = 4, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .padding(top = 6.dp)
+                            .offset(x = (-6).dp)
+                            .focusRequester(descriptionFocus)
+                            .focusProperties {
+                                if (downTarget != null) down = downTarget
+                                if (upTarget != null) up = upTarget
+                            }
+                            .onPreviewKeyEvent { e ->
+                                onDown != null &&
+                                    e.type == androidx.compose.ui.input.key.KeyEventType.KeyDown &&
+                                    e.key == androidx.compose.ui.input.key.Key.DirectionDown && onDown()
+                            }
+                            .onFocusChanged { focused = it.isFocused }
+                            .clip(RoundedCornerShape(5.dp))
+                            .background(if (focused) Color.White.copy(alpha = 0.08f) else Color.Transparent)
+                            .clickable(interactionSource = interaction, indication = null, onClick = onOpenInfo)
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+private val TIVI_VIDEO_CORNER = 10.dp
+
+/**
+ * The focused programme's art (Dispatcharr program detail icon, then TMDB,
+ * then the feed's own icon), looked up once per programme and cached for the
+ * session. Second: whether the lookup has finished (a null art is then final).
+ */
+@Composable
+private fun rememberPreviewArt(program: EPGProgramme?): Pair<String?, Boolean> {
+    val context = LocalContext.current
+    val artKey = program?.let { p -> p.dispatcharrProgramId?.let { "pid:$it" } ?: ("t:" + cleanPreviewTitle(p.title)) }
+    LaunchedEffect(artKey) {
+        val p = program ?: return@LaunchedEffect
+        val key = artKey ?: return@LaunchedEffect
+        if (previewArt.containsKey(key)) return@LaunchedEffect
+        val entry = EntryPointAccessors.fromApplication(context.applicationContext, ProgramInfoEntryPoint::class.java)
+        var url: String? = null
+        val pid = p.dispatcharrProgramId
+        val playlist = entry.appPreferences()
+        // Program detail icon (Direct Connect) first. Same order and the same
+        // URL rules as Apple's GuidePreviewArtCache (Logan 2026-09-17: the
+        // two platforms showed different art for the same program).
+        var detailSkipped = false
+        if (pid != null) {
+            val base = ActivePlaylistBase.baseUrl
+            val playlistId = ActivePlaylistBase.playlistId
+            if (base == null || playlistId == null) {
+                // The playlist globals are not set yet on the first focus
+                // after launch. Do not cache a miss for that; retry next time.
+                detailSkipped = true
+            } else {
+                url = runCatching {
+                    withContext(Dispatchers.IO) {
+                        val broker = entry.dispatcharrAuth()
+                        val client = entry.dispatcharrClient()
+                        broker.withApiKeyRetry(playlistId) { k ->
+                            client.getProgramDetail(base, k, pid).bestPosterString?.let { raw ->
+                                resolvePreviewArtUrl(raw, base)
+                            }
+                        }
+                    }
+                }.getOrNull()
+            }
+        }
+        if (url == null && p.title.isNotBlank() && playlist.programPostersTmdbEnabled.first()) {
+            val apiKey = playlist.tmdbApiKey.first()
+            if (apiKey.isNotBlank()) {
+                val isMovie = p.category.lowercase().let { it.contains("movie") || it.contains("film") }
+                url = runCatching {
+                    withContext(Dispatchers.IO) {
+                        // One typed search hit (Apple's lookupArt): landscape
+                        // backdrop first, poster only when there is no
+                        // backdrop. No second poster-only search, which is
+                        // what produced portrait art here while Apple showed
+                        // the landscape card.
+                        val tmdb = entry.tmdbService()
+                        val art = tmdb.lookupArt(cleanPreviewTitle(p.title), isMovie, apiKey)
+                        art?.backdrop?.takeIf { it.isNotBlank() }?.let { tmdb.imageUrlFor(it, "w780") }
+                            ?: art?.poster?.takeIf { it.isNotBlank() }?.let { tmdb.imageUrlFor(it, "w500") }
+                    }
+                }.getOrNull()
+            }
+        }
+        // Last stop: the program's OWN icon from the feed (XMLTV `<icon src>`).
+        // Sports events ("Tomorrow at 21:00 - Villarreal v Real Betis") match
+        // nothing on TMDB, but the feed ships a real picture for them.
+        if (url == null) url = p.iconUrl?.takeIf { it.isNotBlank() }
+        // A miss caused by the skipped detail step is not final.
+        if (url != null || !detailSkipped) previewArt[key] = url
+    }
+    val art = artKey?.let { previewArt[it] }
+    val artKnown = artKey != null && previewArt.containsKey(artKey)
+    return art to artKnown
 }
 
 /** Trailing "(2024)" style year tags never help an art lookup. */

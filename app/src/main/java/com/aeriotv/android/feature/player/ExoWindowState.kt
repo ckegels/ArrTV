@@ -54,6 +54,12 @@ object MiniPlayerChrome {
      *  mini clear of the guide's time bar whatever the bar and banner measure. */
     val bannerArtBottomPx = MutableStateFlow(0f)
 
+    /** Compact modern guide (TiviMate): the video slot the guide's banner
+     *  reserves at its top left, in root px; null when no such banner is
+     *  mounted. While set, the mini fills exactly this rectangle instead of
+     *  sitting in the top-right corner. */
+    val videoSlotPx = MutableStateFlow<androidx.compose.ui.geometry.Rect?>(null)
+
     /** Mini frame size (tvOS 410x231 pt halved). Lives here so the screens that
      *  RESERVE a slot for the mini reserve exactly what the window draws. */
     val miniWidth = 205.dp

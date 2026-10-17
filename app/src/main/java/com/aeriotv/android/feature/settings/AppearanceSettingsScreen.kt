@@ -58,6 +58,7 @@ import com.aeriotv.android.core.category.ProgramCategory
 import com.aeriotv.android.core.category.parseHex
 import com.aeriotv.android.ui.adaptive.rememberViewport
 import com.aeriotv.android.ui.settings.LocalSettingsInPane
+import com.aeriotv.android.ui.settings.SettingsToggleRow
 import com.aeriotv.android.ui.settings.rememberIsTvDevice
 import com.aeriotv.android.ui.settings.OnOffIndicator
 import com.aeriotv.android.ui.settings.SettingsDetailTopBar
@@ -131,6 +132,8 @@ fun AppearanceSettingsScreen(
     val useCustomAccent by viewModel.useCustomAccent.collectAsStateWithLifecycle(initialValue = false)
     val customAccentHex by viewModel.customAccentHex.collectAsStateWithLifecycle(initialValue = "")
     val timeFormat by viewModel.timeFormat.collectAsStateWithLifecycle(initialValue = "system")
+    val isTvDevice = rememberIsTvDevice()
+    val compactModernLayout by viewModel.compactModernLayout.collectAsStateWithLifecycle(initialValue = false)
 
     var accentPickerOpen by remember { mutableStateOf(false) }
 
@@ -162,6 +165,23 @@ fun AppearanceSettingsScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
+                // LAYOUT card (TV only) — the compact modern layout switch.
+                if (isTvDevice) {
+                    settingsCard(
+                        header = "Layout",
+                        footer = "A TiviMate-style Live TV: the guide fills the screen below a preview of the highlighted " +
+                            "program, groups open with Left from the program airing now, Left again opens the menu, and " +
+                            "holding Left goes back in time. It sets Guide Layout to Channel Preview, Group Selection to " +
+                            "the shifting sidebar, the Live TV display scale to 85% and the guide's Left buttons. " +
+                            "Turning it off restores your previous values of those settings.",
+                    ) {
+                        SettingsToggleRow(
+                            title = "Compact modern layout",
+                            checked = compactModernLayout,
+                            onCheckedChange = viewModel::setCompactModernLayout,
+                        )
+                    }
+                }
                 // THEME card — six brand presets + Custom Accent override row.
                 settingsCard(
                     header = "Theme",
@@ -448,6 +468,7 @@ private fun themeSubtitle(theme: AppTheme): String = when (theme) {
     AppTheme.Forest -> "Green on near-black"
     AppTheme.Lavender -> "Purple on near-black"
     AppTheme.Monochrome -> "Greyscale on near-black"
+    AppTheme.Slate -> "Light blue on blue-grey"
     AppTheme.Light -> "Neutral teal-grey on white"
 }
 

@@ -740,27 +740,23 @@ fun MainScaffold(
     // iOS Issue #24: when the app returns to the foreground, refresh the guide
     // if it has gone stale (>30min). Skip the first ON_START (cold launch
     // already loads the EPG) so a normal launch never double-fetches.
-    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    // The APP's lifecycle, not this screen's: this screen stops whenever the
+    // fullscreen player covers it, and coming back from a channel is not a
+    // return to the foreground. (EpgSweepGate.appInForeground is kept by
+    // AerioTVApplication for the same reason.)
+    val lifecycleOwner = androidx.lifecycle.ProcessLifecycleOwner.get()
     var sawFirstStart by remember { mutableStateOf(false) }
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_START) {
-                // Quiet EPG sweep (Logan 2026-09-12): the sweep only spends
-                // requests while the app is in the foreground, and a return to
-                // the foreground is also when the sources gate is re-checked
-                // (rate limited to once per 15 min in the repository).
-                com.aeriotv.android.core.data.repository.EpgSweepGate.appInForeground = true
+                // A return to the foreground is when the sources gate is
+                // re-checked (rate limited to once per 15 min in the repository).
                 if (sawFirstStart) {
                     viewModel.refreshEpgIfStale()
                     viewModel.checkEpgSourcesForChanges()
                 } else {
                     sawFirstStart = true
                 }
-            }
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
-                // Backgrounded: the sweep pauses where it is and resumes at the
-                // same chunk on the next ON_START.
-                com.aeriotv.android.core.data.repository.EpgSweepGate.appInForeground = false
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)

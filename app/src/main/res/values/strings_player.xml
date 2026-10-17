@@ -86,6 +86,47 @@
     <!-- Dispatcharr503.kt -->
     <string name="player_channel_unavailable">Channel unavailable</string>
     <!-- DispatcharrConnectionLimit.kt -->
+    <!-- A login the server holds to one TV at a time: another TV took the stream -->
+    <string name="player_other_device_title">Playing on %1$s</string>
+    <string name="player_other_device_title_unnamed">Playing on another device</string>
+    <string name="player_other_device_message">This login watches on one device at a time. Press Watch here to watch on this TV instead; the other one stops.</string>
+    <string name="player_join_other_device">Join</string>
+    <string name="player_join_switched_off">Watch together is switched off on the server (Settings › Streaming › arrTV)</string>
+    <string name="player_join_failed">That device is no longer watching a channel</string>
+    <string name="player_option_stop_watch_together">Stop watching together</string>
+    <string name="watch_together_offer_title">Watch together?</string>
+    <string name="watch_together_offer_message">%1$s is watching %2$s on this login. Join it, and from then on whichever of you changes channel, the other follows.</string>
+    <string name="watch_together_offer_message_person">%1$s is watching %2$s on %3$s. Ask to join? %1$s is asked first; after that, whenever one of you changes channel, the other is asked whether to follow.</string>
+    <string name="watch_together_ask">Ask to join</string>
+    <string name="watch_together_unnamed_device">Another device</string>
+    <string name="watch_together_not_now">Not now</string>
+    <!-- Watch together with other people in the house (Dispatch More v266) -->
+    <string name="watch_together_request_message">%1$s wants to watch %2$s with you.</string>
+    <string name="watch_together_allow">Allow (%1$d)</string>
+    <string name="watch_together_decline">Decline</string>
+    <string name="watch_together_follow_title">Follow %1$s?</string>
+    <string name="watch_together_follow_message">%1$s switched to %2$s.</string>
+    <string name="watch_together_follow">Follow (%1$d)</string>
+    <string name="watch_together_stay">Stay</string>
+    <string name="watch_together_asked">Asked %1$s, waiting for an answer…</string>
+    <string name="watch_together_no_answer">%1$s did not answer</string>
+    <string name="watch_together_declined">%1$s said no</string>
+    <string name="watch_together_declined_not_allowed">Your login can\'t watch that channel</string>
+    <string name="watch_together_removed">%1$s stopped watching together with you</string>
+    <string name="watch_together_stayed">%1$s stayed on their channel; you watch on alone</string>
+    <string name="watch_together_not_allowed">Your login can\'t watch the channel %1$s switched to; you watch on alone</string>
+    <string name="watch_together_title">Watch together</string>
+    <string name="watch_together_menu">Watch together…</string>
+    <string name="watch_together_can_join">Watching now</string>
+    <string name="watch_together_nobody">Nobody else is watching right now.</string>
+    <string name="watch_together_with">Watching together with</string>
+    <string name="watch_together_disconnect">Disconnect</string>
+    <string name="watch_together_leads">leads</string>
+    <string name="watch_together_close">Close</string>
+    <string name="watch_together_hint">%1$s is watching %2$s</string>
+    <string name="watch_together_hint_tv">OK: watch together</string>
+    <string name="watch_together_hint_phone">Tap to watch together</string>
+    <string name="player_watch_here">Watch here</string>
     <string name="player_limit_stream_ended_title">Stream ended</string>
     <string name="player_limit_stream_ended_message">This stream was stopped by the server. Press Retry to start it again.</string>
     <string name="player_limit_user_title">Too many sessions playing</string>

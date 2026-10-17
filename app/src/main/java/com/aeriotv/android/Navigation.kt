@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -258,6 +259,29 @@ fun AerioTVNavHost(
         if (dlRoute != null && dlRoute != Routes.MAIN) {
             com.aeriotv.android.ui.search.SearchDismissSignal.dismissAll()
         }
+    }
+    // Watch together (v266): another person's device asking to join or whether to follow, and
+    // the Watch together list -- over whichever screen is up, the player included
+    com.aeriotv.android.feature.player.WatchTogetherPrompts()
+    com.aeriotv.android.feature.player.WatchTogetherSheet()
+    com.aeriotv.android.feature.player.WatchTogetherHint()
+    // At the start of the app, once: a link left from before ends, and a device that is
+    // watching -- this login's, or another person's in the house -- is shown on the start card.
+    // Here, not on the guide: a TV opens a stream at once and the guide is never up (the user)
+    LaunchedEffect(Unit) {
+        val together = com.aeriotv.android.core.network.WatchTogether
+        if (together.offerAsked) return@LaunchedEffect
+        together.offerAsked = true
+        // The capabilities probe and the first list land a few seconds into the start
+        kotlinx.coroutines.delay(6_000)
+        repeat(15) {
+            if (together.status.value != null) return@repeat
+            together.refresh()
+            kotlinx.coroutines.delay(1_000)
+        }
+        val answer = together.status.value ?: return@LaunchedEffect
+        if (answer.linked) together.leave()
+        answer.offers.firstOrNull()?.let { together.showHint(it) }
     }
     val dlGraphEntry = remember(dlCurrentEntry) {
         runCatching { navController.getBackStackEntry(Routes.PLAYLIST_GRAPH) }.getOrNull()
@@ -888,6 +912,24 @@ fun AerioTVNavHost(
                 val exoHolderNav = remember { playerEntryNav.exoPlayerHolder() }
                 val exoWindowNav = remember { playerEntryNav.exoWindowState() }
                 val miniVmNav: MiniPlayerViewModel = hiltViewModel()
+
+                // Watch together (Dispatch More v260). A channel the linked device changed
+                // to, or the one just joined, opens the player when it is not open (the open
+                // player tunes it in place). At start, a link left from before ends, and a
+                // device of this login that is watching is offered to join.
+                val linksNav = remember { playerEntryNav.dispatchMoreLinks() }
+                val followNav by com.aeriotv.android.core.network.WatchTogether.follow
+                    .collectAsStateWithLifecycle()
+                LaunchedEffect(followNav) {
+                    val request = followNav ?: return@LaunchedEffect
+                    if (com.aeriotv.android.core.network.WatchTogether.playerOpen) return@LaunchedEffect
+                    val channel = state.channels.firstOrNull {
+                        com.aeriotv.android.core.network.DispatchMore.channelRef(it.url) == request.channelUuid
+                    } ?: return@LaunchedEffect
+                    com.aeriotv.android.core.network.WatchTogether.consumed(request)
+                    navController.navigate(Routes.player(channel.id)) { launchSingleTop = true }
+                }
+                // The start-of-app watch together offer is the card in AerioTVNavHost now
 
                 LaunchedEffect(state.phase) {
                     // Skipped onboarding stays in the (empty) app; see

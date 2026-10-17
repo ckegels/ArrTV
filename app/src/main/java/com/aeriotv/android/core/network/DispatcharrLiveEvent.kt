@@ -59,6 +59,55 @@ sealed interface DispatcharrLiveEvent {
     /** Dispatch More v248: this channel was moved to another stream so someone could look back. */
     data class LookBackMoved(val channelUuid: String, val text: String) : DispatcharrLiveEvent
 
+    /** Dispatch More: another arrTV device of this login took over (contract §5a). [device]
+     *  is the replaced device's own id: only that device acts on it. */
+    data class DeviceReplaced(val device: String, val by: String?, val byDevice: String? = null) : DispatcharrLiveEvent
+
+    /** Dispatch More v260, watch together: a device this one watches together with ([by])
+     *  changed to [channel]; [devices] are the ones to follow. */
+    data class LinkedChannel(val channel: String, val by: String?, val devices: List<String>) : DispatcharrLiveEvent
+
+    /** Dispatch More v261: the other device left; [devices] (this one among them) watch on
+     *  alone, no longer linked. v266: [reason] "removed" (the leader disconnected it),
+     *  "stayed" (the leader stayed on its channel), "not_allowed" (its login may not watch the
+     *  leader's new channel), with the leader's [name]. */
+    data class LinkEnded(
+        val devices: List<String>,
+        val reason: String? = null,
+        val name: String? = null,
+    ) : DispatcharrLiveEvent
+
+    /** Dispatch More v266: another person's device ([by], [name] of [user]) asks to join this
+     *  one, in [devices], on [channelName]. Allow / Decline; ten seconds unanswered is Allow. */
+    data class LinkRequest(
+        val by: String,
+        val name: String,
+        val user: String,
+        val channelName: String,
+        val devices: List<String>,
+    ) : DispatcharrLiveEvent
+
+    /** Dispatch More v266: the device asked ([name]) let this one in: tune [channel] afresh. */
+    data class LinkAccepted(val name: String, val channel: String, val devices: List<String>) : DispatcharrLiveEvent
+
+    /** Dispatch More v266: the device asked ([name]) said no; [reason] "not_allowed" when this
+     *  login may not watch its channel. */
+    data class LinkDeclined(val name: String, val reason: String?, val devices: List<String>) : DispatcharrLiveEvent
+
+    /** Dispatch More v266: another person's device this one leads ([by], [name] of [user])
+     *  changed to [channel]: follow, or stay. Ten seconds unanswered is follow. */
+    data class LinkFollowRequest(
+        val by: String,
+        val name: String,
+        val user: String,
+        val channel: String,
+        val channelName: String,
+        val devices: List<String>,
+    ) : DispatcharrLiveEvent
+
+    /** Dispatch More v262: [by] joined [devices] (this one among them): linked now too. */
+    data class LinkJoined(val by: String?, val devices: List<String>) : DispatcharrLiveEvent
+
     /** A recording was scheduled, started, stopped, changed or removed. */
     data object RecordingsChanged : DispatcharrLiveEvent
 
@@ -78,7 +127,11 @@ sealed interface DispatcharrLiveEvent {
         fun parse(text: String): DispatcharrLiveEvent? {
             if (!text.contains("m3u_refresh") && !text.contains("epg_refresh") &&
                 !text.contains("channels_changed") && !text.contains("lookback_moved") &&
-                !text.contains("recording") && !text.contains("connection_established")
+                !text.contains("recording") && !text.contains("connection_established") &&
+                !text.contains("device_replaced") && !text.contains("linked_channel") && !text.contains("link_ended") && !text.contains("link_joined") &&
+                // Watching together with other people (v266)
+                !text.contains("link_request") && !text.contains("link_accepted") &&
+                !text.contains("link_declined") && !text.contains("link_follow_request")
             ) return null
             val root = runCatching { json.parseToJsonElement(text) as? JsonObject }.getOrNull() ?: return null
             if (root.string("type") == "connection_established") return Connected
@@ -106,12 +159,58 @@ sealed interface DispatcharrLiveEvent {
                     data.string("channel") ?: return null,
                     data.string("text") ?: AppText.get(R.string.core_live_lookback_moved),
                 )
+                "device_replaced" -> DeviceReplaced(
+                    data.string("device") ?: return null,
+                    data.string("by"),
+                    data.string("by_device"),
+                )
+                "link_joined" -> LinkJoined(
+                    data.string("by"),
+                    (data["devices"] as? kotlinx.serialization.json.JsonArray)
+                        ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.orEmpty(),
+                )
+                "link_ended" -> LinkEnded(
+                    data.devices(),
+                    data.string("reason"),
+                    data.string("name"),
+                )
+                "link_request" -> LinkRequest(
+                    data.string("by") ?: return null,
+                    data.string("name").orEmpty(),
+                    data.string("user").orEmpty(),
+                    data.string("channel_name").orEmpty(),
+                    data.devices(),
+                )
+                "link_accepted" -> LinkAccepted(
+                    data.string("name").orEmpty(),
+                    data.string("channel") ?: return null,
+                    data.devices(),
+                )
+                "link_declined" -> LinkDeclined(data.string("name").orEmpty(), data.string("reason"), data.devices())
+                "link_follow_request" -> LinkFollowRequest(
+                    data.string("by") ?: return null,
+                    data.string("name").orEmpty(),
+                    data.string("user").orEmpty(),
+                    data.string("channel") ?: return null,
+                    data.string("channel_name").orEmpty(),
+                    data.devices(),
+                )
+                "linked_channel" -> LinkedChannel(
+                    data.string("channel") ?: return null,
+                    data.string("by"),
+                    (data["devices"] as? kotlinx.serialization.json.JsonArray)
+                        ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.orEmpty(),
+                )
                 in RECORDING_TYPES -> RecordingsChanged
                 else -> null
             }
         }
 
         private fun JsonObject.string(key: String): String? = (this[key] as? JsonPrimitive)?.contentOrNull
+
+        private fun JsonObject.devices(): List<String> =
+            (this["devices"] as? kotlinx.serialization.json.JsonArray)
+                ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.orEmpty()
         private fun JsonObject.int(key: String): Int? = (this[key] as? JsonPrimitive)?.intOrNull
     }
 }

@@ -412,6 +412,12 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { prefs.setAutoRecoverFrozenStreams(value) }
     }
 
+    // The channel list from the side over the player (off by default: the main guide instead)
+    val playerSideChannelList: Flow<Boolean> = prefs.playerSideChannelList
+    fun setPlayerSideChannelList(value: Boolean) {
+        viewModelScope.launch { prefs.setPlayerSideChannelList(value) }
+    }
+
     // TV player overlay style: full-width info bar (off by default).
     val playerInfoBarStyle: Flow<Boolean> = prefs.playerInfoBarStyle
     fun setPlayerInfoBarStyle(value: Boolean) {

@@ -1,6 +1,8 @@
 package com.aeriotv.android.core.playback
 
+import com.aeriotv.android.R
 import com.aeriotv.android.core.data.M3UChannel
+import com.aeriotv.android.core.locale.AppText
 import com.aeriotv.android.core.data.SourceType
 import com.aeriotv.android.core.data.db.entity.PlaylistEntity
 import com.aeriotv.android.core.network.DispatcharrClient
@@ -82,15 +84,14 @@ class CatchupPlaybackResolver @Inject constructor(
 
     sealed class Failure(message: String) : Exception(message) {
         class NotCatchup :
-            Failure("This channel has no catch-up archive.")
+            Failure(AppText.get(R.string.player_catchup_no_archive))
 
         class MissingXcPassword : Failure(
-            "Catch-up needs an XC password on your Dispatcharr user. " +
-                "Ask an admin to set one under Users in Dispatcharr.",
+            AppText.get(R.string.player_catchup_missing_xc_password),
         )
 
         class Unsupported :
-            Failure("Catch-up is available on Dispatcharr and Xtream Codes sources.")
+            Failure(AppText.get(R.string.player_catchup_unsupported))
 
         /** The archive's provider is in use by another viewer and the server could not move
          *  them (Dispatch More look-back priority), with when to try again. */
@@ -122,14 +123,16 @@ class CatchupPlaybackResolver @Inject constructor(
                 }
                 kotlinx.coroutines.delay(500)
             }
-            throw Failure.Busy(busyText("Unavailable due to current viewing priorities", 0))
+            throw Failure.Busy(busyText(AppText.get(R.string.player_catchup_busy_priorities), 0))
         } finally {
             CatchupRoom.clear()
         }
     }
 
     private fun busyText(text: String, retryAfterSeconds: Int): String =
-        if (retryAfterSeconds > 0) "$text. Try again in ${(retryAfterSeconds + 59) / 60} min." else "$text."
+        if (retryAfterSeconds > 0) {
+            AppText.get(R.string.player_catchup_try_again_in_min, text, (retryAfterSeconds + 59) / 60)
+        } else "$text."
 
     suspend fun resolve(
         playlist: PlaylistEntity,

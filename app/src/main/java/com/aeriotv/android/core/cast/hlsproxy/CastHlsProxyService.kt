@@ -45,8 +45,8 @@ class CastHlsProxyService : Service() {
         )
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher)
-            .setContentTitle("Streaming to Cast device")
-            .setContentText("AerioTV is relaying this channel to your TV")
+            .setContentTitle(getString(R.string.player_cast_proxy_notif_title))
+            .setContentText(getString(R.string.player_cast_proxy_notif_text))
             .setContentIntent(launchPi)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -65,7 +65,7 @@ class CastHlsProxyService : Service() {
         val mgr = getSystemService(NotificationManager::class.java) ?: return
         if (mgr.getNotificationChannel(CHANNEL_ID) != null) return
         mgr.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Casting", NotificationManager.IMPORTANCE_LOW).apply {
+            NotificationChannel(CHANNEL_ID, getString(R.string.player_cast_channel_name), NotificationManager.IMPORTANCE_LOW).apply {
                 setShowBadge(false)
             },
         )

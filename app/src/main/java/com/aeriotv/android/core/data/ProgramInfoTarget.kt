@@ -1,5 +1,8 @@
 package com.aeriotv.android.core.data
 
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
+
 /**
  * Minimal value carrier for everything `ProgramInfoSheet` needs to render a
  * programme detail. Built from an [EPGProgramme] + channel context at the
@@ -99,19 +102,26 @@ data class RecordingFacts(
         val out = ArrayList<Pair<String, String>>()
         val date = java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM)
         val time = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT)
-        out += "Recorded" to date.format(java.util.Date(recordedOnMillis))
-        out += "Window" to (time.format(java.util.Date(windowStartMillis)) + " to " + time.format(java.util.Date(windowEndMillis)))
+        out += AppText.get(R.string.core_recording_fact_recorded) to date.format(java.util.Date(recordedOnMillis))
+        out += AppText.get(R.string.core_recording_fact_window) to AppText.get(
+            R.string.core_recording_fact_window_range,
+            time.format(java.util.Date(windowStartMillis)),
+            time.format(java.util.Date(windowEndMillis)),
+        )
         val quality = listOfNotNull(
             resolution?.takeIf { it.isNotBlank() },
             videoCodec?.takeIf { it.isNotBlank() }?.let(::codecName),
-            frameRate?.takeIf { it > 0 }?.let { if (it == Math.rint(it)) "%.0f fps".format(it) else "%.2f fps".format(it) },
+            frameRate?.takeIf { it > 0 }?.let {
+                if (it == Math.rint(it)) AppText.get(R.string.core_unit_fps_whole, it)
+                else AppText.get(R.string.core_unit_fps_fraction, it)
+            },
         )
-        if (quality.isNotEmpty()) out += "Quality" to quality.joinToString(" ")
+        if (quality.isNotEmpty()) out += AppText.get(R.string.core_recording_fact_quality) to quality.joinToString(" ")
         val audio = listOfNotNull(audioCodec?.takeIf { it.isNotBlank() }?.let(::codecName), audioChannels?.takeIf { it.isNotBlank() })
-        if (audio.isNotEmpty()) out += "Audio" to audio.joinToString(" ")
-        if (fileSizeBytes > 0) out += "Size" to when {
-            fileSizeBytes >= 1_073_741_824L -> "%.2f GB".format(fileSizeBytes / 1_073_741_824.0)
-            else -> "%.1f MB".format(fileSizeBytes / 1_048_576.0)
+        if (audio.isNotEmpty()) out += AppText.get(R.string.core_recording_fact_audio) to audio.joinToString(" ")
+        if (fileSizeBytes > 0) out += AppText.get(R.string.core_recording_fact_size) to when {
+            fileSizeBytes >= 1_073_741_824L -> AppText.get(R.string.core_unit_size_gb, fileSizeBytes / 1_073_741_824.0)
+            else -> AppText.get(R.string.core_unit_size_mb, fileSizeBytes / 1_048_576.0)
         }
         val seconds = (windowEndMillis - windowStartMillis) / 1000.0
         val mbps = when {
@@ -119,10 +129,13 @@ data class RecordingFacts(
             fileSizeBytes > 0 && seconds > 60 -> fileSizeBytes * 8 / seconds / 1_000_000
             else -> null
         }
-        mbps?.let { out += "Bitrate" to (if (it >= 10) "%.0f Mbps".format(it) else "%.1f Mbps".format(it)) }
-        format?.takeIf { it.isNotBlank() }?.let { out += "Format" to it.uppercase() }
-        out += "Location" to location
-        out += "Status" to status
+        mbps?.let {
+            val rate = if (it >= 10) AppText.get(R.string.core_unit_mbps_whole, it) else AppText.get(R.string.core_unit_mbps_fraction, it)
+            out += AppText.get(R.string.core_recording_fact_bitrate) to rate
+        }
+        format?.takeIf { it.isNotBlank() }?.let { out += AppText.get(R.string.core_recording_fact_format) to it.uppercase() }
+        out += AppText.get(R.string.core_recording_fact_location) to location
+        out += AppText.get(R.string.core_recording_fact_status) to status
         return out
     }
 

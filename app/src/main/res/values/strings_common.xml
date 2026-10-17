@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Words used all over the app. Add a screen's own text to its group's file
+     (strings_<group>.xml); add here only what many screens share. -->
+<resources>
+    <string name="common_ok">OK</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_save">Save</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_remove">Remove</string>
+    <string name="common_add">Add</string>
+    <string name="common_edit">Edit</string>
+    <string name="common_close">Close</string>
+    <string name="common_back">Back</string>
+    <string name="common_done">Done</string>
+    <string name="common_retry">Retry</string>
+    <string name="common_continue">Continue</string>
+    <string name="common_on">On</string>
+    <string name="common_off">Off</string>
+    <string name="common_yes">Yes</string>
+    <string name="common_no">No</string>
+    <string name="common_none">None</string>
+    <string name="common_all">All</string>
+    <string name="common_default">Default</string>
+    <string name="common_system">System</string>
+    <string name="common_selected">Selected</string>
+    <string name="common_loading">Loading…</string>
+    <string name="common_search">Search</string>
+    <string name="common_settings">Settings</string>
+    <string name="common_play">Play</string>
+    <string name="common_pause">Pause</string>
+    <string name="common_error">Error</string>
+    <string name="common_unknown">Unknown</string>
+</resources>

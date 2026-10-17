@@ -1,5 +1,7 @@
 package com.aeriotv.android.core.network
 
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import android.content.Context
 import android.util.Log
 import com.aeriotv.android.core.data.db.dao.PlaylistDao
@@ -55,10 +57,10 @@ class DispatchMoreGuides @Inject constructor(
             val text = when (val answer = choose(streamUrl, option.epgId)) {
                 is DispatcharrClient.GuideAnswer.Chosen -> {
                     liveUpdates.refreshGuideSoon("guide chosen in the player")
-                    "Guide changed to ${answer.guide?.name?.ifBlank { null } ?: option.name}"
+                    AppText.get(R.string.core_guide_changed_to, answer.guide?.name?.ifBlank { null } ?: option.name)
                 }
                 is DispatcharrClient.GuideAnswer.Refused -> answer.message
-                is DispatcharrClient.GuideAnswer.Listed -> "Guide changed to ${option.name}"
+                is DispatcharrClient.GuideAnswer.Listed -> AppText.get(R.string.core_guide_changed_to, option.name)
             }
             withContext(Dispatchers.Main) {
                 android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_LONG).show()
@@ -71,18 +73,18 @@ class DispatchMoreGuides @Inject constructor(
         request: suspend (base: String, key: String, path: String, channel: String) -> DispatcharrClient.GuideAnswer,
     ): DispatcharrClient.GuideAnswer = withContext(Dispatchers.IO) {
         val server = DispatchMore.serverFor(streamUrl)?.takeIf { it.guideChoice }
-            ?: return@withContext DispatcharrClient.GuideAnswer.Refused(403, "Changing the guide is switched off on the server")
+            ?: return@withContext DispatcharrClient.GuideAnswer.Refused(403, AppText.get(R.string.core_dispatchmore_guide_switched_off))
         val base = DispatchMore.originOf(streamUrl)
-            ?: return@withContext DispatcharrClient.GuideAnswer.Refused(404, "Not a channel of this server")
+            ?: return@withContext DispatcharrClient.GuideAnswer.Refused(404, AppText.get(R.string.core_dispatchmore_not_a_channel))
         val channel = DispatchMore.channelRef(streamUrl)
-            ?: return@withContext DispatcharrClient.GuideAnswer.Refused(404, "Not a channel of this server")
+            ?: return@withContext DispatcharrClient.GuideAnswer.Refused(404, AppText.get(R.string.core_dispatchmore_not_a_channel))
         val playlist = dao.firstActive()?.takeIf { !it.apiKey.isNullOrBlank() }
-            ?: return@withContext DispatcharrClient.GuideAnswer.Refused(0, "No Dispatcharr login to ask with")
+            ?: return@withContext DispatcharrClient.GuideAnswer.Refused(0, AppText.get(R.string.core_dispatchmore_no_login_guide))
         runCatching {
             auth.withApiKeyRetry(playlist.id) { key -> request(base, key, server.guideChoicePath, channel) }
         }.getOrElse {
             if (it is kotlinx.coroutines.CancellationException) throw it
-            DispatcharrClient.GuideAnswer.Refused(0, it.message ?: "Could not reach the server")
+            DispatcharrClient.GuideAnswer.Refused(0, it.message ?: AppText.get(R.string.core_dispatchmore_unreachable_plain))
         }
     }
 

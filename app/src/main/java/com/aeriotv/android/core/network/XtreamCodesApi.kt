@@ -1,5 +1,7 @@
 package com.aeriotv.android.core.network
 
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import android.util.Log
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -285,7 +287,7 @@ class XtreamCodesApi @Inject constructor() {
                 out += XtreamEpisode(
                     id = id,
                     title = o.str("title")?.takeIf { it.isNotBlank() }
-                        ?: "Episode ${o.flexInt("episode_num") ?: id}",
+                        ?: AppText.get(R.string.core_xc_episode_fallback, (o.flexInt("episode_num") ?: id).toString()),
                     season = seasonNum,
                     episodeNum = o.flexInt("episode_num"),
                     containerExtension = o.str("container_extension")?.takeIf { it.isNotBlank() } ?: "mp4",
@@ -542,8 +544,8 @@ class XtreamCodesApi @Inject constructor() {
     private fun notJsonError(action: String, head: String): XtreamServerError {
         val snippet = head.take(200).trim()
         return XtreamServerError(
-            if (snippet.isEmpty()) "The server returned an empty response for $action."
-            else "The server returned an error for $action: $snippet",
+            if (snippet.isEmpty()) AppText.get(R.string.core_xc_empty_response, action)
+            else AppText.get(R.string.core_xc_server_error, action, snippet),
         )
     }
 

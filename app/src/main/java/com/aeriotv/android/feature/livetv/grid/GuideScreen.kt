@@ -1,5 +1,8 @@
 package com.aeriotv.android.feature.livetv.grid
 
+import com.aeriotv.android.core.locale.AppText
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.ui.draw.clip
@@ -462,7 +465,7 @@ fun GuideScreen(
     }
     val grid = remember { GuideGridState(initialViewportStartMs = System.currentTimeMillis() - 15 * 60_000L) }
     LaunchedEffect(state.guideWidening) {
-        grid.placeholderTitle = if (state.guideWidening) "Loading…" else "No info"
+        grid.placeholderTitle = if (state.guideWidening) AppText.get(R.string.common_loading) else AppText.get(R.string.livetv_no_info)
     }
     // Compact modern (TiviMate): the live timeline starts on the half hour.
     LaunchedEffect(modernRows) {
@@ -509,7 +512,7 @@ fun GuideScreen(
         }
     }
     val jumpLabel = remember(jumpTargetMs) {
-        jumpTargetMs?.let { java.text.SimpleDateFormat("EEE h:mm a", java.util.Locale.getDefault()).format(java.util.Date(it)) }
+        jumpTargetMs?.let { java.text.SimpleDateFormat(android.text.format.DateFormat.getBestDateTimePattern(java.util.Locale.getDefault(), "EEEjmm"), java.util.Locale.getDefault()).format(java.util.Date(it)) }
     }
     val startJump: (Long) -> Unit = { target ->
         jumpTargetMs = target
@@ -978,10 +981,10 @@ fun GuideScreen(
                     onValueChange = viewModel::onSearchQueryChange,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                     singleLine = true,
-                    placeholder = { Text("Search channels") },
+                    placeholder = { Text(stringResource(R.string.livetv_search_channels)) },
                     leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                     trailingIcon = if (state.searchQuery.isNotEmpty()) {
-                        { IconButton(onClick = { viewModel.onSearchQueryChange("") }) { Icon(Icons.Filled.Close, contentDescription = "Clear search") } }
+                        { IconButton(onClick = { viewModel.onSearchQueryChange("") }) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.livetv_clear_search)) } }
                     } else null,
                     shape = RoundedCornerShape(14.dp),
                     keyboardOptions = com.aeriotv.android.ui.textfield.aerioTextFieldKeyboardOptions(imeAction = ImeAction.Search),
@@ -1376,15 +1379,15 @@ fun GuideScreen(
             // long-press action surface; Logan 2026-09-09), items in the iPhone
             // context-menu order. Jump To lives on the clock cell here.
             val sheetActions = buildList {
-                if (isLive && channel.url.isNotBlank()) add(TvMenuAction("Watch", Icons.Filled.PlayArrow) { onChannelClick(channel) })
-                else if (replayable) add(TvMenuAction("Watch from Start", Icons.Outlined.History, onClick = watchFromStart))
-                add(TvMenuAction(if (isFavorite) "Remove from Favorites" else "Add to Favorites", if (isFavorite) Icons.Outlined.StarOutline else Icons.Filled.Star) { favoritesVm.toggle(channel) })
-                add(TvMenuAction(if (inMultiview) "Remove from Multiview" else "Add to Multiview", Icons.Outlined.GridView, enabled = canAddToMultiview) { multiviewStore.toggle(channel) })
-                add(TvMenuAction("Add Channel to Collection", Icons.Outlined.CreateNewFolder) { collectionPickerFor = channel.id to channel.name })
+                if (isLive && channel.url.isNotBlank()) add(TvMenuAction(stringResource(R.string.livetv_watch), Icons.Filled.PlayArrow) { onChannelClick(channel) })
+                else if (replayable) add(TvMenuAction(stringResource(R.string.livetv_watch_from_start), Icons.Outlined.History, onClick = watchFromStart))
+                add(TvMenuAction(stringResource(if (isFavorite) R.string.livetv_remove_from_favorites else R.string.livetv_add_to_favorites), if (isFavorite) Icons.Outlined.StarOutline else Icons.Filled.Star) { favoritesVm.toggle(channel) })
+                add(TvMenuAction(stringResource(if (inMultiview) R.string.livetv_remove_from_multiview else R.string.livetv_add_to_multiview), Icons.Outlined.GridView, enabled = canAddToMultiview) { multiviewStore.toggle(channel) })
+                add(TvMenuAction(stringResource(R.string.livetv_add_channel_to_collection), Icons.Outlined.CreateNewFolder) { collectionPickerFor = channel.id to channel.name })
                 if (!cell.isPlaceholder) {
-                    add(TvMenuAction("Program Info", Icons.Outlined.Info) { programInfoTarget = cell.toInfoTarget(channel.name, channel.dispatcharrChannelId) })
-                    if (canRecord) add(TvMenuAction(if (isLive) "Record from Now" else "Record", Icons.Outlined.FiberManualRecord) { recordTarget = cell.toInfoTarget(channel.name, channel.dispatcharrChannelId) })
-                    if (cell.startMillis > nowMs) add(TvMenuAction(if (reminderSet) "Cancel Reminder" else "Set Reminder", Icons.Outlined.Notifications, onClick = toggleReminder))
+                    add(TvMenuAction(stringResource(R.string.livetv_program_info), Icons.Outlined.Info) { programInfoTarget = cell.toInfoTarget(channel.name, channel.dispatcharrChannelId) })
+                    if (canRecord) add(TvMenuAction(stringResource(if (isLive) R.string.livetv_record_from_now else R.string.livetv_record), Icons.Outlined.FiberManualRecord) { recordTarget = cell.toInfoTarget(channel.name, channel.dispatcharrChannelId) })
+                    if (cell.startMillis > nowMs) add(TvMenuAction(stringResource(if (reminderSet) R.string.livetv_cancel_reminder else R.string.livetv_set_reminder), Icons.Outlined.Notifications, onClick = toggleReminder))
                 }
             }
             com.aeriotv.android.feature.livetv.LiveTvActionSheet(
@@ -1395,16 +1398,16 @@ fun GuideScreen(
             )
         } else {
         val actions = buildList {
-            add(TvMenuAction(if (isFavorite) "Remove from Favorites" else "Add to Favorites") { favoritesVm.toggle(channel) })
-            add(TvMenuAction(if (inMultiview) "Remove from Multiview" else "Add to Multiview", enabled = canAddToMultiview) { multiviewStore.toggle(channel) })
-            add(TvMenuAction("Add Channel to Collection") { collectionPickerFor = channel.id to channel.name })
+            add(TvMenuAction(stringResource(if (isFavorite) R.string.livetv_remove_from_favorites else R.string.livetv_add_to_favorites)) { favoritesVm.toggle(channel) })
+            add(TvMenuAction(stringResource(if (inMultiview) R.string.livetv_remove_from_multiview else R.string.livetv_add_to_multiview), enabled = canAddToMultiview) { multiviewStore.toggle(channel) })
+            add(TvMenuAction(stringResource(R.string.livetv_add_channel_to_collection)) { collectionPickerFor = channel.id to channel.name })
             // Jump To and Back to Now live on the clock cell now (tvOS parity).
             if (!cell.isPlaceholder) {
-                add(TvMenuAction("Program Info") { programInfoTarget = cell.toInfoTarget(channel.name, channel.dispatcharrChannelId) })
-                if (canRecord) add(TvMenuAction(if (isLive) "Record from Now" else "Record") { recordTarget = cell.toInfoTarget(channel.name, channel.dispatcharrChannelId) })
-                if (replayable) add(TvMenuAction("Watch from Start", onClick = watchFromStart))
+                add(TvMenuAction(stringResource(R.string.livetv_program_info)) { programInfoTarget = cell.toInfoTarget(channel.name, channel.dispatcharrChannelId) })
+                if (canRecord) add(TvMenuAction(stringResource(if (isLive) R.string.livetv_record_from_now else R.string.livetv_record)) { recordTarget = cell.toInfoTarget(channel.name, channel.dispatcharrChannelId) })
+                if (replayable) add(TvMenuAction(stringResource(R.string.livetv_watch_from_start), onClick = watchFromStart))
                 if (cell.startMillis > nowMs) {
-                    add(TvMenuAction(if (reminderSet) "Cancel Reminder" else "Set Reminder", onClick = toggleReminder))
+                    add(TvMenuAction(stringResource(if (reminderSet) R.string.livetv_cancel_reminder else R.string.livetv_set_reminder), onClick = toggleReminder))
                 }
             }
         }

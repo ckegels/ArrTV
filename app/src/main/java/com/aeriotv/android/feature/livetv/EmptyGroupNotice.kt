@@ -31,6 +31,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.aeriotv.android.ui.settings.rememberIsTvDevice
 import com.aeriotv.android.ui.tv.tvFocusScale
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * GH #72 (ochaos, reported on 1.8.16): selecting a channel group with no
@@ -74,7 +76,7 @@ fun EmptyGroupNotice(
             modifier = Modifier.size(if (isTv) 64.dp else 56.dp),
         )
         Text(
-            text = if (isSearching) "No Matching Channels" else "No Channels in This Group",
+            text = if (isSearching) stringResource(R.string.livetv_empty_group_no_matches_title) else stringResource(R.string.livetv_empty_group_title),
             style = if (isTv) MaterialTheme.typography.headlineSmall
             else MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
@@ -84,9 +86,9 @@ fun EmptyGroupNotice(
         )
         Text(
             text = if (isSearching) {
-                "No channels in this group match that search."
+                stringResource(R.string.livetv_empty_group_no_matches_body)
             } else {
-                "This group has no channels yet. It fills in as soon as the provider assigns some."
+                stringResource(R.string.livetv_empty_group_body)
             },
             style = MaterialTheme.typography.bodyMedium.subtext(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -136,7 +138,7 @@ private fun ShowAllChannelsButton(
             ),
     ) {
         Text(
-            text = "Show All Channels",
+            text = stringResource(R.string.livetv_show_all_channels),
             style = if (isTv) MaterialTheme.typography.titleMedium
             else MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.SemiBold,

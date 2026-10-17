@@ -1,5 +1,10 @@
 package com.aeriotv.android.feature.ondemand
 
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
+import androidx.annotation.StringRes
 import com.aeriotv.android.ui.scale.subtext
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.foundation.focusGroup
@@ -235,7 +240,7 @@ fun OnDemandTabContent(
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = "On Demand",
+                        text = stringResource(R.string.ondemand_title),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                     )
@@ -331,7 +336,7 @@ private fun SegmentPills(
         sections.forEachIndexed { index, entry ->
             if (isTv && index > 0) Spacer(Modifier.width(12.dp))
             SegmentPill(
-                label = entry.label,
+                label = stringResource(entry.labelRes),
                 icon = entry.icon,
                 selected = entry == current,
                 onClick = { onSelect(entry) },
@@ -418,8 +423,8 @@ private fun ContinueWatchingSubScreen(
     val seriesById = remember(state.series) { state.series.associateBy { it.id } }
     if (movieRows.isEmpty() && episodeRows.isEmpty()) {
         EmptyState(
-            title = "Nothing in progress",
-            body = "Movies and shows you start will show up here so you can pick up where you left off.",
+            title = stringResource(R.string.ondemand_nothing_in_progress),
+            body = stringResource(R.string.ondemand_nothing_in_progress_body),
         )
         return
     }
@@ -431,7 +436,7 @@ private fun ContinueWatchingSubScreen(
     ) {
         if (movieRows.isNotEmpty()) {
             ContinueWatchingRail(
-                title = "Movies",
+                title = stringResource(R.string.media_kind_movies),
                 items = movieRows,
                 posterFor = { it.posterUrl },
                 // Resume by id: opens the movie detail (with its Resume button),
@@ -442,7 +447,7 @@ private fun ContinueWatchingSubScreen(
         }
         if (episodeRows.isNotEmpty()) {
             SeriesContinueWatchingRail(
-                title = "TV Shows",
+                title = stringResource(R.string.media_kind_tv_shows),
                 items = episodeRows,
                 seriesById = seriesById,
                 onItemClick = { onEpisodeResume(it.videoId) },
@@ -525,8 +530,8 @@ private fun MoviesSubScreen(
 
     if (state.unsupportedSource) {
         EmptyState(
-            title = "Movies needs Dispatcharr",
-            body = "Switch to a Dispatcharr playlist in Settings to browse movies.",
+            title = stringResource(R.string.ondemand_movies_needs_dispatcharr),
+            body = stringResource(R.string.ondemand_movies_needs_dispatcharr_body),
         )
         return
     }
@@ -562,7 +567,7 @@ private fun MoviesSubScreen(
                     upTarget = sectionPillsFocus,
                     query = state.searchQuery,
                     onQueryChange = viewModel::setSearchQuery,
-                    placeholder = "Search movies",
+                    placeholder = stringResource(R.string.media_search_movies),
                     isTv = isTv,
                 )
             },
@@ -571,12 +576,12 @@ private fun MoviesSubScreen(
             onOpenSearch = onOpenSearch,
             isTv = isTv,
             countLabel = state.totalCount.takeIf { it > 0 }?.let { total ->
-                "${visibleFiltered.size} / $total"
+                AppText.get(R.string.ondemand_count_of, visibleFiltered.size, total)
             },
         )
 
         val countLabel = state.totalCount.takeIf { it > 0 }?.let { total ->
-            "${visibleFiltered.size} / $total"
+            AppText.get(R.string.ondemand_count_of, visibleFiltered.size, total)
         }
         if (countLabel != null && !isTv) {
             Text(
@@ -596,7 +601,7 @@ private fun MoviesSubScreen(
         state.error?.let { err ->
             if (state.movies.isEmpty()) {
                 Text(
-                    text = "Couldn't load movies: $err",
+                    text = stringResource(R.string.ondemand_load_movies_failed, err),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(24.dp),
@@ -607,14 +612,14 @@ private fun MoviesSubScreen(
         if (visibleFiltered.isEmpty()) {
             EmptyState(
                 title = when {
-                    state.searchQuery.isNotBlank() -> "No matches"
-                    hiddenMovieGroups.isNotEmpty() -> "Everything's hidden"
-                    else -> "No movies"
+                    state.searchQuery.isNotBlank() -> stringResource(R.string.ondemand_no_matches)
+                    hiddenMovieGroups.isNotEmpty() -> stringResource(R.string.ondemand_everything_hidden)
+                    else -> stringResource(R.string.ondemand_no_movies)
                 },
                 body = when {
-                    state.searchQuery.isNotBlank() -> "Try a different search term."
-                    hiddenMovieGroups.isNotEmpty() -> "All ${hiddenMovieGroups.size} group${if (hiddenMovieGroups.size == 1) "" else "s"} you chose to hide accounts for every movie in this library. Use the filter button to show some again."
-                    else -> "Dispatcharr returned an empty Movies library. Confirm VOD is enabled on the server."
+                    state.searchQuery.isNotBlank() -> stringResource(R.string.ondemand_try_different_search)
+                    hiddenMovieGroups.isNotEmpty() -> pluralStringResource(R.plurals.ondemand_hidden_groups_movies, hiddenMovieGroups.size, hiddenMovieGroups.size)
+                    else -> stringResource(R.string.ondemand_empty_movies_library)
                 },
             )
             return@Column
@@ -773,8 +778,8 @@ private fun SeriesSubScreen(
 
     if (state.unsupportedSource) {
         EmptyState(
-            title = "Series needs Dispatcharr",
-            body = "Switch to a Dispatcharr playlist in Settings to browse series.",
+            title = stringResource(R.string.ondemand_series_needs_dispatcharr),
+            body = stringResource(R.string.ondemand_series_needs_dispatcharr_body),
         )
         return
     }
@@ -795,7 +800,7 @@ private fun SeriesSubScreen(
                     upTarget = sectionPillsFocus,
                     query = state.seriesSearchQuery,
                     onQueryChange = viewModel::setSeriesSearchQuery,
-                    placeholder = "Search series",
+                    placeholder = stringResource(R.string.ondemand_search_series),
                     isTv = isTv,
                 )
             },
@@ -804,12 +809,12 @@ private fun SeriesSubScreen(
             onOpenSearch = onOpenSearch,
             isTv = isTv,
             countLabel = state.seriesTotalCount.takeIf { it > 0 }?.let { total ->
-                "${visibleSeriesFiltered.size} / $total"
+                AppText.get(R.string.ondemand_count_of, visibleSeriesFiltered.size, total)
             },
         )
 
         val countLabel = state.seriesTotalCount.takeIf { it > 0 }?.let { total ->
-            "${visibleSeriesFiltered.size} / $total"
+            AppText.get(R.string.ondemand_count_of, visibleSeriesFiltered.size, total)
         }
         if (countLabel != null && !isTv) {
             Text(
@@ -829,7 +834,7 @@ private fun SeriesSubScreen(
         state.seriesError?.let { err ->
             if (state.series.isEmpty()) {
                 Text(
-                    text = "Couldn't load series: $err",
+                    text = stringResource(R.string.ondemand_load_series_failed, err),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(24.dp),
@@ -840,14 +845,14 @@ private fun SeriesSubScreen(
         if (visibleSeriesFiltered.isEmpty()) {
             EmptyState(
                 title = when {
-                    state.seriesSearchQuery.isNotBlank() -> "No matches"
-                    hiddenSeriesGroups.isNotEmpty() -> "Everything's hidden"
-                    else -> "No series"
+                    state.seriesSearchQuery.isNotBlank() -> stringResource(R.string.ondemand_no_matches)
+                    hiddenSeriesGroups.isNotEmpty() -> stringResource(R.string.ondemand_everything_hidden)
+                    else -> stringResource(R.string.ondemand_no_series)
                 },
                 body = when {
-                    state.seriesSearchQuery.isNotBlank() -> "Try a different search term."
-                    hiddenSeriesGroups.isNotEmpty() -> "All ${hiddenSeriesGroups.size} group${if (hiddenSeriesGroups.size == 1) "" else "s"} you chose to hide accounts for every series in this library. Use the filter button to show some again."
-                    else -> "Dispatcharr returned an empty Series library. Confirm VOD is enabled on the server."
+                    state.seriesSearchQuery.isNotBlank() -> stringResource(R.string.ondemand_try_different_search)
+                    hiddenSeriesGroups.isNotEmpty() -> pluralStringResource(R.plurals.ondemand_hidden_groups_series, hiddenSeriesGroups.size, hiddenSeriesGroups.size)
+                    else -> stringResource(R.string.ondemand_empty_series_library)
                 },
             )
             return@Column
@@ -985,7 +990,7 @@ private fun VodHeaderRow(
                 TvHeaderIconButton(
                     upTarget = upTarget,
                     icon = Icons.Filled.TravelExplore,
-                    contentDescription = "Search",
+                    contentDescription = stringResource(R.string.common_search),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     onClick = onOpenSearch,
                 )
@@ -996,7 +1001,7 @@ private fun VodHeaderRow(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.TravelExplore,
-                        contentDescription = "Search",
+                        contentDescription = stringResource(R.string.common_search),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(22.dp),
                     )
@@ -1008,7 +1013,7 @@ private fun VodHeaderRow(
             TvHeaderIconButton(
                 upTarget = upTarget,
                 icon = Icons.Filled.FilterList,
-                contentDescription = "Filter groups",
+                contentDescription = stringResource(R.string.ondemand_filter_groups),
                 tint = if (hiddenCount == 0) MaterialTheme.colorScheme.onSurfaceVariant
                 else MaterialTheme.colorScheme.primary,
                 onClick = onManageGroups,
@@ -1020,7 +1025,7 @@ private fun VodHeaderRow(
             ) {
                 Icon(
                     imageVector = Icons.Filled.FilterList,
-                    contentDescription = "Filter groups",
+                    contentDescription = stringResource(R.string.ondemand_filter_groups),
                     tint = if (hiddenCount == 0)
                         MaterialTheme.colorScheme.onSurfaceVariant
                     else
@@ -1169,7 +1174,7 @@ private fun SeriesPoster(
         }
         Spacer(Modifier.height(6.dp))
         Text(
-            text = series.displayName.ifBlank { "Untitled" },
+            text = series.displayName.ifBlank { stringResource(R.string.livetv_untitled) },
             style = if (isTv) MaterialTheme.typography.labelLarge
             else MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onBackground,
@@ -1201,7 +1206,7 @@ private fun ContinueWatchingRail(
     posterFor: (WatchProgressEntity) -> String?,
     onItemClick: (WatchProgressEntity) -> Unit,
     onRemove: (WatchProgressEntity) -> Unit,
-    title: String = "Continue Watching",
+    title: String = stringResource(R.string.media_continue_watching),
     /** BACK-from-detail refocus hook: non-null only for the card the focus
      *  restore should land on (see VodReturnFocusState). */
     focusRequesterFor: (WatchProgressEntity) -> FocusRequester? = { null },
@@ -1312,7 +1317,7 @@ private fun ContinueWatchingCard(
         }
         Spacer(Modifier.height(6.dp))
         Text(
-            text = row.title.ifBlank { "Untitled" },
+            text = row.title.ifBlank { stringResource(R.string.livetv_untitled) },
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onBackground,
             fontWeight = FontWeight.Medium,
@@ -1325,7 +1330,7 @@ private fun ContinueWatchingCard(
         } else 0
         if (remainingMin > 0) {
             Text(
-                text = "$remainingMin min left",
+                text = stringResource(R.string.media_time_left_min, remainingMin),
                 style = MaterialTheme.typography.labelSmall.subtext(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 2.dp),
@@ -1334,7 +1339,7 @@ private fun ContinueWatchingCard(
     }
     if (menuOpen) {
         ContinueWatchingActionMenu(
-            title = row.title.ifBlank { "Untitled" },
+            title = row.title.ifBlank { stringResource(R.string.livetv_untitled) },
             guard = tvGuard,
             onDismiss = { menuOpen = false },
             onRemove = onRemove,
@@ -1366,21 +1371,21 @@ private fun ContinueWatchingActionMenu(
             if (onOpenSeries != null) {
                 add(
                     TvMenuAction(
-                        label = "Open Series",
+                        label = stringResource(R.string.ondemand_open_series),
                         icon = Icons.Outlined.Tv,
                     ) { onOpenSeries() },
                 )
             }
             add(
                 TvMenuAction(
-                    label = "Remove from Continue Watching",
+                    label = stringResource(R.string.media_remove_from_continue_watching),
                     icon = Icons.Outlined.Delete,
                     destructive = true,
                 ) { onRemove() },
             )
             // Dismiss-only escape hatch; the dialog itself dismisses before
             // running any action, so the click body is intentionally empty.
-            add(TvMenuAction(label = "Cancel") {})
+            add(TvMenuAction(label = stringResource(R.string.common_cancel)) {})
         },
         guard = guard,
         onDismiss = onDismiss,
@@ -1399,7 +1404,7 @@ private fun SeriesContinueWatchingRail(
     seriesById: Map<Int, DispatcharrVODSeries>,
     onItemClick: (WatchProgressEntity) -> Unit,
     onRemove: (WatchProgressEntity) -> Unit,
-    title: String = "Continue Watching",
+    title: String = stringResource(R.string.media_continue_watching),
     // iOS parity: long-press -> Open Series jumps to the full show page.
     onOpenSeries: (WatchProgressEntity) -> Unit = {},
     /** BACK-from-player refocus hook: non-null only for the card the focus
@@ -1462,8 +1467,8 @@ private fun SeriesContinueWatchingCard(
         (row.positionMs.toFloat() / row.durationMs.toFloat()).coerceIn(0f, 1f)
     } else 0f
     val tag = listOfNotNull(
-        row.seasonNumber.takeIf { it > 0 }?.let { "S$it" },
-        row.episodeNumber.takeIf { it > 0 }?.let { "E$it" },
+        row.seasonNumber.takeIf { it > 0 }?.let { AppText.get(R.string.ondemand_season_short, it) },
+        row.episodeNumber.takeIf { it > 0 }?.let { AppText.get(R.string.ondemand_episode_short, it) },
     ).joinToString(":")
     val subtitle = listOf(tag, row.title).filter { it.isNotBlank() }.joinToString(" - ")
     var cardFocused by remember { mutableStateOf(false) }
@@ -1530,7 +1535,7 @@ private fun SeriesContinueWatchingCard(
         }
         Spacer(Modifier.height(6.dp))
         Text(
-            text = seriesName.ifBlank { "Untitled" },
+            text = seriesName.ifBlank { stringResource(R.string.livetv_untitled) },
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onBackground,
             fontWeight = FontWeight.Medium,
@@ -1551,7 +1556,7 @@ private fun SeriesContinueWatchingCard(
     }
     if (menuOpen) {
         ContinueWatchingActionMenu(
-            title = seriesName.ifBlank { row.title.ifBlank { "Untitled" } },
+            title = seriesName.ifBlank { row.title.ifBlank { stringResource(R.string.livetv_untitled) } },
             guard = tvGuard,
             onDismiss = { menuOpen = false },
             onRemove = onRemove,
@@ -1624,7 +1629,7 @@ private fun MoviePoster(
         }
         Spacer(Modifier.height(6.dp))
         Text(
-            text = movie.displayName.ifBlank { "Untitled" },
+            text = movie.displayName.ifBlank { stringResource(R.string.livetv_untitled) },
             // labelMedium is ~10.8sp effective at the 0.9 TV type scale,
             // below couch readability; labelLarge on TV.
             style = if (isTv) MaterialTheme.typography.labelLarge
@@ -1702,12 +1707,12 @@ private fun EmptyState(title: String, body: String) {
     }
 }
 
-private enum class OnDemandSection(val label: String, val icon: ImageVector) {
+private enum class OnDemandSection(@StringRes val labelRes: Int, val icon: ImageVector) {
     // Issue #9: a Continue Watching sub-tab, shown only when there is
     // in-progress content (movies + episodes). Rendered first, before Movies.
-    ContinueWatching(label = "Continue", icon = Icons.Outlined.History),
-    Movies(label = "Movies", icon = Icons.Outlined.Movie),
-    Series(label = "Series", icon = Icons.Outlined.Tv),
+    ContinueWatching(labelRes = R.string.ondemand_section_continue, icon = Icons.Outlined.History),
+    Movies(labelRes = R.string.ondemand_section_movies, icon = Icons.Outlined.Movie),
+    Series(labelRes = R.string.ondemand_section_series, icon = Icons.Outlined.Tv),
 }
 
 /**
@@ -1746,7 +1751,7 @@ private fun VodSearchField(
                     IconButton(onClick = { onQueryChange("") }) {
                         Icon(
                             imageVector = Icons.Filled.Close,
-                            contentDescription = "Clear search",
+                            contentDescription = stringResource(R.string.media_clear_search),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -1786,7 +1791,7 @@ private fun VodSearchField(
             TvHeaderIconButton(
                 upTarget = upTarget,
                 icon = Icons.Outlined.Search,
-                contentDescription = "Search",
+                contentDescription = stringResource(R.string.common_search),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 onClick = { focusOnExpand = true; expanded = true },
             )
@@ -1826,7 +1831,7 @@ private fun VodSearchField(
             }) {
                 Icon(
                     imageVector = Icons.Filled.Close,
-                    contentDescription = if (query.isNotEmpty()) "Clear search" else "Close search",
+                    contentDescription = stringResource(if (query.isNotEmpty()) R.string.media_clear_search else R.string.media_close_search),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

@@ -1,22 +1,24 @@
 package com.aeriotv.android.feature.movies
 
+import com.aeriotv.android.R
+import androidx.annotation.StringRes
 import com.aeriotv.android.core.network.DispatcharrVODMovie
 import com.aeriotv.android.core.network.DispatcharrVODSeries
 import java.text.Normalizer
 
 /** Which library a media tab shows. Apple parity: MoviesView(kind:). */
-enum class MediaKind(val title: String, val libraryTitle: String, val emptyTitle: String) {
-    Movies("Movies", "All Movies", "No Movies"),
-    TVShows("TV Shows", "All TV Shows", "No TV Shows"),
+enum class MediaKind(@StringRes val titleRes: Int, @StringRes val libraryTitleRes: Int, @StringRes val emptyTitleRes: Int) {
+    Movies(R.string.media_kind_movies, R.string.media_all_movies, R.string.media_no_movies),
+    TVShows(R.string.media_kind_tv_shows, R.string.media_all_tv_shows, R.string.media_no_tv_shows),
 }
 
 /** Library sort (Apple parity: MoviesSortOrder). Recently Added is deliberately absent. */
-enum class MediaSortOrder(val wire: String, val label: String) {
-    TitleAZ("titleAZ", "Title · A to Z"),
-    TitleZA("titleZA", "Title · Z to A"),
-    YearNewest("yearNewest", "Year · Newest"),
-    YearOldest("yearOldest", "Year · Oldest"),
-    RatingHighest("ratingHighest", "Rating · Highest");
+enum class MediaSortOrder(val wire: String, @StringRes val labelRes: Int) {
+    TitleAZ("titleAZ", R.string.media_sort_title_az),
+    TitleZA("titleZA", R.string.media_sort_title_za),
+    YearNewest("yearNewest", R.string.media_sort_year_newest),
+    YearOldest("yearOldest", R.string.media_sort_year_oldest),
+    RatingHighest("ratingHighest", R.string.media_sort_rating_highest);
 
     companion object {
         fun fromWire(s: String?): MediaSortOrder = entries.firstOrNull { it.wire == s } ?: TitleAZ

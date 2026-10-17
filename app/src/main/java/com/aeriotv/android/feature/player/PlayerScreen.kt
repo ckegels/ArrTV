@@ -2882,9 +2882,28 @@ private fun LiveRewindChromeSection(
                         timeshiftController.onLiveResumedAtEdge()
                     } else {
                         // Long pause: one switch onto the buffer at the
-                        // pause point; the filler covered the gap.
+                        // pause point; the filler covered the gap. Never
+                        // silently live (fork pause-resume.md 4.2b): when the
+                        // pause point has left the TV's buffer (a full disk
+                        // keeps it short), continue from the oldest moment
+                        // kept and say so.
                         exoHolder.setPaused(false)
-                        exoHolder.playTimeshift(livePauseWallMs - 1_000)
+                        val pausedAt = livePauseWallMs - 1_000
+                        val tail = timeshiftController.activeWriter?.takeIf { !it.closed }?.tailWallMs
+                        val from = if (!timeshiftController.serverMode && tail != null && pausedAt < tail) tail + 2_000 else pausedAt
+                        val entered = exoHolder.playTimeshift(from)
+                        val minutes = { ms: Long -> ((System.currentTimeMillis() - ms) / 60_000).coerceAtLeast(1) }
+                        when {
+                            !entered -> Toast.makeText(
+                                context, "Paused ${minutes(pausedAt)} min; nothing was kept on the TV -- continuing live",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                            from != pausedAt -> Toast.makeText(
+                                context,
+                                "Paused ${minutes(pausedAt)} min; the TV kept the last ${minutes(from)} -- continuing from ${minutes(from)} min ago",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
                     }
                     livePauseWallMs = 0L
                 }

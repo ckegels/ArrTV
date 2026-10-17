@@ -28,7 +28,6 @@
     <string name="main_tab_tv_shows">Séries</string>
 
     <!-- TvNavRail.kt -->
-    <string name="main_rail_arrtv_look">Style ArrTV</string>
     <string name="main_rail_update">Mise à jour</string>
 
     <!-- SplashScreen.kt -->
@@ -203,10 +202,8 @@
     <string name="main_drive_not_set_up">La synchronisation Drive n\'est pas encore configurée</string>
     <string name="main_drive_not_configured_text">Cette version d\'AerioTV n\'intègre pas d\'identifiant client Web OAuth Google Cloud. Ajoutez GOOGLE_DRIVE_WEB_CLIENT_ID à local.properties (et enregistrez le SHA-1 du certificat de signature de cet APK dans le même projet Cloud) pour que Se connecter avec Google fonctionne.</string>
     <string name="main_episode_fallback">Épisode</string>
-    <string name="main_arrtv_look_applied">Apparence ArrTV appliquée</string>
     <string name="main_control_a_tv">Contrôler une TV</string>
     <string name="main_show_tab_bar">Afficher la barre d\'onglets, %1$s</string>
-    <string name="main_apply_arrtv_look">Appliquer l\'apparence ArrTV</string>
     <string name="main_refresh_channels_guide">Actualiser les chaînes et le guide</string>
     <string name="main_close_app_title">Voulez-vous fermer AerioTV ?</string>
     <string name="main_close_app">Fermer AerioTV</string>

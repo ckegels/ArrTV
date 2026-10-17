@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -82,8 +82,9 @@ internal fun TvNavRail(
     onReturn: () -> Unit,
     onFocusChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    /** "ArrTV look" action above Settings (not a tab); null hides it. */
-    onApplyLook: (() -> Unit)? = null,
+    /** "Watch together" above Settings (not a tab): the list of who to join and who is
+     *  joined, one Left press from the guide; null hides it (the server has it off). */
+    onWatchTogether: (() -> Unit)? = null,
     /** "Update" action at the very bottom (not a tab); null hides it. */
     onUpdate: (() -> Unit)? = null,
 ) {
@@ -117,13 +118,13 @@ internal fun TvNavRail(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         items.forEach { tab ->
-            // ArrTV look and Settings follow the tabs; Update has the bottom.
-            if (tab == AppTab.Settings && onApplyLook != null) {
+            // Watch together and Settings follow the tabs; Update has the bottom.
+            if (tab == AppTab.Settings && onWatchTogether != null) {
                 TvNavRailRow(
-                    icon = Icons.Filled.AutoAwesome,
-                    label = stringResource(R.string.main_rail_arrtv_look),
+                    icon = Icons.Outlined.Groups,
+                    label = stringResource(R.string.watch_together_title),
                     selected = false,
-                    onClick = onApplyLook,
+                    onClick = onWatchTogether,
                 )
             }
             TvNavRailItem(

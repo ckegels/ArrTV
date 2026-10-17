@@ -28,7 +28,6 @@
     <string name="main_tab_tv_shows">TV Shows</string>
 
     <!-- TvNavRail.kt -->
-    <string name="main_rail_arrtv_look">ArrTV look</string>
     <string name="main_rail_update">Update</string>
 
     <!-- SplashScreen.kt -->
@@ -201,10 +200,8 @@
     <string name="main_drive_not_set_up">Drive Sync isn\'t set up yet</string>
     <string name="main_drive_not_configured_text">This AerioTV build doesn\'t have a Google Cloud OAuth Web Client ID baked in. Add GOOGLE_DRIVE_WEB_CLIENT_ID to local.properties (and register this APK\'s signing-cert SHA-1 in the same Cloud project) before Sign in with Google can load.</string>
     <string name="main_episode_fallback">Episode</string>
-    <string name="main_arrtv_look_applied">ArrTV look applied</string>
     <string name="main_control_a_tv">Control a TV</string>
     <string name="main_show_tab_bar">Show tab bar, %1$s</string>
-    <string name="main_apply_arrtv_look">Apply the ArrTV look</string>
     <string name="main_refresh_channels_guide">Refresh channels and guide</string>
     <string name="main_close_app_title">Would you like to close AerioTV?</string>
     <string name="main_close_app">Close AerioTV</string>

@@ -1321,6 +1321,13 @@ fun PlayerScreen(
         }
     }
 
+    // A key renewed by a silent re-login reaches the holder at once; it reads
+    // httpHeaders on every request, so the next retry carries the new key
+    // instead of 401s until the app restarts.
+    LaunchedEffect(httpHeaders) {
+        if (httpHeaders.isNotEmpty()) exoHolder.httpHeaders = httpHeaders
+    }
+
     // Task #148 milestone B: tune the archive replay + drive the position
     // ticker. The live prime effect above is fully gated off in this mode.
     LaunchedEffect(Unit) {

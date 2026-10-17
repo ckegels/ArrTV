@@ -151,6 +151,14 @@ const val EPG_SOURCES_CHECK_INTERVAL_MS: Long = 15L * 60L * 1000L
  *  seconds later only costs a full-table DELETE scan. */
 private const val RETENTION_SWEEP_COOLDOWN_MS = 5L * 60L * 1000L
 
+/** Guide prune batch: rows per short delete transaction, and the pause between
+ *  batches that lets reads and the guide's own writes in (deleteEpgInBatches). */
+private const val EPG_DELETE_BATCH = 2_000
+private const val EPG_DELETE_PAUSE_MS = 50L
+
+/** Small per-device file for guide maintenance times (the daily catch-up reach prune). */
+private const val EPG_MAINTENANCE_PREFS = "epg_maintenance"
+
 @Singleton
 class PlaylistRepository @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -292,7 +300,7 @@ class PlaylistRepository @Inject constructor(
          *  doesn't carry VOD so the field is ignored downstream for it. */
         val vodEnabled: Boolean = true,
         /** Days of already-aired EPG kept for catch-up browsing (task #135). */
-        val epgRetentionDays: Int = 7,
+        val epgRetentionDays: Int = 1,
     )
 
     suspend fun activePlaylist(): PlaylistEntity? {
@@ -1271,7 +1279,7 @@ class PlaylistRepository @Inject constructor(
         coverageToMs: Long,
     ) {
         runCatching {
-            epgProgrammeDao.deleteEndedBeforeForPlaylist(playlistId, retentionHistoryStart)
+            deleteEpgInBatches { epgProgrammeDao.deleteEndedBeforeForPlaylistBatch(playlistId, retentionHistoryStart, it) }
         }.onFailure { Log.w("PlaylistRepo", "grid window programme prune failed", it) }
         runCatching {
             epgChunkCoverageDao.pruneOutside(playlistId, coverageFromMs, coverageToMs)
@@ -1345,7 +1353,7 @@ class PlaylistRepository @Inject constructor(
             val cutoff = now - maxOf(days, 1) * dayMs
             keys.chunked(900).forEach { chunk ->
                 deleted += runCatching {
-                    epgProgrammeDao.deleteEndedBeforeForChannels(playlistId, cutoff, chunk)
+                    deleteEpgInBatches { epgProgrammeDao.deleteEndedBeforeForChannelsBatch(playlistId, cutoff, chunk, it) }
                 }.getOrElse {
                     Log.w("PlaylistRepo", "[EPG] catch-up reach prune chunk failed", it)
                     0
@@ -1356,7 +1364,7 @@ class PlaylistRepository @Inject constructor(
         // Orphan rows: no cached channel claims their key, so no bucket above
         // could name them. Bounded by the widest reach on the playlist.
         deleted += runCatching {
-            epgProgrammeDao.deleteEndedBeforeForPlaylist(playlistId, now - reachMs)
+            deleteEpgInBatches { epgProgrammeDao.deleteEndedBeforeForPlaylistBatch(playlistId, now - reachMs, it) }
         }.getOrElse {
             Log.w("PlaylistRepo", "[EPG] catch-up reach orphan prune failed", it)
             0
@@ -1388,8 +1396,16 @@ class PlaylistRepository @Inject constructor(
         awaitGuidePainted: suspend () -> Unit,
     ) {
         if (!catchupReachPrunedAtLaunch.add(playlistId)) return
+        // Once a day, across restarts: history only becomes unreachable a day
+        // at a time, and on a Chromecast HD every cold start used to spend
+        // minutes deleting with the guide waiting (2026-10-14). The background
+        // sweep's own end-of-run prune still runs every sweep.
+        val prefs = context.getSharedPreferences(EPG_MAINTENANCE_PREFS, Context.MODE_PRIVATE)
+        val key = "reach_prune_at_$playlistId"
+        if (System.currentTimeMillis() - prefs.getLong(key, 0L) < 24L * 60L * 60L * 1000L) return
         layeringScope.launch {
             awaitGuidePainted()
+            prefs.edit().putLong(key, System.currentTimeMillis()).apply()
             runCatching { pruneEpgBeyondCatchupReach(playlistId) }
                 .onFailure { Log.w("PlaylistRepo", "[EPG] launch catch-up reach prune failed", it) }
         }
@@ -2379,6 +2395,23 @@ class PlaylistRepository @Inject constructor(
         }
     }
 
+    /**
+     * Runs [batch] (which deletes at most the limit it is given and returns how
+     * many went) until a batch comes back short, pausing between batches. Each
+     * batch is its own short transaction, so the guide read, the playlist list
+     * and a tune are never stuck behind one delete of a whole guide's past and
+     * its minute-long commit on slow storage (Chromecast HD, 2026-10-14).
+     */
+    private suspend fun deleteEpgInBatches(batch: suspend (limit: Int) -> Int): Int {
+        var total = 0
+        while (true) {
+            val n = batch(EPG_DELETE_BATCH)
+            total += n
+            if (n < EPG_DELETE_BATCH) return total
+            kotlinx.coroutines.delay(EPG_DELETE_PAUSE_MS)
+        }
+    }
+
     suspend fun newestEpgFetch(playlistId: String): Long? =
         epgProgrammeDao.newestFetchedAt(playlistId)
 
@@ -2487,10 +2520,8 @@ class PlaylistRepository @Inject constructor(
             // All Available prunes at the hard 30-day bound.
             val retentionDays = resolveGuideDays(dao.byId(playlistId)?.epgRetentionDays ?: 7)
                 ?: GUIDE_DAYS_ALL_MAX_BACK
-            epgProgrammeDao.deleteEndedBeforeForPlaylist(
-                playlistId,
-                now - retentionDays * 24L * 60L * 60L * 1000L,
-            )
+            val before = now - retentionDays * 24L * 60L * 60L * 1000L
+            deleteEpgInBatches { epgProgrammeDao.deleteEndedBeforeForPlaylistBatch(playlistId, before, it) }
         }
     }
 

@@ -1611,6 +1611,17 @@ class DispatcharrClient @Inject constructor() {
      */
     /** Off-main hop (Onn boxes 2026-09-02): the JSON decode of this response ran on the caller's
      *  dispatcher, i.e. the main thread when called from a ViewModel scope, and starved input on slow boxes. */
+    /** GET /api/channels/recordings/{id}/ -- one recording, for its commercial breaks. */
+    suspend fun getRecording(baseUrl: String, apiKey: String, recordingId: Int): DispatcharrRecording {
+        val url = "${baseUrl.trimEnd('/')}/api/channels/recordings/$recordingId/"
+        val response: HttpResponse = client.get(url) { applyAuth(apiKey) }
+        unauthorizedCheck(response, url)
+        if (!response.status.isSuccess()) {
+            throw DispatcharrError.Transport("Recording fetch failed: HTTP ${response.status.value}")
+        }
+        return response.body()
+    }
+
     suspend fun listRecordings(baseUrl: String, apiKey: String): List<DispatcharrRecording> =
         withContext(Dispatchers.IO) { listRecordingsImpl(baseUrl, apiKey) }
 

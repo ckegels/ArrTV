@@ -96,8 +96,9 @@ fun RecordProgramSheet(
     }
 
     // Pull the user's default pre/post-roll so the radios pre-select correctly.
-    val defaultPreRoll by settingsViewModel.dvrDefaultPreRollMins.collectAsStateWithLifecycle(initialValue = 0)
-    val defaultPostRoll by settingsViewModel.dvrDefaultPostRollMins.collectAsStateWithLifecycle(initialValue = 0)
+    val defaultPreRoll by settingsViewModel.dvrDefaultPreRollMins.collectAsStateWithLifecycle(initialValue = 5)
+    val defaultPostRoll by settingsViewModel.dvrDefaultPostRollMins.collectAsStateWithLifecycle(initialValue = 5)
+    val defaultRemoveCommercials by settingsViewModel.dvrRemoveCommercials.collectAsStateWithLifecycle(initialValue = true)
     val storageCapMB by settingsViewModel.dvrMaxLocalStorageMB.collectAsStateWithLifecycle(initialValue = 10_240)
     val dvrState by dvrViewModel.state.collectAsStateWithLifecycle()
 
@@ -135,7 +136,7 @@ fun RecordProgramSheet(
     var destinationServer by remember(canRecordToServer, defaultDestination) {
         mutableStateOf(canRecordToServer && defaultDestination != "local")
     }
-    var removeCommercials by remember { mutableStateOf(false) }
+    var removeCommercials by remember(defaultRemoveCommercials) { mutableStateOf(defaultRemoveCommercials) }
     var submitting by remember { mutableStateOf(false) }
 
     // Series recording rules (Dispatcharr; Apple parity, RecordProgramSheet
@@ -646,6 +647,9 @@ private fun TvRecordForm(
             ?: target.iconUrl?.takeIf { it.isNotBlank() }
     }
     var showCustomRule by remember { mutableStateOf(false) }
+    // The buffers, the destination and Comskip come from Settings -> DVR; the rows to change
+    // them for one recording only open under "Adjust" (the user: recording asked too much)
+    var adjusting by remember { mutableStateOf(false) }
     val hasNoRecordingPath = isDispatcharr && !isLive && !canRecordToServer
     com.aeriotv.android.ui.scale.Dialog(
         onDismissRequest = onDismiss,
@@ -701,25 +705,42 @@ private fun TvRecordForm(
                     }
                 }
 
-                if (!isLive && !usingRule) {
+                if (!usingRule && !hasNoRecordingPath) {
+                    TvSectionTitle("Options")
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            tvOptionsSummary(isLive, preRoll, postRoll, destinationServer, removeCommercials && isDispatcharr),
+                            fontSize = 11.sp.subtext(), color = colors.onSurfaceVariant, modifier = Modifier.weight(1f),
+                        )
+                        SheetPill(if (adjusting) "Done" else "Adjust", selected = adjusting, onClick = { adjusting = !adjusting })
+                    }
+                }
+                if (usingRule) {
+                    Text(
+                        "Series rules start, end and remove commercials as set on the Dispatcharr server.",
+                        fontSize = 10.sp.subtext(), color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 2.dp),
+                    )
+                }
+
+                if (adjusting && !isLive && !usingRule) {
                     TvSectionTitle("Start Early")
                     TvMinutePills(options = listOf(0, 5, 10, 15, 30), selected = preRoll, onSelect = onPreRoll, onCustom = onCustomPreRoll)
                 }
-                if (!usingRule) {
+                if (adjusting && !usingRule) {
                     TvSectionTitle("End Late")
                     TvMinutePills(options = ROLL_OPTIONS, selected = postRoll, onSelect = onPostRoll, onCustom = onCustomPostRoll)
                 }
-                if (isDispatcharr && isLive && canRecordToServer && !usingRule) {
+                if (adjusting && isDispatcharr && isLive && canRecordToServer && !usingRule) {
                     TvSectionTitle("Destination")
                     TvPillRow {
                         SheetPill("Dispatcharr server", selected = destinationServer, onClick = { onDestinationServer(true) })
                         SheetPill("This device", selected = !destinationServer, onClick = { onDestinationServer(false) })
                     }
                 }
-                if (isDispatcharr && !usingRule) {
+                if (adjusting && isDispatcharr && !usingRule) {
                     val disabled = !destinationServer
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        TvSectionTitle("Remove Commercials (Comskip)", dim = disabled)
+                        TvSectionTitle("Mark Ad Breaks (Comskip)", dim = disabled)
                         Spacer(Modifier.height(3.dp))
                         TvPillRow(alpha = if (disabled) 0.45f else 1f) {
                             SheetPill("Off", selected = !removeCommercials, onClick = { if (!disabled) onRemoveCommercials(false) })
@@ -727,7 +748,7 @@ private fun TvRecordForm(
                         }
                         Text(
                             if (disabled) "Comskip runs server-side. Switch the destination to Dispatcharr server to enable."
-                            else "Server-side: detects and removes commercial breaks after the recording completes, when Comskip is configured on the Dispatcharr server.",
+                            else "Server-side: finds the ad breaks after the recording completes, when Comskip is set up on the Dispatcharr server; the player skips them.",
                             fontSize = 9.sp.subtext(), lineHeight = 12.sp.subtext(), color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 2.dp, top = 1.dp),
                         )
                     }
@@ -840,6 +861,14 @@ private fun TvRecordPill(label: String, enabled: Boolean, onClick: () -> Unit) {
         Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (focused) Color.White else LIVE_RED)
     }
 }
+
+/** "5 min early · 5 min late · commercials removed" -- what Settings -> DVR set for this one. */
+private fun tvOptionsSummary(isLive: Boolean, preRoll: Int, postRoll: Int, toServer: Boolean, comskip: Boolean): String =
+    listOfNotNull(
+        if (isLive) "from now" else if (preRoll > 0) "$preRoll min early" else "on time",
+        if (postRoll > 0) "$postRoll min late" else "ends on time",
+        if (!toServer) "on this device" else if (comskip) "ad breaks marked" else "ad breaks not marked",
+    ).joinToString(" · ").replaceFirstChar { it.uppercase() }
 
 /** "Records 12:00 PM to 3:35 PM · 3 h 35 min" (tvOS recordingWindowSummary). */
 private fun tvRecordingWindowSummary(target: ProgramInfoTarget, isLive: Boolean, preRoll: Int, postRoll: Int): String {
@@ -979,8 +1008,8 @@ private val LIVE_RED = Color(0xFFFF4757)
 
 /** Series recording rule choices (Apple parity: RecordProgramSheet.RuleMode). */
 private enum class RuleMode(val label: String, val detail: String) {
-    Once("Just this one", "Record this airing only."),
-    All("Every episode", "A series rule on the server records every airing of this title."),
+    Once("This episode", "Record this airing only."),
+    All("All episodes", "A series rule on the server records every airing of this title."),
     NewOnly("New episodes only", "Skips airings the guide marks as repeats."),
     Custom("Customize rule", "Choose how the title and description are matched."),
 }

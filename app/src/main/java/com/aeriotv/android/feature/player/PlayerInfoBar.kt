@@ -123,6 +123,20 @@ class InfoBarTransport(
 }
 
 /**
+ * A look-back replay shown in the info bar (the user, 2026-10-02: the replay had a black panel
+ * and a box top left, unlike the live bar): the programme's times and progress follow the
+ * playback position instead of the clock, the next-programme line says when it aired, and the
+ * card row and LIVE stay away.
+ */
+@Immutable
+class InfoBarReplay(
+    /** "Look back · Thu, Oct 1", in place of the next programme. */
+    val label: String,
+    /** Where playback is, on the wall clock of the programme's airing. */
+    val positionWallMs: Long,
+)
+
+/**
  * Info bar overlay (TV). Two states:
  *  - zapping / launch hint ([expanded] false): group name top left, clock top
  *    right, and along the bottom the channel logo with the programme title,
@@ -154,6 +168,8 @@ internal fun PlayerInfoBarOverlay(
     transport: InfoBarTransport? = null,
     /** Down from the card row: the options menu. */
     onOpenOptions: () -> Unit = {},
+    /** A look-back replay (see [InfoBarReplay]); null = live. */
+    replay: InfoBarReplay? = null,
 ) {
     // Read when the card row wants the focus, not when it was drawn
     val visibleNow by androidx.compose.runtime.rememberUpdatedState(visible)
@@ -209,10 +225,12 @@ internal fun PlayerInfoBarOverlay(
                     channel = ch,
                     number = model.position?.toString() ?: ch.channelNumber,
                     programme = programme,
-                    nextProgramme = model.nextProgramme,
+                    nextProgramme = if (replay != null) null else model.nextProgramme,
                     formatBadge = formatBadge,
                     sleepRemainingMillis = sleepRemainingMillis,
                     showDescription = !expanded,
+                    atMs = replay?.positionWallMs,
+                    replayLabel = replay?.label,
                 )
                 if (expanded) {
                     // Up from ANY card lands on play / pause (not on whatever
@@ -240,21 +258,37 @@ internal fun PlayerInfoBarOverlay(
                         onInteraction = onInteraction,
                         playPauseModifier = Modifier.focusRequester(playPauseFocus),
                         up = if (timeline != null) timelineFocus else null,
+                        replay = replay != null,
                     )
-                    Spacer(Modifier.height(12.dp))
-                    InfoBarCardRow(
-                        model = model,
-                        onInteraction = onInteraction,
-                        up = playPauseFocus,
-                        onDown = onOpenOptions,
-                        active = { visibleNow },
-                    )
-                    Icon(
-                        imageVector = Icons.Filled.KeyboardArrowDown,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.7f),
-                        modifier = Modifier.align(Alignment.CenterHorizontally).size(28.dp),
-                    )
+                    // A replay has no card row to take the focus: it goes to play / pause, or
+                    // the remote's keys reached the player behind the bar (nothing focused)
+                    if (replay != null) {
+                        LaunchedEffect(Unit) {
+                            repeat(10) {
+                                if (runCatching { playPauseFocus.requestFocus() }.isSuccess) return@LaunchedEffect
+                                delay(50)
+                            }
+                        }
+                    }
+                    // A replay is the lesser bar: no guide / history / channel cards
+                    if (replay == null) {
+                        Spacer(Modifier.height(12.dp))
+                        InfoBarCardRow(
+                            model = model,
+                            onInteraction = onInteraction,
+                            up = playPauseFocus,
+                            onDown = onOpenOptions,
+                            active = { visibleNow },
+                        )
+                        Icon(
+                            imageVector = Icons.Filled.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.7f),
+                            modifier = Modifier.align(Alignment.CenterHorizontally).size(28.dp),
+                        )
+                    } else {
+                        Spacer(Modifier.height(20.dp))
+                    }
                 }
             }
         }
@@ -270,6 +304,10 @@ private fun InfoBarHeader(
     formatBadge: String?,
     sleepRemainingMillis: Long?,
     showDescription: Boolean,
+    /** A replay's playback position (wall clock of the airing); null = now. */
+    atMs: Long? = null,
+    /** A replay's "Look back · day" line, in place of the next programme. */
+    replayLabel: String? = null,
 ) {
     val clockMode = rememberClockMode()
     val timeFormat = remember(clockMode) { ClockFormat.short(clockMode) }
@@ -330,10 +368,10 @@ private fun InfoBarHeader(
                         color = Color.White.copy(alpha = 0.9f),
                     )
                     Spacer(Modifier.width(14.dp))
-                    MiniProgress(fraction = progressOf(programme, now))
+                    MiniProgress(fraction = progressOf(programme, atMs ?: now))
                     Spacer(Modifier.width(10.dp))
                     Text(
-                        text = remainingLabel(programme, now),
+                        text = remainingLabel(programme, atMs ?: now),
                         style = MaterialTheme.typography.bodyLarge,
                         color = Color.White.copy(alpha = 0.9f),
                     )
@@ -375,6 +413,15 @@ private fun InfoBarHeader(
                     color = Color.White.copy(alpha = 0.85f),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (replayLabel != null) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = replayLabel,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.75f),
+                    maxLines = 1,
                 )
             }
             if (nextProgramme != null) {
@@ -558,6 +605,8 @@ private fun TransportRow(
     onInteraction: () -> Unit,
     playPauseModifier: Modifier,
     up: FocusRequester?,
+    /** A look-back replay: no Live button and no LIVE badge. */
+    replay: Boolean = false,
 ) {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
@@ -619,20 +668,24 @@ private fun TransportRow(
             ) {
                 transport?.let { t -> t.onSeekWall((t.positionWallMs + forward).coerceAtMost(t.headWallMs)) }
             }
-            TransportButton(
-                icon = Icons.Filled.SkipNext,
-                label = "Live",
-                enabled = transport?.behind == true,
-                onInteraction = onInteraction,
-                modifier = upTo,
-            ) {
-                transport?.onGoLive?.invoke()
+            if (!replay) {
+                TransportButton(
+                    icon = Icons.Filled.SkipNext,
+                    label = "Live",
+                    enabled = transport?.behind == true,
+                    onInteraction = onInteraction,
+                    modifier = upTo,
+                ) {
+                    transport?.onGoLive?.invoke()
+                }
             }
         }
-        LiveBadge(
-            live = transport?.behind != true,
-            modifier = Modifier.align(Alignment.CenterEnd),
-        )
+        if (!replay) {
+            LiveBadge(
+                live = transport?.behind != true,
+                modifier = Modifier.align(Alignment.CenterEnd),
+            )
+        }
     }
 }
 

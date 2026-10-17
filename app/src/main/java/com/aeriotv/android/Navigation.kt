@@ -1262,6 +1262,8 @@ fun AerioTVNavHost(
                     onReportCatchupPosition = { url, secs, paused ->
                         vm.reportCatchupPosition(url, secs, paused)
                     },
+                    onPollLiveCaptions = { url, uuid, since -> vm.pollLiveCaptions(url, uuid, since) },
+                    onStopLiveCaptions = { url, uuid -> vm.stopLiveCaptions(url, uuid) },
                     onClose = { navController.popBackStack() },
                     onLaunchMultiview = {
                         // The now-playing stream is being absorbed into the

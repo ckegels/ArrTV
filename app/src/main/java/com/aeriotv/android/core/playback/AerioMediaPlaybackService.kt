@@ -98,6 +98,26 @@ class AerioMediaPlaybackService : MediaLibraryService() {
         // the receiver drives via the fullscreen player.
         mediaSession?.let { castReceiver.publishSessionToken(it.sessionCompatToken) }
 
+        // The holder builds a new ExoPlayer now and then (a learned start gate,
+        // a passthrough change, a recovery rebuild) and releases the old one.
+        // The session kept the player it was built with, so from then on the
+        // remote's play/pause key, the notification and Bluetooth drove a
+        // released player: pause did nothing, and its audio-focus requests took
+        // the focus from the real player, which paused and resumed on its own
+        // (Shield, 2026-09-30). The session follows the holder's player instead,
+        // the way the video view already does.
+        scope.launch {
+            exoHolder.playerInstance.collect { fresh ->
+                val session = mediaSession ?: return@collect
+                if (fresh == null) return@collect
+                val current = (session.player as? androidx.media3.common.ForwardingPlayer)?.wrappedPlayer
+                if (current !== fresh) {
+                    android.util.Log.i(TAG, "session follows the rebuilt player")
+                    session.player = SkipIntervalsPlayer(fresh)
+                }
+            }
+        }
+
         // Let Media3 own the foreground notification so it shows the REAL
         // now-playing (channel name, programme, logo, play/pause/next) pulled
         // from the session's current MediaItem metadata. Pinned to the SAME

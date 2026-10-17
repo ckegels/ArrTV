@@ -48,8 +48,13 @@ class TimeshiftBufferStore @Inject constructor(
         private const val META_FILE = "meta.json"
 
         /** Free-space seatbelt: the buffer may grow until the volume
-         *  would drop below this much free space. */
-        const val FREE_SPACE_FLOOR_BYTES = 2L * 1024 * 1024 * 1024
+         *  would drop below this much free space. Was 2 GB: a TV box
+         *  holds 8-16 GB, and the Shield (1.0 GB free of 12) then had
+         *  room for nothing -- every new segment evicted the last, the
+         *  buffer stayed 6 s deep, and a pause of more than a few
+         *  seconds resumed at live. 512 MB still leaves Android its own
+         *  low-storage margin and gives such a box ~15 min of buffer. */
+        const val FREE_SPACE_FLOOR_BYTES = 512L * 1024 * 1024
 
         /** Directory name pattern: sess_<startEpochMs>. */
         fun sessionDirName(startedAtMs: Long) = "sess_$startedAtMs"

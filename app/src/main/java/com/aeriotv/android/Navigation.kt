@@ -270,6 +270,17 @@ fun AerioTVNavHost(
     if (dlGraphEntry != null) {
         val dlVm: PlaylistViewModel = hiltViewModel(dlGraphEntry)
         val dlState by dlVm.state.collectAsStateWithLifecycle()
+        // Live remote tour (Settings › Remote Control, first-run offer).
+        com.aeriotv.android.feature.tutorial.TutorialTourHost(
+            channels = dlState.channels,
+            currentRoute = dlRoute,
+            onBackToMain = {
+                if (navController.currentDestination?.route != Routes.MAIN) {
+                    runCatching { navController.popBackStack(Routes.MAIN, false) }
+                }
+            },
+            onJumpToGuide = dlVm::requestGuideJump,
+        )
         LaunchedEffect(deepLinkTarget, dlState.channels.size, dlCurrentEntry?.destination?.route) {
             val target = deepLinkTarget ?: return@LaunchedEffect
             when (target) {
@@ -2004,9 +2015,9 @@ fun AerioTVNavHost(
         val updateBackStack by navController.currentBackStackEntryAsState()
         UpdateGate(currentRoute = updateBackStack?.destination?.route)
 
-        // Live Rewind one-time feature prompt (task #145). Renders only on
-        // the main tabs after What's New settles, so prompts never stack.
-        com.aeriotv.android.feature.whatsnew.LiveRewindPromptGate(
+        // First-run remote tutorial offer (TV only). Renders only on the
+        // main tabs after What's New settles, so prompts never stack.
+        com.aeriotv.android.feature.tutorial.TutorialOfferGate(
             currentRoute = updateBackStack?.destination?.route,
         )
 
@@ -2045,6 +2056,8 @@ fun AerioTVNavHost(
                 miniPlayerVm.session.requestGuideTop()
             },
         )
+        // The live remote tour's remote, over every screen (not focusable).
+        com.aeriotv.android.feature.tutorial.TutorialTourPanel()
         // Double-press D-pad Select event - MainActivity emits into the
         // session's resumeRequests flow; this collects and re-pushes the
         // PLAYER route. Belongs at the NavController scope, hence here.

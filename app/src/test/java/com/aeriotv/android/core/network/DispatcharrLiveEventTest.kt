@@ -55,6 +55,34 @@ class DispatcharrLiveEventTest {
     }
 
     @Test
+    fun watchingTogetherWithOtherPeople() {
+        // Another person's device asks to join this one
+        assertEquals(
+            DispatcharrLiveEvent.LinkRequest("pixel-9", "Pixel 9", "Yves", "TF1", listOf("shield-1")),
+            DispatcharrLiveEvent.parse("""{"type": "update", "data": {"type": "link_request", "user_id": 1, "user_ids": [1, 2], "by": "pixel-9", "name": "Pixel 9", "user": "Yves", "channel": "u1", "channel_name": "TF1", "devices": ["shield-1"]}}"""),
+        )
+        // Let in: tune the channel; turned away, with why
+        assertEquals(
+            DispatcharrLiveEvent.LinkAccepted("SHIELD", "u1", listOf("pixel-9")),
+            DispatcharrLiveEvent.parse("""{"type": "update", "data": {"type": "link_accepted", "user_id": 1, "by": "shield-1", "name": "SHIELD", "channel": "u1", "devices": ["pixel-9"]}}"""),
+        )
+        assertEquals(
+            DispatcharrLiveEvent.LinkDeclined("SHIELD", "not_allowed", listOf("pixel-9")),
+            DispatcharrLiveEvent.parse("""{"type": "update", "data": {"type": "link_declined", "user_id": 1, "name": "SHIELD", "reason": "not_allowed", "devices": ["pixel-9"]}}"""),
+        )
+        // The one who joined changed channel: follow, or stay
+        assertEquals(
+            DispatcharrLiveEvent.LinkFollowRequest("pixel-9", "Pixel 9", "Yves", "u2", "France 2", listOf("shield-1")),
+            DispatcharrLiveEvent.parse("""{"type": "update", "data": {"type": "link_follow_request", "user_id": 1, "by": "pixel-9", "name": "Pixel 9", "user": "Yves", "channel": "u2", "channel_name": "France 2", "devices": ["shield-1"]}}"""),
+        )
+        // Taken out by the leader, and why
+        assertEquals(
+            DispatcharrLiveEvent.LinkEnded(listOf("pixel-9"), "stayed", "SHIELD"),
+            DispatcharrLiveEvent.parse("""{"type": "update", "data": {"type": "link_ended", "user_id": 1, "devices": ["pixel-9"], "reason": "stayed", "by": "shield-1", "name": "SHIELD"}}"""),
+        )
+    }
+
+    @Test
     fun epgImportFinished() {
         assertEquals(DispatcharrLiveEvent.EpgRefreshed(42), DispatcharrLiveEvent.parse(epgDone))
     }

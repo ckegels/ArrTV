@@ -260,6 +260,10 @@ fun AerioTVNavHost(
             com.aeriotv.android.ui.search.SearchDismissSignal.dismissAll()
         }
     }
+    // Watch together (v266): another person's device asking to join or whether to follow, and
+    // the Watch together list -- over whichever screen is up, the player included
+    com.aeriotv.android.feature.player.WatchTogetherPrompts()
+    com.aeriotv.android.feature.player.WatchTogetherSheet()
     val dlGraphEntry = remember(dlCurrentEntry) {
         runCatching { navController.getBackStackEntry(Routes.PLAYLIST_GRAPH) }.getOrNull()
     }

@@ -94,10 +94,115 @@ object WatchTogether {
         if (resync) _resync.tryEmit(Unit)
     }
 
-    /** The server said the other device left: this one watches on alone. */
-    fun linkEnded() {
-        Log.i(TAG, "the other device left; watching alone")
+    /** The server said the other device left: this one watches on alone. v266: [reason] when
+     *  another person's device ([name]) ended it for this one. */
+    fun linkEnded(reason: String? = null, name: String? = null) {
+        Log.i(TAG, "the other device left${reason?.let { " ($it)" }.orEmpty()}; watching alone")
         _linked.value = false
+        followRequest.value = null
+        val who = name?.takeIf { it.isNotBlank() } ?: com.aeriotv.android.core.locale.AppText.get(com.aeriotv.android.R.string.watch_together_unnamed_device)
+        when (reason) {
+            "removed" -> notify(com.aeriotv.android.R.string.watch_together_removed, who)
+            "stayed" -> notify(com.aeriotv.android.R.string.watch_together_stayed, who)
+            "not_allowed" -> notify(com.aeriotv.android.R.string.watch_together_not_allowed, who)
+        }
+        refresh()
+    }
+
+    // ── With other people in the house (Dispatch More v266) ──────────────────────────────
+
+    /** Another person's device asks to join this one. */
+    data class JoinRequest(val by: String, val name: String, val user: String, val channelName: String)
+
+    /** Another person's device this one leads changed channel: follow it, or stay. */
+    data class FollowRequest(val by: String, val name: String, val user: String, val channel: String, val channelName: String)
+
+    /** Shown by the app-wide pop-up (WatchTogetherPrompts) until answered. */
+    val joinRequest = MutableStateFlow<JoinRequest?>(null)
+    val followRequest = MutableStateFlow<FollowRequest?>(null)
+
+    /** What this device may join and who it is linked with, for the Join button and its list;
+     *  refreshed while the app is open (DispatchMoreLinks). */
+    val status = MutableStateFlow<DispatcharrClient.LinkState?>(null)
+
+    /** The Watch together list is open (the Join button, the player's menu). */
+    val sheetOpen = MutableStateFlow(false)
+
+    /** The other person's device asked to let this one in, while waiting for the answer. */
+    @Volatile
+    var asking: String? = null
+
+    /** Installed by DispatchMoreLinks: the calls the screens make. */
+    @Volatile var answerer: ((String, Boolean) -> Unit)? = null
+    @Volatile var stayer: ((String) -> Unit)? = null
+    @Volatile var remover: ((String) -> Unit)? = null
+    @Volatile var refresher: (() -> Unit)? = null
+    @Volatile var notifier: ((String) -> Unit)? = null
+
+    fun askedToJoin(request: JoinRequest) {
+        Log.i(TAG, "${request.name} asks to join")
+        joinRequest.value = request
+    }
+
+    fun askedToFollow(request: FollowRequest) {
+        Log.i(TAG, "${request.name} changed to ${request.channel}; follow or stay")
+        followRequest.value = request
+    }
+
+    /** Allow / Decline on the join pop-up (ten seconds unanswered is Allow). */
+    fun answer(allow: Boolean) {
+        val request = joinRequest.value ?: return
+        joinRequest.value = null
+        answerer?.invoke(request.by, allow)
+    }
+
+    /** Follow on the follow pop-up (ten seconds unanswered is Follow): tune its channel. */
+    fun follow() {
+        val request = followRequest.value ?: return
+        followRequest.value = null
+        followChannel(request.channel)
+    }
+
+    /** Stay on the follow pop-up, or the pop-up dismissed: this channel, and the other leaves. */
+    fun stay() {
+        val request = followRequest.value ?: return
+        followRequest.value = null
+        stayer?.invoke(request.by)
+    }
+
+    /** The other person's device asked let this one in: linked, on its channel, tuned afresh. */
+    fun accepted(channel: String) {
+        asking = null
+        _linked.value = true
+        followChannel(channel, fresh = true)
+        refresh()
+    }
+
+    fun declined(name: String, reason: String?) {
+        asking = null
+        notify(
+            if (reason == "not_allowed") com.aeriotv.android.R.string.watch_together_declined_not_allowed
+            else com.aeriotv.android.R.string.watch_together_declined,
+            name,
+        )
+    }
+
+    /** A leader takes another person's device out of its group (Disconnect). */
+    fun disconnect(device: String) {
+        remover?.invoke(device)
+    }
+
+    fun refresh() {
+        refresher?.invoke()
+    }
+
+    fun openSheet() {
+        sheetOpen.value = true
+        refresh()
+    }
+
+    fun notify(res: Int, vararg args: Any) {
+        notifier?.invoke(com.aeriotv.android.core.locale.AppText.get(res, *args))
     }
 
     private const val TAG = "WatchTogether"
@@ -130,6 +235,27 @@ class DispatchMoreLinks @Inject constructor(
             }
         }
         WatchTogether.leaver = { leaveInBackground() }
+        WatchTogether.answerer = { device, allow -> answerInBackground(device, allow) }
+        WatchTogether.stayer = { device -> stayInBackground(device) }
+        WatchTogether.remover = { device -> removeInBackground(device) }
+        WatchTogether.refresher = { scope.launch { state() } }
+        WatchTogether.notifier = { text ->
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+        // The Join button's list: what may be joined changes as devices start and stop, so it is
+        // asked again every so often while the app is in front
+        scope.launch {
+            while (true) {
+                val inFront = withContext(Dispatchers.Main) {
+                    androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.currentState
+                        .isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)
+                }
+                if (inFront && target() != null) state()
+                kotlinx.coroutines.delay(STATUS_EVERY_MS)
+            }
+        }
         // Leaving the app (Home, another app, closing it) leaves watching together: the other
         // device plays on, and this one does not follow it when it comes back later
         android.os.Handler(android.os.Looper.getMainLooper()).post {
@@ -202,11 +328,14 @@ class DispatchMoreLinks @Inject constructor(
         val (playlistId, base, path) = target() ?: return@withContext null
         runCatching {
             auth.withApiKeyRetry(playlistId) { key -> client.fetchLinkState(base, key, path) }
-        }.getOrNull()?.also { WatchTogether.setLinked(it.linked) }
+        }.getOrNull()?.also {
+            WatchTogether.setLinked(it.linked)
+            WatchTogether.status.value = it
+        }
     }
 
     /** How a join went: the reason is what the viewer is told when it did not. */
-    enum class Joined { YES, SWITCHED_OFF, NOT_WATCHING, UNREACHABLE }
+    enum class Joined { YES, ASKED, SWITCHED_OFF, NOT_WATCHING, UNREACHABLE }
 
     /** Join [device]: links the two, and tunes to its channel (WatchTogether.follow). */
     suspend fun join(device: String): Joined = withContext(Dispatchers.IO) {
@@ -216,10 +345,26 @@ class DispatchMoreLinks @Inject constructor(
         val answer = runCatching {
             auth.withApiKeyRetry(playlistId) { key -> client.joinLink(base, key, path, device) }
         }
-        val channel = answer.getOrElse {
+        val joined = answer.getOrElse {
             Log.w(TAG, "join $device failed: ${it.message}")
             return@withContext Joined.UNREACHABLE
         } ?: return@withContext Joined.NOT_WATCHING
+        if (joined is DispatcharrClient.JoinAnswer.Asked) {
+            // Another person's device: it is asked, and the answer comes on the socket
+            val who = listOf(joined.user, joined.name).filter { it.isNotBlank() }.joinToString(" · ")
+            Log.i(TAG, "asked $device ($who) to join")
+            WatchTogether.asking = who
+            WatchTogether.notify(com.aeriotv.android.R.string.watch_together_asked, who)
+            scope.launch {
+                kotlinx.coroutines.delay(ASK_WAIT_MS)
+                if (WatchTogether.asking == who) {
+                    WatchTogether.asking = null
+                    WatchTogether.notify(com.aeriotv.android.R.string.watch_together_no_answer, who)
+                }
+            }
+            return@withContext Joined.ASKED
+        }
+        val channel = (joined as DispatcharrClient.JoinAnswer.Linked).channel
         Log.i(TAG, "joined $device on $channel")
         WatchTogether.setLinked(true)
         // Afresh even when it is the channel playing: the device joined tunes afresh now too
@@ -230,7 +375,38 @@ class DispatchMoreLinks @Inject constructor(
     fun joinInBackground(device: String, onFailed: (Joined) -> Unit = {}) {
         scope.launch {
             val joined = join(device)
-            if (joined != Joined.YES) withContext(Dispatchers.Main) { onFailed(joined) }
+            if (joined != Joined.YES && joined != Joined.ASKED) withContext(Dispatchers.Main) { onFailed(joined) }
+            state()
+        }
+    }
+
+    /** Allow or Decline another person's request to join this device. */
+    fun answerInBackground(device: String, allow: Boolean) {
+        scope.launch {
+            val (playlistId, base, path) = target() ?: return@launch
+            runCatching { auth.withApiKeyRetry(playlistId) { key -> client.answerLink(base, key, path, device, allow) } }
+                .onFailure { Log.w(TAG, "answer to $device failed: ${it.message}") }
+            state()
+        }
+    }
+
+    /** Stay on this channel: the other person's device that changed it leaves. */
+    fun stayInBackground(device: String) {
+        scope.launch {
+            val (playlistId, base, path) = target() ?: return@launch
+            runCatching { auth.withApiKeyRetry(playlistId) { key -> client.stayInLink(base, key, path, device) } }
+                .onFailure { Log.w(TAG, "stay failed: ${it.message}") }
+            state()
+        }
+    }
+
+    /** Disconnect: take another person's device out of the group this one leads. */
+    fun removeInBackground(device: String) {
+        scope.launch {
+            val (playlistId, base, path) = target() ?: return@launch
+            runCatching { auth.withApiKeyRetry(playlistId) { key -> client.removeFromLink(base, key, path, device) } }
+                .onFailure { Log.w(TAG, "disconnect $device failed: ${it.message}") }
+            state()
         }
     }
 
@@ -241,6 +417,7 @@ class DispatchMoreLinks @Inject constructor(
             val (playlistId, base, path) = target() ?: return@launch
             runCatching { auth.withApiKeyRetry(playlistId) { key -> client.leaveLink(base, key, path) } }
                 .onFailure { Log.w(TAG, "leave failed: ${it.message}") }
+            state()
         }
     }
 
@@ -248,5 +425,9 @@ class DispatchMoreLinks @Inject constructor(
         const val TAG = "WatchTogether"
         const val STEP_CHECK_MS = 10_000L
         const val STEP_SETTLE_MS = 20_000L
+        // The Join list asked again this often while the app is in front
+        const val STATUS_EVERY_MS = 20_000L
+        // How long another person's answer is waited for (the server keeps the request 30 s)
+        const val ASK_WAIT_MS = 25_000L
     }
 }

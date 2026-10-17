@@ -58,6 +58,7 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.ClosedCaption
+import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.LinkOff
 import androidx.compose.material.icons.outlined.EventNote
 import androidx.compose.material.icons.outlined.Flag
@@ -900,6 +901,12 @@ fun PlayerChromeOverlay(
             val guideChoice = GuideChoiceMenu.action
             if (moreOpen && guideChoice != null && guideChoice.available()) {
                 add(PlayerOption("guide", Icons.Outlined.EventNote, stringResource(R.string.player_wrong_guide)) { close(); guideChoice.open() })
+            }
+            // Watch together (v266): the list of what to join and who is joined
+            if (moreOpen && com.aeriotv.android.core.network.WatchTogether.status.value != null) {
+                add(PlayerOption("together_list", Icons.Outlined.Groups, stringResource(R.string.watch_together_menu)) {
+                    close(); com.aeriotv.android.core.network.WatchTogether.openSheet()
+                })
             }
             // Watching together with another device of this login: stop following it
             if (moreOpen && com.aeriotv.android.core.network.WatchTogether.linked.value) {

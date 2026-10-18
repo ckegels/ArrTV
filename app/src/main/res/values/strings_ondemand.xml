@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- OnDemandTabContent.kt -->
+    <string name="ondemand_title">On Demand</string>
+    <string name="ondemand_nothing_in_progress">Nothing in progress</string>
+    <string name="ondemand_nothing_in_progress_body">Movies and shows you start will show up here so you can pick up where you left off.</string>
+    <string name="ondemand_movies_needs_dispatcharr">Movies needs Dispatcharr</string>
+    <string name="ondemand_movies_needs_dispatcharr_body">Switch to a Dispatcharr playlist in Settings to browse movies.</string>
+    <string name="ondemand_series_needs_dispatcharr">Series needs Dispatcharr</string>
+    <string name="ondemand_series_needs_dispatcharr_body">Switch to a Dispatcharr playlist in Settings to browse series.</string>
+    <string name="ondemand_search_series">Search series</string>
+    <string name="ondemand_count_of">%1$d / %2$d</string>
+    <string name="ondemand_load_movies_failed">Couldn\'t load movies: %1$s</string>
+    <string name="ondemand_load_series_failed">Couldn\'t load series: %1$s</string>
+    <string name="ondemand_no_matches">No matches</string>
+    <string name="ondemand_everything_hidden">Everything\'s hidden</string>
+    <string name="ondemand_no_movies">No movies</string>
+    <string name="ondemand_no_series">No series</string>
+    <string name="ondemand_try_different_search">Try a different search term.</string>
+    <plurals name="ondemand_hidden_groups_movies">
+        <item quantity="one">The %1$d group you chose to hide accounts for every movie in this library. Use the filter button to show some again.</item>
+        <item quantity="other">All %1$d groups you chose to hide account for every movie in this library. Use the filter button to show some again.</item>
+    </plurals>
+    <plurals name="ondemand_hidden_groups_series">
+        <item quantity="one">The %1$d group you chose to hide accounts for every series in this library. Use the filter button to show some again.</item>
+        <item quantity="other">All %1$d groups you chose to hide account for every series in this library. Use the filter button to show some again.</item>
+    </plurals>
+    <string name="ondemand_empty_movies_library">Dispatcharr returned an empty Movies library. Confirm VOD is enabled on the server.</string>
+    <string name="ondemand_empty_series_library">Dispatcharr returned an empty Series library. Confirm VOD is enabled on the server.</string>
+    <string name="ondemand_filter_groups">Filter groups</string>
+    <string name="ondemand_open_series">Open Series</string>
+    <string name="ondemand_section_continue">Continue</string>
+    <string name="ondemand_section_movies">Movies</string>
+    <string name="ondemand_section_series">Series</string>
+    <string name="ondemand_season_short">S%1$d</string>
+    <string name="ondemand_episode_short">E%1$d</string>
+
+    <!-- OnDemandViewModel.kt -->
+    <string name="ondemand_api_key_rejected">Dispatcharr rejected the API key.</string>
+    <string name="ondemand_load_movies_dispatcharr_failed">Couldn\'t load movies from Dispatcharr.</string>
+    <string name="ondemand_load_series_dispatcharr_failed">Couldn\'t load series from Dispatcharr.</string>
+    <string name="ondemand_series_too_large">This series is too large to load on this device.</string>
+    <string name="ondemand_xtream_credentials_missing">Xtream credentials missing.</string>
+
+    <!-- Movie and series details -->
+    <string name="ondemand_movie_not_found">Movie not found</string>
+    <string name="ondemand_series_not_found">Series not found</string>
+    <string name="ondemand_version_value">Version: %1$s</string>
+    <string name="ondemand_version_auto">Auto</string>
+    <string name="ondemand_version_auto_recommended">Auto (recommended)</string>
+    <string name="ondemand_version">Version</string>
+    <string name="ondemand_trailer">Trailer</string>
+    <string name="ondemand_tmdb">TMDB</string>
+    <string name="ondemand_view_on_tmdb">View on TMDB</string>
+    <string name="ondemand_scan_trailer">Scan with your phone to watch the trailer on YouTube.</string>
+    <string name="ondemand_scan_tmdb">Scan with your phone to view this title on TMDB.</string>
+    <string name="ondemand_play_in_youtube">Play in YouTube</string>
+    <string name="ondemand_show_qr">Show QR Code</string>
+    <string name="ondemand_genre">Genre</string>
+    <string name="ondemand_released">Released</string>
+    <string name="ondemand_runtime">Runtime</string>
+    <string name="ondemand_director">Director</string>
+    <string name="ondemand_cast">Cast</string>
+    <string name="ondemand_country">Country</string>
+    <string name="ondemand_seasons">Seasons</string>
+    <plurals name="ondemand_season_count">
+        <item quantity="one">%1$d season</item>
+        <item quantity="other">%1$d seasons</item>
+    </plurals>
+    <plurals name="ondemand_episode_count">
+        <item quantity="one">%1$d episode</item>
+        <item quantity="other">%1$d episodes</item>
+    </plurals>
+    <string name="ondemand_seasons_value">%1$s, %2$s</string>
+    <string name="ondemand_type_movie">MOVIE</string>
+    <string name="ondemand_cast_crew">Cast &amp; Crew</string>
+    <string name="ondemand_cast_crew_episode">Cast &amp; Crew · Episode %1$s</string>
+    <string name="ondemand_episode_n">Episode %1$s</string>
+    <string name="ondemand_label_colon">%1$s:</string>
+    <string name="ondemand_related">Related</string>
+    <string name="ondemand_duration_h_m">%1$dh %2$dm</string>
+    <string name="ondemand_duration_h">%1$dh</string>
+    <string name="ondemand_duration_m">%1$dm</string>
+    <string name="ondemand_episodes">Episodes</string>
+    <string name="ondemand_load_episodes_failed">Couldn\'t load episodes: %1$s</string>
+    <string name="ondemand_no_episodes">Server returned no episodes for this series.</string>
+    <string name="ondemand_season_n">Season %1$s</string>
+    <string name="ondemand_episode_prefix">E%1$s ·</string>
+    <string name="ondemand_less">Less</string>
+    <string name="ondemand_more">More</string>
+    <string name="ondemand_tmdb_poster_and_details">Poster and missing details pulled from TMDB using your API key.</string>
+    <string name="ondemand_tmdb_poster">Poster pulled from TMDB using your API key.</string>
+    <string name="ondemand_tmdb_details">Missing details filled in from TMDB using your API key.</string>
+    <string name="ondemand_tmdb_no_key">No artwork from your provider. Enter a TMDB API key in Settings &gt; App Behaviors to fill it in automatically. Only works when TMDB has a matching title.</string>
+    <string name="ondemand_tmdb_no_match">No matching title found on TMDB.</string>
+    <string name="ondemand_watched">Watched</string>
+    <string name="ondemand_currently_watching">Currently Watching</string>
+    <string name="ondemand_mark_unwatched">Mark as Unwatched</string>
+    <string name="ondemand_mark_watched">Mark as Watched</string>
+    <string name="ondemand_available_related">Available Related Titles</string>
+    <string name="ondemand_not_in_library">Not in your library.</string>
+    <string name="ondemand_born">Born</string>
+    <string name="ondemand_died">Died</string>
+    <string name="ondemand_birthplace">Birthplace</string>
+    <string name="ondemand_no_biography">No biography available.</string>
+    <string name="ondemand_known_for">Known For</string>
+    <string name="ondemand_tmdb_qr">TMDB page QR code</string>
+    <string name="ondemand_label_value">%1$s: %2$s</string>
+    <string name="ondemand_source_n">Source %1$s</string>
+    <string name="ondemand_play_episode">%1$s S%2$d E%3$d</string>
+    <string name="ondemand_rating_star">★ %1$s</string>
+</resources>

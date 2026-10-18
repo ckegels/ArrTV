@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.movies.tv
 
+import com.aeriotv.android.R
+import androidx.compose.ui.res.stringResource
 import com.aeriotv.android.ui.theme.forText
 import com.aeriotv.android.ui.scale.subtext
 import com.aeriotv.android.ui.theme.textAccent
@@ -303,7 +305,7 @@ fun <T> TvMediaPage(
     onQueryChange: (String) -> Unit = {},
     onSearchToggle: () -> Unit = {},
     onClearSearch: () -> Unit = {},
-    searchPlaceholder: String = "Search",
+    searchPlaceholder: String = stringResource(R.string.common_search),
     isSearching: Boolean = false,
     searchExtras: List<@Composable () -> Unit> = emptyList(),
     pills: List<String> = emptyList(),
@@ -1362,7 +1364,7 @@ fun <T> TvMediaPage(
                         }
                         if (searchEnabled) {
                             TvActionCircle(
-                                icon = Icons.Filled.Search, contentDescription = if (searchActive) "Close search" else "Search",
+                                icon = Icons.Filled.Search, contentDescription = if (searchActive) stringResource(R.string.media_close_search) else stringResource(R.string.common_search),
                                 selected = searchActive, onClick = closeOrToggleSearch,
                                 modifier = Modifier
                                     .focusRequester(searchCircle)
@@ -1370,20 +1372,20 @@ fun <T> TvMediaPage(
                             )
                             if (isSearching) {
                                 TvActionCircle(
-                                    icon = Icons.Filled.Close, contentDescription = "Clear search", onClick = onClearSearch,
+                                    icon = Icons.Filled.Close, contentDescription = stringResource(R.string.media_clear_search), onClick = onClearSearch,
                                     modifier = Modifier.onFocusChanged { if (it.isFocused) TvFocusTrace.focus("header:Clear") },
                                 )
                             }
                         }
                         if (sortActions.isNotEmpty()) {
                             TvActionCircle(
-                                icon = Icons.Filled.SwapVert, contentDescription = "Sort", onClick = { sortOpen = true },
+                                icon = Icons.Filled.SwapVert, contentDescription = stringResource(R.string.media_sort), onClick = { sortOpen = true },
                                 modifier = Modifier.onFocusChanged { if (it.isFocused) TvFocusTrace.focus("header:Sort") },
                             )
                         }
                         if (onFilter != null) {
                             TvActionCircle(
-                                icon = Icons.Filled.FilterList, contentDescription = "Filter",
+                                icon = Icons.Filled.FilterList, contentDescription = stringResource(R.string.media_filter),
                                 selected = filterActive, onClick = onFilter,
                                 modifier = Modifier
                                     .focusRequester(filterCircle)
@@ -1419,7 +1421,7 @@ fun <T> TvMediaPage(
                         if (isLoading && gridItems.isNotEmpty()) {
                             CircularProgressIndicator(modifier = Modifier.size(10.dp), strokeWidth = 1.5.dp, color = MaterialTheme.colorScheme.tertiary)
                             Spacer(Modifier.width(6.dp))
-                            Text("Updating", fontSize = 9.sp.subtext(), lineHeight = 11.sp.subtext(), maxLines = 1, color = MaterialTheme.colorScheme.tertiary)
+                            Text(stringResource(R.string.media_updating), fontSize = 9.sp.subtext(), lineHeight = 11.sp.subtext(), maxLines = 1, color = MaterialTheme.colorScheme.tertiary)
                         }
                     }
                 }
@@ -1456,7 +1458,7 @@ fun <T> TvMediaPage(
                     ) {
                         item(key = "all") {
                             TvPill(
-                                "All", selectedPill == null, onClick = { onPill(null) },
+                                stringResource(R.string.common_all), selectedPill == null, onClick = { onPill(null) },
                                 modifier = Modifier
                                     .focusRequester(allPill)
                                     .onFocusChanged { if (it.isFocused) TvFocusTrace.focus("pill:All") },
@@ -1465,7 +1467,8 @@ fun <T> TvMediaPage(
                         items(pills.size, key = { pills[it] }) { i ->
                             val p = pills[i]
                             TvPill(
-                                p, selectedPill == p, onClick = { onPill(if (selectedPill == p) null else p) },
+                                if (p == com.aeriotv.android.feature.ondemand.HIDDEN_CATEGORY) stringResource(R.string.media_hidden_category) else p,
+                                selectedPill == p, onClick = { onPill(if (selectedPill == p) null else p) },
                                 modifier = Modifier.onFocusChanged { if (it.isFocused) TvFocusTrace.focus("pill:" + p) },
                             )
                         }
@@ -1609,7 +1612,7 @@ fun <T> TvMediaPage(
     }
 
     if (sortOpen) {
-        TvActionMenuDialog(title = "Sort", actions = sortActions, guard = menuGuard, onDismiss = { sortOpen = false })
+        TvActionMenuDialog(title = stringResource(R.string.media_sort), actions = sortActions, guard = menuGuard, onDismiss = { sortOpen = false })
     }
 }
 
@@ -2004,7 +2007,7 @@ fun TvHeroButtonView(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = if (button.label.isEmpty()) Arrangement.Center else Arrangement.spacedBy(4.dp),
     ) {
-        Icon(button.icon, contentDescription = if (button.label.isEmpty()) "Options" else null, tint = ink, modifier = Modifier.size(if (button.label.isEmpty()) 12.dp else 11.dp))
+        Icon(button.icon, contentDescription = if (button.label.isEmpty()) stringResource(R.string.media_options) else null, tint = ink, modifier = Modifier.size(if (button.label.isEmpty()) 12.dp else 11.dp))
         if (button.label.isNotEmpty()) Text(button.label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = ink, maxLines = 1)
     }
 }

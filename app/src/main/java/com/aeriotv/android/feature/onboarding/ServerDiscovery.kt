@@ -48,6 +48,8 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /** A Dispatcharr server that answered on the local network. */
 data class DiscoveredServer(
@@ -207,7 +209,12 @@ internal fun DiscoveredServersBlock(
                     .clickable { onPick(server) },
                 icon = Icons.Outlined.Dns,
                 title = server.displayName,
-                subtitle = "Found on your network · Dispatcharr ${server.version} · ${server.host}:${server.port}",
+                subtitle = stringResource(
+                    R.string.main_discovery_found_subtitle,
+                    server.version,
+                    server.host,
+                    server.port,
+                ),
                 trailing = {
                     Icon(
                         imageVector = Icons.Filled.ChevronRight,
@@ -226,7 +233,7 @@ internal fun DiscoveredServersBlock(
                 CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "Looking for Dispatcharr on your network…",
+                    text = stringResource(R.string.main_discovery_scanning),
                     style = MaterialTheme.typography.bodySmall.subtext(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

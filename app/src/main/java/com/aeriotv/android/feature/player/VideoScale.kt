@@ -1,5 +1,6 @@
 package com.aeriotv.android.feature.player
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -24,10 +25,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.ui.AspectRatioFrameLayout
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import com.aeriotv.android.feature.settings.SettingsViewModel
 import kotlinx.coroutines.delay
 import kotlin.math.hypot
@@ -54,10 +58,13 @@ private const val PINCH_IN_RATIO = 0.85f
 /** How long the centered "Fit" / "Fill" label stays up after a pinch. */
 private const val SCALE_LABEL_MS = 1_000L
 
-fun videoScaleLabel(mode: String): String = when (mode) {
-    VIDEO_SCALE_FILL -> "Fill"
-    VIDEO_SCALE_STRETCH -> "Stretch"
-    else -> "Fit"
+fun videoScaleLabel(mode: String): String = AppText.get(videoScaleLabelRes(mode))
+
+@StringRes
+fun videoScaleLabelRes(mode: String): Int = when (mode) {
+    VIDEO_SCALE_FILL -> R.string.player_scale_fill
+    VIDEO_SCALE_STRETCH -> R.string.player_scale_stretch
+    else -> R.string.player_scale_fit
 }
 
 /** Options row order: Fit -> Fill -> Stretch -> Fit. */
@@ -239,7 +246,10 @@ fun VideoScaleOptionRow(settingsVm: SettingsViewModel) {
             .padding(horizontal = 8.dp, vertical = 12.dp),
     ) {
         Text(
-            text = "Video Scale: ${videoScaleLabel(scaleMode)}",
+            text = stringResource(
+                R.string.player_video_scale_value,
+                stringResource(videoScaleLabelRes(scaleMode)),
+            ),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onBackground,
         )

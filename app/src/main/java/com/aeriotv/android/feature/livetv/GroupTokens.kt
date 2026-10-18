@@ -1,6 +1,9 @@
 package com.aeriotv.android.feature.livetv
 
 import com.aeriotv.android.feature.playlist.PlaylistViewModel
+import androidx.annotation.StringRes
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 
 /**
  * GH #80: the "All Channels" pill can be hidden like any group. The hidden
@@ -79,15 +82,20 @@ fun groupDisplayName(
     token: String,
     collections: List<com.aeriotv.android.core.data.ChannelCollection> = emptyList(),
 ): String = when {
-    token == PlaylistViewModel.ALL_GROUPS -> "All Channels"
-    token == PlaylistViewModel.FAVORITES_GROUP -> "Favorites"
-    token == PlaylistViewModel.RECENT_GROUP -> "Recently Watched"
+    token == PlaylistViewModel.ALL_GROUPS -> groupText(R.string.livetv_group_all_channels, "All Channels")
+    token == PlaylistViewModel.FAVORITES_GROUP -> groupText(R.string.livetv_group_favorites, "Favorites")
+    token == PlaylistViewModel.RECENT_GROUP -> groupText(R.string.livetv_group_recently_watched, "Recently Watched")
     token.startsWith(com.aeriotv.android.core.data.ChannelCollection.TOKEN_PREFIX) -> {
         val id = com.aeriotv.android.core.data.ChannelCollection.idFromToken(token)
-        collections.firstOrNull { it.id == id }?.name ?: "Collection"
+        collections.firstOrNull { it.id == id }?.name ?: groupText(R.string.livetv_group_collection, "Collection")
     }
     else -> token
 }
+
+/** The app-language label; the English [fallback] only where resources are not
+ *  set up yet (plain JVM unit tests have no Application). */
+private fun groupText(@StringRes id: Int, fallback: String): String =
+    runCatching { AppText.get(id) }.getOrDefault(fallback)
 
 /**
  * GH #81: which group Live TV opens on for a playlist.

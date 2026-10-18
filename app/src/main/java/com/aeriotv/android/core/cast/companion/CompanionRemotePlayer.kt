@@ -6,6 +6,8 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import androidx.media3.common.SimpleBasePlayer
 import com.aeriotv.android.core.ui.SkipIntervals
 import com.google.common.util.concurrent.Futures
@@ -63,11 +65,15 @@ class CompanionRemotePlayer(
         val channelName = details?.channelName ?: controller.nowPlaying.value
         // Programme title on top, "<channel> on <TV>" beneath, channel logo as art.
         val title = details?.programmeTitle?.takeIf { it.isNotBlank() }
-            ?: channelName.ifBlank { "Controlling TV" }
-        val subtitle = listOfNotNull(
-            channelName.takeIf { it.isNotBlank() && it != title },
-            tvName?.let { "on $it" } ?: "on TV",
-        ).joinToString(" ")
+            ?: channelName.ifBlank { AppText.get(R.string.player_companion_controlling_tv) }
+        val subChannel = channelName.takeIf { it.isNotBlank() && it != title }
+        val subtitle = when {
+            subChannel != null && tvName != null ->
+                AppText.get(R.string.player_companion_channel_on_named_tv, subChannel, tvName)
+            subChannel != null -> AppText.get(R.string.player_companion_channel_on_tv, subChannel)
+            tvName != null -> AppText.get(R.string.player_companion_on_named_tv, tvName)
+            else -> AppText.get(R.string.player_companion_on_tv)
+        }
         val canSeek = pos.canSeek && pos.windowEndMs > pos.windowStartMs
         val durationMs = if (canSeek) pos.windowEndMs - pos.windowStartMs else C.TIME_UNSET
         val positionMs = if (canSeek) (pos.positionWallMs - pos.windowStartMs).coerceIn(0L, durationMs) else 0L

@@ -1,5 +1,6 @@
 package com.aeriotv.android
 
+import androidx.compose.ui.res.stringResource
 import android.app.PictureInPictureParams
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -845,6 +846,12 @@ class MainActivity : ComponentActivity() {
         resolutionModeApplied = false
     }
 
+    // The app's language (Settings -> Appearance -> Language).
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(newBase)
+        com.aeriotv.android.core.locale.AppLocale.applyTo(this, newBase)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // GH#40 rate match: the seamless matcher reports the content rate
@@ -1142,13 +1149,13 @@ class MainActivity : ComponentActivity() {
                             if (showExitConfirm.value) {
                                 val exitGuard = rememberTvMenuGuard()
                                 TvActionMenuDialog(
-                                    title = "Would you like to close AerioTV?",
+                                    title = stringResource(R.string.main_close_app_title),
                                     guard = exitGuard,
                                     onDismiss = { showExitConfirm.value = false },
                                     // TvActionMenuDialog appends its own Cancel row.
                                     actions = listOf(
                                         TvMenuAction(
-                                            label = "Close AerioTV",
+                                            label = stringResource(R.string.main_close_app),
                                             icon = Icons.Outlined.Close,
                                             destructive = true,
                                             onClick = { finish() },

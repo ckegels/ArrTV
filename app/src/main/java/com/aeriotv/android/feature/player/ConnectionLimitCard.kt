@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.player
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -68,11 +70,11 @@ fun ConnectionLimitCard(
             onClick = onRetry,
             modifier = Modifier.focusRequester(retryFocus),
         ) {
-            Text("Retry")
+            Text(stringResource(R.string.player_retry))
         }
         if (!compact && notice.kind != DispatcharrConnectionLimit.Kind.STREAM_ENDED) {
             Text(
-                text = "Close another stream, then press Retry.",
+                text = stringResource(R.string.player_close_another_stream),
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.White.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center,

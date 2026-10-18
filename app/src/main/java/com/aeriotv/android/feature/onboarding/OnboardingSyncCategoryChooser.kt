@@ -28,6 +28,8 @@ import com.aeriotv.android.ui.scale.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.aeriotv.android.core.sync.SyncCategory
 import com.aeriotv.android.ui.settings.SettingsToggleRow
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * Shown the moment the user asks to sign into Drive during onboarding, BEFORE
@@ -93,14 +95,13 @@ fun OnboardingSyncCategoryChooser(
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 Text(
-                    text = "What should come in from Drive?",
+                    text = stringResource(R.string.main_sync_chooser_title),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onBackground,
                 )
                 Text(
-                    text = "You can change any of this later in Settings, and each " +
-                        "device chooses for itself.",
+                    text = stringResource(R.string.main_sync_chooser_body),
                     style = MaterialTheme.typography.bodyMedium.subtext(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 6.dp, bottom = 14.dp),
@@ -113,8 +114,8 @@ fun OnboardingSyncCategoryChooser(
                 ) {
                     SyncCategory.entries.forEachIndexed { index, category ->
                         SettingsToggleRow(
-                            title = category.displayName,
-                            subtitle = category.subtitle,
+                            title = stringResource(category.displayNameRes),
+                            subtitle = stringResource(category.subtitleRes),
                             checked = selection[category] ?: true,
                             onCheckedChange = { selection[category] = it },
                             modifier = if (index == 0) {
@@ -129,9 +130,9 @@ fun OnboardingSyncCategoryChooser(
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    TextButton(onClick = onDismiss) { Text("Not now") }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.main_not_now)) }
                     TextButton(onClick = { onConfirm(selection.toMap()) }) {
-                        Text("Continue")
+                        Text(stringResource(R.string.common_continue))
                     }
                 }
             }

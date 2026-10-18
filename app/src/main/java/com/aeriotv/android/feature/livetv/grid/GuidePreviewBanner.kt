@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.livetv.grid
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import com.aeriotv.android.ui.scale.subtext
 import com.aeriotv.android.ui.theme.textAccent
 import com.aeriotv.android.ui.theme.forText
@@ -213,7 +215,7 @@ fun GuidePreviewBanner(
             },
         )
         if (program == null) {
-            Text("Select a program", fontSize = 13.sp.subtext(), fontWeight = FontWeight.Medium, color = colors.tertiary)
+            Text(stringResource(R.string.livetv_select_program), fontSize = 13.sp.subtext(), fontWeight = FontWeight.Medium, color = colors.tertiary)
         } else {
             // The mini (205 dp wide, 20 dp from the end) floats over the
             // banner's right end; the copy stops short of it rather than the
@@ -245,7 +247,7 @@ fun GuidePreviewBanner(
                     if (program.startMillis <= nowMs && nowMs < program.endMillis) {
                         val left = ((program.endMillis - nowMs) / 60_000L).toInt().coerceAtLeast(1)
                         Text("·", fontSize = 10.sp.subtext(), color = colors.tertiary)
-                        Text(if (left >= 60) "${left / 60} h ${left % 60} min left" else "$left min left", fontSize = 10.sp.subtext(), fontWeight = FontWeight.Medium, color = colors.onSurfaceVariant)
+                        Text(if (left >= 60) stringResource(R.string.livetv_h_min_left, left / 60, left % 60) else stringResource(R.string.livetv_min_left, left), fontSize = 10.sp.subtext(), fontWeight = FontWeight.Medium, color = colors.onSurfaceVariant)
                     }
                     // SEASON / EPISODE lives HERE now, in the meta line, right
                     // after the time left and before the LIVE / NEW badges
@@ -442,7 +444,7 @@ fun TiviGuideBanner(
                         androidx.compose.foundation.layout.Spacer(Modifier.width(12.dp))
                         val left = ((program.endMillis - nowMs + 59_999L) / 60_000L).toInt()
                         Text(
-                            if (left >= 60) "${left / 60} h ${left % 60} min" else "$left min",
+                            if (left >= 60) stringResource(R.string.livetv_h_min, left / 60, left % 60) else stringResource(R.string.livetv_min, left),
                             fontSize = 16.sp, color = colors.onBackground, maxLines = 1,
                         )
                     }

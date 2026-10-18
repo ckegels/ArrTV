@@ -149,6 +149,18 @@ class AerioTVApplication : Application(), Configuration.Provider, SingletonImage
             android.provider.Settings.Global.getString(contentResolver, android.provider.Settings.Global.DEVICE_NAME)
         }.getOrNull()?.takeIf { it.isNotBlank() } ?: android.os.Build.MODEL.orEmpty()
 
+    // The app's language (Settings -> Appearance -> Language), before anything
+    // reads a string.
+    override fun attachBaseContext(base: android.content.Context) {
+        super.attachBaseContext(com.aeriotv.android.core.locale.AppLocale.wrap(base))
+        com.aeriotv.android.core.locale.AppText.init(this)
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        com.aeriotv.android.core.locale.AppLocale.keepOverride(this)
+    }
+
     override fun onCreate() {
         super.onCreate()
         // Crash capture FIRST, and independent of the Debug Logging toggle: a

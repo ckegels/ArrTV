@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.aeriotv.android.R
 
 /**
  * Android TV home-screen ("channels") publisher, audit task #47. The Android
@@ -177,7 +178,7 @@ class HomeChannelsPublisher @Inject constructor(
         if (existing == null) {
             if (rows.isEmpty()) return // nothing to show; don't create an empty row
             val channel = PreviewChannel.Builder()
-                .setDisplayName(CHANNEL_DISPLAY_NAME)
+                .setDisplayName(context.getString(R.string.livetv_home_top_channels))
                 .setInternalProviderId(CHANNEL_KEY)
                 .setAppLinkIntentUri(Uri.parse("aeriotv://channel"))
                 .setLogo(appIconBitmap())
@@ -206,7 +207,7 @@ class HomeChannelsPublisher @Inject constructor(
                 .setInternalProviderId(row.channelId)
             if (logo != null) builder.setPosterArtUri(logo)
             row.channelNumber?.takeIf { it.isNotBlank() }
-                ?.let { builder.setEpisodeTitle("Channel $it") }
+                ?.let { builder.setEpisodeTitle(context.getString(R.string.livetv_home_channel_number, it)) }
             helper.publishPreviewProgram(builder.build())
         }
         android.util.Log.d(TAG, "published ${rows.size} channel cards")
@@ -316,7 +317,6 @@ class HomeChannelsPublisher @Inject constructor(
     companion object {
         private const val TAG = "HomeChannels"
         private const val CHANNEL_KEY = "aeriotv.top_channels"
-        private const val CHANNEL_DISPLAY_NAME = "Top Channels"
         /** tvOS Top Shelf shows 6 channel cards; match it. */
         private const val MAX_CHANNEL_CARDS = 6
         /** tvOS syncs up to 10 continue-watching entries; match it. */

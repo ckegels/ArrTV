@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Recordings (DVR), Movies and TV Shows pages. -->
+<resources>
+    <!-- Shared by the media pages -->
+    <string name="media_kind_movies">Movies</string>
+    <string name="media_kind_tv_shows">TV Shows</string>
+    <string name="media_kind_sports">Sports</string>
+    <string name="media_kind_news">News</string>
+    <string name="media_kind_kids">Kids</string>
+    <string name="media_kind_other">Other</string>
+    <string name="media_all_movies">All Movies</string>
+    <string name="media_all_tv_shows">All TV Shows</string>
+    <string name="media_no_movies">No Movies</string>
+    <string name="media_no_tv_shows">No TV Shows</string>
+    <string name="media_results">Results</string>
+    <string name="media_no_results">No results</string>
+    <string name="media_continue_watching">Continue Watching</string>
+    <string name="media_watchlist">Watchlist</string>
+    <string name="media_resume">Resume</string>
+    <string name="media_play_from_beginning">Play from Beginning</string>
+    <string name="media_details">Details</string>
+    <string name="media_options">Options</string>
+    <string name="media_sort">Sort</string>
+    <string name="media_filter">Filter</string>
+    <string name="media_close_search">Close search</string>
+    <string name="media_clear_search">Clear search</string>
+    <string name="media_clear_and_close_search">Clear and close search</string>
+    <string name="media_search_movies">Search movies</string>
+    <string name="media_search_tv_shows">Search TV shows</string>
+    <string name="media_add_to_watchlist">Add to Watchlist</string>
+    <string name="media_remove_from_watchlist">Remove from Watchlist</string>
+    <string name="media_remove_from_continue_watching">Remove from Continue Watching</string>
+    <string name="media_hide">Hide</string>
+    <string name="media_unhide">Unhide</string>
+    <string name="media_hidden_category">Hidden</string>
+    <string name="media_updating">Updating</string>
+    <string name="media_includes_titles_with">Includes titles with %1$s</string>
+    <string name="media_all_providers">All Providers</string>
+    <string name="media_provider_n">Provider %1$d</string>
+    <!-- "S2 E5" -->
+    <string name="media_season_episode_short">S%1$d E%2$d</string>
+    <string name="media_duration_min">%1$d min</string>
+    <string name="media_duration_h_min">%1$d h %2$d min</string>
+    <string name="media_sort_title_az">Title · A to Z</string>
+    <string name="media_sort_title_za">Title · Z to A</string>
+    <string name="media_sort_year_newest">Year · Newest</string>
+    <string name="media_sort_year_oldest">Year · Oldest</string>
+    <string name="media_sort_rating_highest">Rating · Highest</string>
+
+    <!-- Recordings -->
+    <string name="media_recording">Recording</string>
+    <string name="media_recording_short">Recording</string>
+    <string name="media_recording_now">Recording now</string>
+    <string name="media_recording_now_title">Recording Now</string>
+    <string name="media_recently_recorded">Recently Recorded</string>
+    <string name="media_recent_recordings">Recent Recordings</string>
+    <string name="media_scheduled">Scheduled</string>
+    <string name="media_all_recordings">All Recordings</string>
+    <string name="media_my_recordings">My Recordings</string>
+    <string name="media_search_recordings">Search recordings</string>
+    <string name="media_no_recordings">No Recordings</string>
+    <string name="media_no_recordings_hint">Record a program from the guide or Live TV.</string>
+    <string name="media_this_device">This device</string>
+    <string name="media_badge_local">Local</string>
+    <string name="media_badge_server">Server</string>
+    <string name="media_partial">Partial</string>
+    <string name="media_hold_ok_for_options">Hold OK for options</string>
+    <string name="media_sort_newest_first">Newest First</string>
+    <string name="media_sort_oldest_first">Oldest First</string>
+    <string name="media_sort_title_a_z">Title A to Z</string>
+    <string name="media_sort_channel">Channel</string>
+    <string name="media_status_scheduled">Scheduled</string>
+    <string name="media_status_recording">Recording</string>
+    <string name="media_status_completed">Completed</string>
+    <string name="media_status_stopped">Stopped</string>
+    <string name="media_status_failed">Failed</string>
+    <string name="media_program_info">Program Info</string>
+    <string name="media_watch_from_beginning">Watch from Beginning</string>
+    <string name="media_watch_from_start">Watch from Start</string>
+    <string name="media_start_at_live">Start at Live</string>
+    <string name="media_jump_to_live">Jump to Live</string>
+    <string name="media_save_to_device">Save to Device</string>
+    <string name="media_remove_commercials">Remove Commercials</string>
+    <string name="media_stop_recording">Stop Recording</string>
+    <string name="media_edit_recording">Edit Recording</string>
+    <string name="media_cancel_recording">Cancel Recording</string>
+    <string name="media_delete_from_server">Delete from Server</string>
+    <string name="media_delete_from_device">Delete from Device</string>
+    <string name="media_keep">Keep</string>
+    <string name="media_delete_all">Delete All</string>
+    <string name="media_clear_all">Clear All</string>
+    <!-- "Sep 12 at 8:00 PM – 9:00 PM" -->
+    <string name="media_date_at_time_range">%1$s at %2$s – %3$s</string>
+    <string name="media_time_range">%1$s to %2$s</string>
+    <string name="media_time_left_min">%1$d min left</string>
+    <string name="media_time_left_h_min">%1$d h %2$d min left</string>
+    <string name="media_filter_scheduled_count">Scheduled (%1$d)</string>
+    <string name="media_filter_recording_count">Recording (%1$d)</string>
+    <string name="media_filter_completed_count">Completed (%1$d)</string>
+    <string name="media_dvr_needs_dispatcharr">DVR needs Dispatcharr</string>
+    <string name="media_dvr_needs_dispatcharr_body">Switch to a Dispatcharr playlist in Settings to schedule recordings.</string>
+    <string name="media_load_recordings_failed">Couldn\'t load recordings: %1$s</string>
+    <string name="media_empty_scheduled_title">No scheduled recordings</string>
+    <string name="media_empty_scheduled_body">Schedule a recording from the TV guide to get started.</string>
+    <string name="media_empty_recording_title">Nothing recording right now</string>
+    <string name="media_empty_recording_body">Recordings in progress will show up here.</string>
+    <string name="media_empty_completed_title">No completed recordings</string>
+    <string name="media_empty_completed_body">Finished recordings will show up here, ready to play.</string>
+
+    <!-- Recording messages -->
+    <string name="media_dvr_not_playable_yet">This recording is not playable yet.</string>
+    <string name="media_dvr_no_playable_file">This recording has no playable file yet.</string>
+    <string name="media_invalid_recording_id">Invalid recording id.</string>
+    <string name="media_recording_updated">Recording updated.</string>
+    <string name="media_update_failed">Update failed: %1$s</string>
+    <string name="media_recording_deleted">Recording deleted.</string>
+    <string name="media_delete_failed">Delete failed: %1$s</string>
+    <string name="media_save_failed">Save failed: %1$s</string>
+    <string name="media_saving_to_device">Saving to device</string>
+    <string name="media_saving_title_to_device">Saving \"%1$s\" to device…</string>
+    <string name="media_save_to_device_failed">Save to Device failed: %1$s</string>
+    <string name="media_comskip_failed">Comskip failed: %1$s</string>
+    <string name="media_comskip_started">Comskip started</string>
+    <string name="media_remove_commercials_started">Remove Commercials started.</string>
+    <string name="media_remove_commercials_failed">Remove Commercials failed: %1$s</string>
+    <string name="media_recording_stopped">Recording stopped.</string>
+    <string name="media_stop_failed">Stop failed: %1$s</string>
+    <string name="media_stop_recording_failed">Stop Recording failed: %1$s</string>
+    <string name="media_cancel_scheduled_confirm">Cancel the scheduled recording of \"%1$s\"?</string>
+    <string name="media_delete_from_server_confirm">Delete \"%1$s\" from the Dispatcharr server? This cannot be undone.</string>
+    <string name="media_delete_from_device_confirm">Delete \"%1$s\" from this device? This cannot be undone.</string>
+    <string name="media_delete_recording_title">Delete recording?</string>
+    <string name="media_delete_recording_local_body">This removes \"%1$s\" from this device permanently.</string>
+    <string name="media_delete_recording_server_body">This removes \"%1$s\" from your Dispatcharr server. The file is gone after this.</string>
+    <string name="media_clear_all_completed_title">Clear all completed?</string>
+    <plurals name="media_clear_all_completed_body">
+        <item quantity="one">This removes %1$d completed recording. Server-side recordings are deleted on your Dispatcharr server; local recordings have their files removed from this device. This can\'t be undone.</item>
+        <item quantity="other">This removes all %1$d completed recordings. Server-side recordings are deleted on your Dispatcharr server; local recordings have their files removed from this device. This can\'t be undone.</item>
+    </plurals>
+    <string name="media_clear_all_completed_local_body">This removes every completed recording saved on this device. Recordings on your Dispatcharr server are left alone. This can\'t be undone.</string>
+    <plurals name="media_deleted_recordings">
+        <item quantity="one">Deleted %1$d recording.</item>
+        <item quantity="other">Deleted %1$d recordings.</item>
+    </plurals>
+    <string name="media_clear_all_partially_failed">Clear All partially failed: %1$s</string>
+    <string name="media_err_failed_to_delete_n_of">Failed to delete %1$d of %2$d</string>
+    <string name="media_err_invalid_local_id">Invalid local recording id: %1$s</string>
+    <string name="media_err_invalid_server_id">Invalid server recording id: %1$s</string>
+    <string name="media_err_no_playlist">No playlist loaded.</string>
+    <string name="media_err_not_dispatcharr">Active source is not Dispatcharr-backed.</string>
+    <string name="media_err_comskip_server_only">Remove Commercials is server-only.</string>
+    <string name="media_err_stop_server_only">Stop Recording is server-only.</string>
+    <string name="media_err_save_server_only">Save to Device is for server recordings.</string>
+    <string name="media_err_no_file_to_download">This recording has no file to download yet.</string>
+
+    <!-- EditRecordingSheet.kt -->
+    <string name="media_field_title">Title</string>
+    <string name="media_field_description">Description</string>
+    <string name="media_extra_pre_roll">Extra Pre-Roll</string>
+    <string name="media_extra_post_roll">Extra Post-Roll</string>
+    <string name="media_will_record">Will record</string>
+    <string name="media_no_change">No change</string>
+    <string name="media_plus_minutes">+%1$d min</string>
+
+    <!-- LocalRecordingService.kt -->
+    <string name="media_notif_recording">Recording…</string>
+    <string name="media_notif_saving_to_device">Saving to device…</string>
+    <string name="media_notif_saved_to_device">Saved to device</string>
+    <string name="media_notif_save_failed">Save to device failed</string>
+    <string name="media_notif_stop">Stop</string>
+    <string name="media_notif_channel_local_recordings">Local recordings</string>
+    <string name="media_notif_channel_local_recordings_desc">Ongoing notification while AerioTV is recording a channel to local storage.</string>
+</resources>

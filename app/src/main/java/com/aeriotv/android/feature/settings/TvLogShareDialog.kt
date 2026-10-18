@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.settings
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import com.aeriotv.android.ui.scale.subtext
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -92,15 +94,14 @@ fun TvLogShareDialog(
                     .padding(horizontal = 24.dp, vertical = 20.dp),
             ) {
                 Text(
-                    text = "Share Log File",
+                    text = stringResource(R.string.settings_developer_share_log),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground,
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "On your phone, scan the QR code or open this URL. " +
-                        "The .txt file will download. Attach it to a GitHub Issue or email.",
+                    text = stringResource(R.string.settings_log_share_instructions),
                     style = MaterialTheme.typography.bodyMedium.subtext(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -121,7 +122,7 @@ fun TvLogShareDialog(
                         ) {
                             Image(
                                 bitmap = qr.asImageBitmap(),
-                                contentDescription = "QR code for the log download URL",
+                                contentDescription = stringResource(R.string.settings_log_share_qr_description),
                                 filterQuality = FilterQuality.None,
                                 modifier = Modifier.size(240.dp),
                             )
@@ -141,15 +142,14 @@ fun TvLogShareDialog(
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        text = "The server stops when you close this screen. " +
-                            "The TV and your phone must be on the same Wi-Fi network.",
+                        text = stringResource(R.string.settings_log_share_server_note),
                         style = MaterialTheme.typography.labelSmall.subtext(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                         textAlign = TextAlign.Center,
                     )
                 } else if (failed) {
                     Text(
-                        text = "Could not start LAN server. Check the TV's network connection.",
+                        text = stringResource(R.string.settings_log_share_failed),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
                         textAlign = TextAlign.Center,
@@ -157,7 +157,7 @@ fun TvLogShareDialog(
                 }
 
                 Spacer(Modifier.height(14.dp))
-                SettingsDialogTextButton(label = "Close", onClick = onDismiss)
+                SettingsDialogTextButton(label = stringResource(R.string.common_close), onClick = onDismiss)
             }
         }
     }

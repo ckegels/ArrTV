@@ -26,6 +26,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.aeriotv.android.ui.settings.dpadFocusRing
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * Reveal state for one masked field (password, API key, token).
@@ -73,7 +75,7 @@ fun SecretRevealIconButton(
     state: SecretRevealState,
     tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     iconSize: Dp = 20.dp,
-    contentLabel: String = "key",
+    contentLabel: String = stringResource(R.string.main_secret_label_key),
 ) {
     IconButton(
         onClick = { state.toggle() },
@@ -104,7 +106,11 @@ fun SecretRevealIconButton(
     ) {
         Icon(
             imageVector = if (state.visible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-            contentDescription = if (state.visible) "Hide $contentLabel" else "Show $contentLabel",
+            contentDescription = if (state.visible) {
+                stringResource(R.string.main_secret_hide, contentLabel)
+            } else {
+                stringResource(R.string.main_secret_show, contentLabel)
+            },
             tint = tint,
             modifier = Modifier.size(iconSize),
         )

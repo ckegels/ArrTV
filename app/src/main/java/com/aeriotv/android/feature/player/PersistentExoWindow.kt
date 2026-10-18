@@ -171,31 +171,51 @@ fun BoxScope.PersistentExoWindow(
     val miniFitEnd = slotDp?.let { (screenW - it.right.dp).coerceAtLeast(0.dp) } ?: MINI_END_INSET
     val miniFitCorner = if (slotDp != null) VIDEO_SLOT_CORNER else MINI_CORNER
 
-    val miniWidth by animateDpAsState(
-        targetValue = if (miniTarget) miniFitWidth else screenW,
-        animationSpec = miniSpec,
-        label = "miniWidth",
-    )
-    val miniHeight by animateDpAsState(
-        targetValue = if (miniTarget) miniFitHeightFinal else screenH,
-        animationSpec = miniSpec,
-        label = "miniHeight",
-    )
-    val miniTopInset by animateDpAsState(
-        targetValue = if (miniTarget) miniFitTop else 0.dp,
-        animationSpec = miniSpec,
-        label = "miniTopInset",
-    )
-    val miniEndInset by animateDpAsState(
-        targetValue = if (miniTarget) miniFitEnd else 0.dp,
-        animationSpec = miniSpec,
-        label = "miniEndInset",
-    )
-    val miniCorner by animateDpAsState(
-        targetValue = if (miniTarget) miniFitCorner else 0.dp,
-        animationSpec = miniSpec,
-        label = "miniCorner",
-    )
+    // From AerioTV f56f411c. Leaving Hidden starts a fresh set of springs, keyed on [miniEpoch], so
+    // each spring's first value is its target: a first tune straight into
+    // the mini (Play Channels In = Mini Player, nothing playing) composes the
+    // mini at its final frame instead of springing down from full screen
+    // (Discord report 2026-10-14: a 2 to 3x oversized black frame for
+    // ~350 ms). Mini <-> Fullscreen within one visible stretch keeps the
+    // shared springs, so minimize and expand still animate.
+    val epochHolder = remember { MiniEpochHolder() }
+    val hiddenNow = mode == ExoWindowState.Mode.Hidden
+    if (epochHolder.wasHidden && !hiddenNow) epochHolder.epoch++
+    epochHolder.wasHidden = hiddenNow
+    val miniAnims = key(epochHolder.epoch) {
+        listOf(
+            animateDpAsState(
+                targetValue = if (miniTarget) miniFitWidth else screenW,
+                animationSpec = miniSpec,
+                label = "miniWidth",
+            ),
+            animateDpAsState(
+                targetValue = if (miniTarget) miniFitHeightFinal else screenH,
+                animationSpec = miniSpec,
+                label = "miniHeight",
+            ),
+            animateDpAsState(
+                targetValue = if (miniTarget) miniFitTop else 0.dp,
+                animationSpec = miniSpec,
+                label = "miniTopInset",
+            ),
+            animateDpAsState(
+                targetValue = if (miniTarget) miniFitEnd else 0.dp,
+                animationSpec = miniSpec,
+                label = "miniEndInset",
+            ),
+            animateDpAsState(
+                targetValue = if (miniTarget) miniFitCorner else 0.dp,
+                animationSpec = miniSpec,
+                label = "miniCorner",
+            ),
+        )
+    }
+    val miniWidth by miniAnims[0]
+    val miniHeight by miniAnims[1]
+    val miniTopInset by miniAnims[2]
+    val miniEndInset by miniAnims[3]
+    val miniCorner by miniAnims[4]
     // Settings tab stash (TV only; the phone mini floats over every tab,
     // Settings included, like system PiP). The frame keeps its size, so the SurfaceView is only
     // repositioned, never resized: slide right until just [stashSliver] of
@@ -665,4 +685,14 @@ private class FrameRateMatchAttachment {
     var player: androidx.media3.exoplayer.ExoPlayer? = null
     var handle: Any? = null
     var surfaceView: android.view.SurfaceView? = null
+}
+
+/**
+ * Plain (non-snapshot) holder for the Hidden -> visible counter that keys the
+ * mini springs in [PersistentExoWindow]. Written during composition on
+ * purpose: it only changes in the same pass that observes the mode change.
+ */
+private class MiniEpochHolder {
+    var wasHidden = true
+    var epoch = 0
 }

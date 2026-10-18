@@ -361,4 +361,6 @@
     <string name="player_player_options">Options du lecteur</string>
 
     <string name="player_switch_not_confirmed">Changement de flux non confirmé ; le flux actuel est conservé</string>
+    <!-- A recording still being made: its finished copy was not ready yet, so it goes back to the one being written -->
+    <string name="player_dvr_reloading">Rechargement…</string>
 </resources>

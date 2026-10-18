@@ -1536,7 +1536,7 @@ class AerioExoPlayerHolder @Inject constructor(
                     Log.w(TAG, "[REWIND] server rewind error ${error.errorCodeName}; re-entering at $at")
                 } else {
                     Log.w(TAG, "[REWIND] server rewind error ${error.errorCodeName}; returning to live")
-                    goLive()
+                    goLive("server rewind error")
                 }
                 return
             }
@@ -1586,7 +1586,7 @@ class AerioExoPlayerHolder @Inject constructor(
                     playTimeshift(w.tailWallMs + 2_000)
                 } else {
                     Log.w(TAG, "[REWIND] buffer error ${error.errorCodeName}; returning to live (nearHead=$nearHead retries=$timeshiftErrorRetries)")
-                    goLive()
+                    goLive("buffer error")
                 }
                 return
             }
@@ -2277,6 +2277,8 @@ class AerioExoPlayerHolder @Inject constructor(
 
     /** Playback runs on the server's rewind recording (HLS), not this device's ring. */
     @Volatile private var serverRewindPlaying = false
+
+    fun isServerRewindPlaying(): Boolean = isTimeshifting && serverRewindPlaying
     /** The wall time server rewind was last entered at, for one retry after an error. */
     @Volatile private var lastServerRewindWallMs = 0L
 
@@ -2359,13 +2361,14 @@ class AerioExoPlayerHolder @Inject constructor(
      *  (device: constant frame flashing, GH #33 2026-07-15). The direct stream pulls
      *  its own buffer-ahead off the live feed, so it plays smoothly at the edge. A
      *  truly smooth go-live would need a background direct re-prime + seamless swap. */
-    fun goLive() {
+    fun goLive(reason: String = "asked") {
         if (!isTimeshifting) return
         isTimeshifting = false
         serverRewindPlaying = false
         timeshift.get().onGoLive()
         val url = lastPlayUrl ?: return
-        Log.i(TAG, "[REWIND] go live -> re-tune direct stream")
+        // Why, every time: "it still sometimes goes back to live" (2026-10-18) had nothing to go on
+        Log.i(TAG, "[REWIND] go live ($reason) -> re-tune direct stream")
         playUrl(url, lastPlayTitle, lastPlaySubtitle, lastPlayArtworkUri)
     }
 

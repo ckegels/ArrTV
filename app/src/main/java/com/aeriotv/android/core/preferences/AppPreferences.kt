@@ -1759,7 +1759,10 @@ class AppPreferences @Inject constructor(
     /** Live Rewind (task #143): master enable. Off until the user
      *  accepts the onboarding/update prompt (P2) or flips the toggle. */
     val liveRewindEnabled: kotlinx.coroutines.flow.Flow<Boolean> =
-        store.data.map { it[KEY_LIVE_REWIND_ENABLED] ?: false }
+        // On by default in ArrTV (BuildConfig.ARRTV_LOOK_BY_DEFAULT): rewind is the server's
+        // recording there, no device disk needed, and Laurent's TV never had it (2026-10-18).
+        // Somebody who switched it off keeps it off.
+        store.data.map { it[KEY_LIVE_REWIND_ENABLED] ?: com.aeriotv.android.BuildConfig.ARRTV_LOOK_BY_DEFAULT }
     suspend fun setLiveRewindEnabled(value: Boolean) {
         store.edit { it[KEY_LIVE_REWIND_ENABLED] = value }
     }

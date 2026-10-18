@@ -657,7 +657,7 @@ fun PlayerScreen(
     // Buffered segments stay on disk until the retention reaper runs.
     DisposableEffect(Unit) {
         onDispose {
-            if (exoHolder.isTimeshifting) exoHolder.goLive()
+            if (exoHolder.isTimeshifting) exoHolder.goLive("player closed")
             timeshiftController.onFullscreenLiveStopped()
         }
     }
@@ -1317,7 +1317,7 @@ fun PlayerScreen(
         val head = w?.headWallMs ?: tsState.headWallMs
         val tail = w?.tailWallMs ?: tsState.tailWallMs
         if (target >= head - 5_000) {
-            exoHolder.goLive()
+            exoHolder.goLive("scrubbed to the live edge")
         } else {
             exoHolder.playTimeshift(target.coerceAtLeast(tail))
         }
@@ -2845,11 +2845,17 @@ private fun LiveRewindChromeSection(
                 // meaningless positions while BUFFERING, which made
                 // the snap bounce straight back to live on entry
                 // (Streamer field test).
+                // On the server's recording the player's own window says it too: within a few
+                // seconds of its end. Never from the middle of a rewind, whatever the window's
+                // head is believed to be (the Shield went live mid-rewind, 2026-10-18)
+                val p = exoHolder.player
+                val atPlayersEnd = !exoHolder.isServerRewindPlaying() || p == null ||
+                    (p.duration != androidx.media3.common.C.TIME_UNSET && p.duration - p.currentPosition < 8_000)
                 if (!exoHolder.isPaused() &&
-                    exoHolder.player?.playbackState == androidx.media3.common.Player.STATE_READY &&
-                    tsPositionWallMs >= tsState.headWallMs - 4_000
+                    p?.playbackState == androidx.media3.common.Player.STATE_READY &&
+                    tsPositionWallMs >= tsState.headWallMs - 4_000 && atPlayersEnd
                 ) {
-                    exoHolder.goLive()
+                    exoHolder.goLive("caught up with live")
                 }
             }
             kotlinx.coroutines.delay(500)
@@ -3015,12 +3021,12 @@ private fun LiveRewindChromeSection(
             val head = w?.headWallMs ?: tsState.headWallMs
             val tail = w?.tailWallMs ?: tsState.tailWallMs
             if (target >= head - 5_000) {
-                exoHolder.goLive()
+                exoHolder.goLive("skipped to the live edge")
             } else {
                 exoHolder.playTimeshift(target.coerceAtLeast(tail))
             }
         },
-        onGoLive = { exoHolder.goLive() },
+        onGoLive = { exoHolder.goLive("Live pressed") },
         scrubPreviewWallMs = scrubTargetWallMs,
         scrubHudVisible = scrubHudVisible,
         onScrubStep = scrubStep,

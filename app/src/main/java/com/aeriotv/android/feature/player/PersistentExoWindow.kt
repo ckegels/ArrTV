@@ -237,6 +237,15 @@ fun BoxScope.PersistentExoWindow(
         animationSpec = if (reduceMotion) snap() else miniSpec,
         label = "miniStashOffset",
     )
+    // Side menu open over the compact guide: the slot sits under the rail, so
+    // the mini slides right just far enough to leave the rail's items in view.
+    val railOpen by MiniPlayerChrome.railOpen.collectAsStateWithLifecycle()
+    val railShift = slotDp?.let { (com.aeriotv.android.feature.main.TvNavRailWidth + MiniPlayerChrome.miniGap - it.left.dp).coerceAtLeast(0.dp) } ?: 0.dp
+    val railOffset by animateDpAsState(
+        targetValue = if (miniTarget && railOpen) railShift else 0.dp,
+        animationSpec = if (reduceMotion) snap() else miniSpec,
+        label = "miniRailOffset",
+    )
     var stashFadeCover by remember { mutableFloatStateOf(0f) }
     var lastStashTarget by remember { mutableStateOf(stashTarget) }
     LaunchedEffect(stashTarget) {
@@ -281,7 +290,7 @@ fun BoxScope.PersistentExoWindow(
         drawMiniFrame -> Modifier
             .zIndex(1f)
             .align(Alignment.TopEnd)
-            .offset(x = stashOffset)
+            .offset(x = stashOffset + railOffset)
             .padding(end = miniEndInset, top = miniTopInset)
             .size(width = miniWidth, height = miniHeight)
             .shadow(elevation = 10.dp, shape = RoundedCornerShape(miniCorner))

@@ -91,6 +91,11 @@ internal fun TvNavRail(
     onUpdate: (() -> Unit)? = null,
 ) {
     var open by remember { mutableStateOf(false) }
+    // The rail never outlives its flag: a rail torn down while open must not
+    // leave the mini pushed aside.
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose { com.aeriotv.android.feature.player.MiniPlayerChrome.railOpen.value = false }
+    }
     val offset by animateDpAsState(
         targetValue = if (open) 0.dp else -TvNavRailWidth,
         animationSpec = tween(durationMillis = 150),
@@ -105,6 +110,7 @@ internal fun TvNavRail(
             .padding(horizontal = 12.dp, vertical = 24.dp)
             .onFocusChanged {
                 open = it.hasFocus
+                com.aeriotv.android.feature.player.MiniPlayerChrome.railOpen.value = it.hasFocus
                 onFocusChanged(it.hasFocus)
             }
             .onPreviewKeyEvent { e ->

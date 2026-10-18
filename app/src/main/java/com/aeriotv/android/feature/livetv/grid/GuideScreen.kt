@@ -463,7 +463,12 @@ fun GuideScreen(
             viewModel.ensureGuideRange(jumpWindowStart ?: 0L, jumpWindowEnd ?: 0L)
         }
     }
-    val grid = remember { GuideGridState(initialViewportStartMs = System.currentTimeMillis() - 15 * 60_000L) }
+    // Retained across the player round trip (from AerioTV 351f4365; the player route
+    // disposes the guide): a fresh state composed the grid empty and then installed the
+    // whole window, 800 to 1360 ms frames on return. The retained state is reset to what
+    // a new one holds, so focus and viewport land as before; only the rows survive.
+    val grid = remember { RetainedGuideGrid.take(favoritesOnly, System.currentTimeMillis() - 15 * 60_000L) }
+    androidx.compose.runtime.DisposableEffect(grid) { onDispose { RetainedGuideGrid.give(favoritesOnly, grid) } }
     // "Loading…" while the guide is still on its way: widening to a new range,
     // or the first download of a fresh install (no cache yet), which takes
     // ~20 s on a Chromecast HD and read as a broken guide when it said "No info".
@@ -494,6 +499,8 @@ fun GuideScreen(
         ) { GuideGridRows(displayChannels, state.epgByChannel as? GuideCatalog, windowStartMs, windowEndMs) }
     }
     LaunchedEffect(rows) {
+        // Same rows object as the retained state already holds: the install
+        // only lands focus (cheap, no row invalidation).
         grid.installRows(rows)
         // Land the jump once the rows reach far enough to hold it.
         val target = jumpTargetMs
@@ -1588,4 +1595,24 @@ internal object GuideOpenGroups {
     }
 
     fun take(): String? = group.also { group = null }
+}
+
+/**
+ * Holds the guide's [GuideGridState] while the guide is out of composition
+ * (player route), one per guide flavour (Live TV, Favorites). [take] hands it
+ * to exactly one live composition and resets it for entry; [give] returns it
+ * on dispose.
+ */
+internal object RetainedGuideGrid {
+    private val held = HashMap<Boolean, GuideGridState>()
+
+    fun take(favoritesOnly: Boolean, initialViewportStartMs: Long): GuideGridState {
+        val kept = synchronized(held) { held.remove(favoritesOnly) }
+        return kept?.also { it.resetForEntry(initialViewportStartMs) }
+            ?: GuideGridState(initialViewportStartMs = initialViewportStartMs)
+    }
+
+    fun give(favoritesOnly: Boolean, state: GuideGridState) {
+        synchronized(held) { held[favoritesOnly] = state }
+    }
 }

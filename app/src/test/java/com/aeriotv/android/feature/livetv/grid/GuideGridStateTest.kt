@@ -217,4 +217,24 @@ class GuideGridStateTest {
         assertEquals("B", s.focusedCell()!!.title)
         assertTrue(s.atLastCell())
     }
+
+    @Test
+    fun aGuideKeptAcrossThePlayerComesBackAsAFreshOneWouldButKeepsItsRows() {
+        val s = state()
+        val r = rows(espn, fox, programmes = listOf(p(espn, "A", 5 * h, 7 * h), p(fox, "B", 0, 12 * h)))
+        s.installRows(r)
+        s.alignToHalfHour = true
+        s.moveRows(1)
+        s.resetForEntry(8 * h - 15 * m)
+        // The rows stay, so the first frame back is not an empty grid
+        assertTrue(s.rows === r)
+        assertEquals(-1, s.focusRow)
+        assertEquals(8 * h - 15 * m, s.viewportStartMs)
+        assertEquals(8 * h - 15 * m, s.drawViewportStartMs)
+        // ...and the TiviMate layout's half-hour line-up is set again, as for a fresh one
+        assertFalse(s.alignToHalfHour)
+        // The install lands on row zero as a first install does
+        s.installRows(r)
+        assertEquals(0, s.focusRow)
+    }
 }

@@ -1223,6 +1223,15 @@ private fun GridRow(
             val ve = vs + (stripW / pxPerMs).toLong()
             val focusStart = focusedCellStart
             val focusedHere = gridFocused && focusStart != Long.MIN_VALUE
+            // Settled = the eased draw start has reached the logical viewport.
+            val viewportSettled = state.drawViewportStartMs == state.viewportStartMs
+            // Drop cached layouts for programs well outside the drawn window
+            // so the per-row map stays bounded while the user pans.
+            if (textCache.size > CELL_TEXT_CACHE_SOFT_CAP) {
+                val keepFrom = vs - CELL_TEXT_EVICT_MARGIN_MS
+                val keepTo = ve + CELL_TEXT_EVICT_MARGIN_MS
+                textCache.values.removeAll { it.startMs != Long.MIN_VALUE && (it.startMs < keepFrom || it.startMs >= keepTo) }
+            }
             val cells = state.rows.cells(row)
             // The focused cell's span, so the modern now-line can pass behind it.
             var focusedX0 = Float.NaN
@@ -1280,8 +1289,16 @@ private fun GridRow(
                     // Threshold follows the Text Size so the phone row (98dp x
                     // Text Size) keeps its two lines at every stop.
                     val descLines = if (size.height >= 90.dp.toPx() * appTextScale * subRowGrowth) 2 else 1
-                    val key = ((cell.startMillis * 31 + textW) * 4 + descLines) * 2 + (if (compact) 1 else 0)
-                    val text = textCache.getOrPut(key) {
+                    // The width is NOT in the key (from AerioTV 351f4365): a cell clipped at the
+                    // strip edge changes width on every frame of the 0.3 s pan ease, which
+                    // re-measured it per frame and grew the map without bound. One entry per cell
+                    // holds the width it was measured at; while the pan eases the existing layout
+                    // is drawn (clipped by the cell rect), and once the viewport settles a width
+                    // change re-measures, so the resting guide looks exactly as before. Badges,
+                    // the layout and the text size are in the cache's own remember() key.
+                    val key = (cell.startMillis * 4 + descLines) * 2 + (if (compact) 1 else 0)
+                    val cachedText = textCache[key]
+                    val text = if (cachedText != null && (cachedText.measuredW == textW || !viewportSettled)) cachedText else run {
                         fun measure(t: String, st: TextStyle, maxH: Float, ellipsis: Boolean = true, lines: Int = 1) = textMeasurer.measure(
                             text = t, style = st, maxLines = lines,
                             overflow = if (ellipsis) TextOverflow.Ellipsis else TextOverflow.Clip,
@@ -1320,7 +1337,7 @@ private fun GridRow(
                                 .map { measure(it.label, badgeStyle, 12.sp.toPx(), ellipsis = false) to it.color } else emptyList()
                             CellText(title, time, desc, sub, badges)
                         }
-                    }
+                    }.also { if (it !== cachedText) { it.measuredW = textW; it.startMs = cell.startMillis; textCache[key] = it } }
                     val recording = !cell.isPlaceholder && recordingWindows.any { win ->
                         cell.startMillis < win.last && cell.endMillis > win.first
                     }
@@ -1484,6 +1501,8 @@ private const val MIN_CELL_PX = 6f
 /** Compact modern layout (TiviMate): gap between programme cells and their corner radius. */
 private val MODERN_CELL_GAP = 4.dp
 private val MODERN_CELL_CORNER = 4.dp
+private const val CELL_TEXT_CACHE_SOFT_CAP = 48
+private const val CELL_TEXT_EVICT_MARGIN_MS = 12 * 3_600_000L
 private const val RAIL_NAME_KEY = Long.MIN_VALUE + 2
 private const val RAIL_UNDER_NUMBER_KEY = Long.MIN_VALUE + 3
 private const val RAIL_MODERN_NAME_KEY = Long.MIN_VALUE + 4
@@ -1558,4 +1577,9 @@ private class CellText(
     val desc: TextLayoutResult? = null,
     val sub: TextLayoutResult? = null,
     val badges: List<Pair<TextLayoutResult, Color>> = emptyList(),
-)
+) {
+    /** Text column width (px) the program layouts were measured for. */
+    var measuredW: Int = -1
+    /** Program start, for window eviction; MIN_VALUE for rail entries. */
+    var startMs: Long = Long.MIN_VALUE
+}

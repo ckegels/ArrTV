@@ -272,4 +272,25 @@ class GuideGridStateTest {
         s.installRows(rows(espn, fox, programmes = listOf(p(espn, "Now", 6 * h, 8 * h), p(fox, "B", 0, 12 * h))))
         assertEquals("Now", s.focusedCell()!!.title)
     }
+
+    @Test
+    fun aNoInfoFillerIsNotKeptWhenTheGuideComesIn() {
+        val s = state(now = 6 * h + 10 * m)
+        // Cold start: nothing yet, the row is one filler from the window's start
+        s.installRows(rows(espn, fox, programmes = emptyList()))
+        assertTrue(s.focusedCell()!!.isPlaceholder)
+        // The guide comes in with a gap at the start: a filler again from the window's start,
+        // which must not keep the focus a day back -- it lands on what airs now
+        s.installRows(rows(espn, fox, programmes = listOf(p(espn, "Now", 5 * h, 8 * h), p(fox, "B", 0, 12 * h))))
+        assertEquals("Now", s.focusedCell()!!.title)
+    }
+
+    @Test
+    fun aProgrammeThatChangedItsEndIsNotTheSameProgramme() {
+        val s = state(now = 6 * h + 10 * m)
+        s.installRows(rows(espn, programmes = listOf(p(espn, "Early", 5 * h, 6 * h), p(espn, "Now", 6 * h, 8 * h))))
+        s.focusRowAt(0, 5 * h)
+        s.installRows(rows(espn, programmes = listOf(p(espn, "Longer", 5 * h, 7 * h), p(espn, "Later", 7 * h, 8 * h))))
+        assertEquals("Longer", s.focusedCell()!!.title)
+    }
 }

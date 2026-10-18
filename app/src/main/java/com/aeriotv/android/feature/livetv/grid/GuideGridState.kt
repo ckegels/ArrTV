@@ -123,6 +123,12 @@ class GuideGridState(
     fun installRows(newRows: GuideGridRows) {
         val previousId = focusChannelId
         val previousCell = focusCellStartMs
+        // The programme itself, not only where it starts: a "No info" filler before the guide
+        // came in starts where the first real gap filler does (a day back), and keeping that
+        // left the focus off screen with nothing lit and a stale banner (Google TV, cold start)
+        val previousProgramme = if (focusRow in 0 until rows.size) {
+            rows.cells(focusRow).firstOrNull { it.startMillis == previousCell }
+        } else null
         rows = newRows
         if (newRows.isEmpty) { focusRow = -1; focusCellStartMs = Long.MIN_VALUE; return }
         val byId = previousId?.let { newRows.indexOfChannel(it) } ?: -1
@@ -132,12 +138,16 @@ class GuideGridState(
             else -> focusRow.coerceIn(0, newRows.size - 1)
         }
         clampViewport()
-        // The same channel with the same programme still there: focus stays on it. Landing
+        // The same channel with the same programme (start and end, a real one) still there:
+        // focus stays on it. Landing
         // on the anchor instead moved the user's programme back to the cell under the
         // timeline's anchor on every rebuild -- a guide update, the 15-minute roll -- and
         // with the TiviMate half-hour line-up that undid the idle programme-end refocus
         // (a79f8a3a) half a minute later, so OK played the ended programme as look back.
-        if (byId >= 0 && previousCell != Long.MIN_VALUE && newRows.cells(row).any { it.startMillis == previousCell }) {
+        val kept = previousProgramme?.takeIf { !it.isPlaceholder }?.let { was ->
+            newRows.cells(row).any { !it.isPlaceholder && it.startMillis == was.startMillis && it.endMillis == was.endMillis }
+        } == true
+        if (byId >= 0 && previousCell != Long.MIN_VALUE && kept) {
             focusRow = row
             focusChannelId = newRows.channel(row).id
             focusCellStartMs = previousCell

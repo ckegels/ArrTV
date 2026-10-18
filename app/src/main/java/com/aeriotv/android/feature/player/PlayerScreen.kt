@@ -184,6 +184,7 @@ fun PlayerScreen(
     )
     // Settings > Player > Overlay Style: TV info bar (hold OK = options menu).
     val infoBarStyle by settingsVm.playerInfoBarStyle.collectAsStateWithLifecycle(initialValue = false)
+    val sideChannelList by settingsVm.playerSideChannelList.collectAsStateWithLifecycle(initialValue = false)
     // Live Rewind pref, to hint (below) that pause/rewind needs it turned on.
     val liveRewindEnabled by settingsVm.liveRewindEnabled.collectAsStateWithLifecycle(initialValue = true)
     val playerEntry = remember {
@@ -286,6 +287,8 @@ fun PlayerScreen(
         if (resolved != currentIndex) currentIndex = resolved
     }
     val currentChannel = channels.getOrNull(currentIndex)
+    // Read by the remote handler, which is made once: kept current, not captured
+    val groupWatched by androidx.compose.runtime.rememberUpdatedState(currentChannel?.groupTitle.orEmpty())
 
     // Task #148 milestone B: catch-up mode state. scrubTargetWallMs (below)
     // holds PROGRAMME-relative ms in this mode instead of wall-clock.
@@ -2120,8 +2123,18 @@ fun PlayerScreen(
                 }
                 com.aeriotv.android.core.remote.PlayerRemoteAction.CHANNEL_LIST -> {
                     // Left press: Channels overlay (GH #54). A repeat press
-                    // while open just keeps it open; Back dismisses.
-                    if (!isCatchupMode) channelListVisible = true
+                    // while open just keeps it open; Back dismisses. Switched
+                    // off (the default), the main guide instead, the channel
+                    // playing in the corner -- as MINIMIZE_TO_GUIDE does.
+                    if (!sideChannelList && !isCatchupMode) {
+                        // ...with the groups list open on the group being watched
+                        com.aeriotv.android.feature.livetv.grid.GuideOpenGroups.request(groupWatched)
+                        exoWindowState.requestMini()
+                        miniPlayerVm.showMiniPlayer()
+                        onClose()
+                    } else if (!isCatchupMode) {
+                        channelListVisible = true
+                    }
                     true
                 }
                 com.aeriotv.android.core.remote.PlayerRemoteAction.RECENT_CHANNELS -> {

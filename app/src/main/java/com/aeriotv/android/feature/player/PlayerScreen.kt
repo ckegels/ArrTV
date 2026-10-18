@@ -987,6 +987,11 @@ fun PlayerScreen(
             // switch/dead-session detection was needed. That was the reporter's
             // "never recovers until I close and reopen".
             var everSteady = false
+            // GH #117 (from AerioTV c4e82d09): a follow deferred while a 503 quick retry
+            // owned the player. Holds the prime generation seen at deferral; when the
+            // retry has since reopened the source, that reopen is already on the new
+            // upstream and is adopted without a kept-connection skip.
+            var deferredFollowGen: Long? = null
             while (isActive) {
                 delay(backoffMs)
                 if (currentChannel?.id != ch.id) break
@@ -1103,6 +1108,32 @@ fun PlayerScreen(
                     // EXACTLY when this reprime is needed.
                     if (switchStream != null || exoHolder.isReprimeInFlight ||
                         exoHolder.isTimeshifting || currentChannel?.id != ch.id) continue
+                    // GH #117: skip while the 503 quick retry is pending or the
+                    // player is IDLE / BUFFERING with 0 ms buffered (the retry's
+                    // fresh source). Baseline stays put, so the next poll re-arms.
+                    val (unsafe, gen) = withContext(Dispatchers.Main.immediate) {
+                        exoHolder.isFollowUnsafe() to exoHolder.currentPrimeGeneration
+                    }
+                    if (unsafe) {
+                        if (deferredFollowGen == null) {
+                            deferredFollowGen = gen
+                            android.util.Log.i(
+                                "DispatcharrSwitch",
+                                "[FOLLOW] external switch ch=${ch.id} deferred: quick retry or reopen in progress",
+                            )
+                        }
+                        continue
+                    }
+                    val deferredGen = deferredFollowGen
+                    deferredFollowGen = null
+                    if (deferredGen != null && gen != deferredGen) {
+                        android.util.Log.i(
+                            "DispatcharrSwitch",
+                            "[FOLLOW] external switch ch=${ch.id} adopted: source reopened during the retry",
+                        )
+                        baseline = statusUrl
+                        continue
+                    }
                     android.util.Log.w(
                         "DispatcharrSwitch",
                         "[FOLLOW] external switch ch=${ch.id} following onto $statusUrl",

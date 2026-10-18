@@ -2188,7 +2188,11 @@ class AerioExoPlayerHolder @Inject constructor(
             else com.aeriotv.android.core.playback.teletext.teletextTsExtractor()
         } else if (adjuster != null) {
             com.aeriotv.android.core.playback.teletext.plainTsExtractor(adjuster)
-        } else all.firstOrNull { it is TsExtractor }
+        } else if (all.any { it is TsExtractor }) {
+            // Media3's own, but a corrupt AC-3 header resyncs instead of failing the load
+            // (SafeTsExtractor.kt)
+            com.aeriotv.android.core.playback.safeTsExtractor()
+        } else null
         val fmp4: Extractor? = all.firstOrNull {
             it is androidx.media3.extractor.mp4.FragmentedMp4Extractor
         }

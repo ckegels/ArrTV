@@ -2210,8 +2210,15 @@ private fun buildTileMediaSource(
                 .createMediaSource(mediaItem)
         url.endsWith(".ts", ignoreCase = true) ||
             url.contains("/proxy/ts/", ignoreCase = true) -> {
-            val extractors = DefaultExtractorsFactory()
-                .setTsExtractorMode(TsExtractor.MODE_SINGLE_PMT)
+            // Media3's own, but a corrupt AC-3 header resyncs instead of failing the tile's
+            // load (SafeTsExtractor.kt)
+            val extractors = androidx.media3.extractor.ExtractorsFactory {
+                DefaultExtractorsFactory()
+                    .setTsExtractorMode(TsExtractor.MODE_SINGLE_PMT)
+                    .createExtractors()
+                    .map { e -> if (e is TsExtractor) com.aeriotv.android.core.playback.safeTsExtractor() else e }
+                    .toTypedArray()
+            }
             ProgressiveMediaSource.Factory(dataSourceFactory, extractors)
                 .setLoadErrorHandlingPolicy(com.aeriotv.android.core.playback.DispatcharrConnectionLimit.LoadErrorPolicy())
                 .createMediaSource(mediaItem)

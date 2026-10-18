@@ -578,7 +578,7 @@ fun GuideScreen(
     // so neither path went through resetForEntry: coming back after a long idle showed the
     // hours-old viewport. On every foreground start and every tab re-entry, refresh the clock
     // and anchor at now, unless a catch-up return is restoring its own timeline.
-    val guideLifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    // guideLifecycle (above) is this screen's lifecycle owner
     var foregroundStarts by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     androidx.compose.runtime.DisposableEffect(guideLifecycle) {
         // Only an ON_START that follows an ON_STOP is a resume: adding the observer replays

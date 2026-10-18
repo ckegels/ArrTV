@@ -259,4 +259,17 @@ class GuideGridStateTest {
         assertEquals(null, s.boundaryRetarget(6 * h + 10 * m, previousTickMs = 6 * h + 9 * m))
         assertEquals("Early", s.focusedCell()!!.title)
     }
+
+    @Test
+    fun aRebuildOfTheRowsKeepsTheProgrammeTheFocusIsOn() {
+        val s = state(now = 6 * h + 10 * m)
+        s.installRows(rows(espn, fox, programmes = listOf(p(espn, "Early", 5 * h, 6 * h), p(espn, "Now", 6 * h, 8 * h), p(fox, "B", 0, 12 * h))))
+        s.focusRowAt(0, 5 * h)
+        // The same programme on the same channel after new guide data came in: still focused
+        s.installRows(rows(espn, fox, programmes = listOf(p(espn, "Early", 5 * h, 6 * h), p(espn, "Now", 6 * h, 8 * h), p(fox, "B", 0, 12 * h))))
+        assertEquals("Early", s.focusedCell()!!.title)
+        // ...and when it is gone, focus lands at the anchor as before
+        s.installRows(rows(espn, fox, programmes = listOf(p(espn, "Now", 6 * h, 8 * h), p(fox, "B", 0, 12 * h))))
+        assertEquals("Now", s.focusedCell()!!.title)
+    }
 }

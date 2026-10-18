@@ -122,6 +122,7 @@ class GuideGridState(
      */
     fun installRows(newRows: GuideGridRows) {
         val previousId = focusChannelId
+        val previousCell = focusCellStartMs
         rows = newRows
         if (newRows.isEmpty) { focusRow = -1; focusCellStartMs = Long.MIN_VALUE; return }
         val byId = previousId?.let { newRows.indexOfChannel(it) } ?: -1
@@ -131,7 +132,18 @@ class GuideGridState(
             else -> focusRow.coerceIn(0, newRows.size - 1)
         }
         clampViewport()
-        land(row)
+        // The same channel with the same programme still there: focus stays on it. Landing
+        // on the anchor instead moved the user's programme back to the cell under the
+        // timeline's anchor on every rebuild -- a guide update, the 15-minute roll -- and
+        // with the TiviMate half-hour line-up that undid the idle programme-end refocus
+        // (a79f8a3a) half a minute later, so OK played the ended programme as look back.
+        if (byId >= 0 && previousCell != Long.MIN_VALUE && newRows.cells(row).any { it.startMillis == previousCell }) {
+            focusRow = row
+            focusChannelId = newRows.channel(row).id
+            focusCellStartMs = previousCell
+        } else {
+            land(row)
+        }
     }
 
     /** UP/DOWN by [delta] rows. Returns false at the edge so the host can move focus out of the grid. */

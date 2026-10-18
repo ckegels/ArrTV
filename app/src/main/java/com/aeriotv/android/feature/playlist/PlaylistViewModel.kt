@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
@@ -400,7 +401,20 @@ class PlaylistViewModel @Inject constructor(
         }
     }
 
+    /** Playlist whose catalog rebuild was skipped for want of channels (rebuildGuideCatalog). */
+    @Volatile private var pendingCatalogRebuild: String? = null
+
     init {
+        // A guide rebuild that came before the channels runs once they are there
+        viewModelScope.launch {
+            _state.map { it.channels.isNotEmpty() }.distinctUntilChanged().collect { has ->
+                if (!has) return@collect
+                val pending = pendingCatalogRebuild ?: return@collect
+                val playlist = _state.value.playlist?.takeIf { it.id == pending } ?: return@collect
+                pendingCatalogRebuild = null
+                rebuildGuideCatalog(playlist, "deferred")
+            }
+        }
         // A silent re-login replaced a rejected api_key: the player's stream
         // headers are built from this copy, so it must carry the new key or
         // every retry is refused (401) until the app restarts.
@@ -1300,7 +1314,14 @@ class PlaylistViewModel @Inject constructor(
         preloadedRows: List<EPGProgramme>? = null,
     ) {
         val channels = _state.value.channels
-        if (channels.isEmpty()) return
+        if (channels.isEmpty()) {
+            // Used to return silently (from AerioTV e21e9640): a cached paint that ran
+            // before the channels landed left the guide with no catalog -- filler rows --
+            // until a manual refresh. Run again once channels arrive.
+            pendingCatalogRebuild = playlist.id
+            Log.i(TAG, "guide catalog rebuild ($reason) deferred: no channels yet")
+            return
+        }
         val (fromMillis, toMillis) = guideWindow(playlist)
         val stableOrder = appPreferences.dispatcharrLiveUpdates.first()
         val t0 = android.os.SystemClock.elapsedRealtime()

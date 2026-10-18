@@ -145,8 +145,8 @@
     <string name="main_configure_username">Nom d\'utilisateur</string>
     <string name="main_configure_password">Mot de passe</string>
     <string name="main_configure_missing_api_key">La clé API</string>
-    <string name="main_configure_dispatcharr_username_placeholder">Nom d\'utilisateur administrateur Dispatcharr</string>
-    <string name="main_configure_dispatcharr_password_placeholder">Mot de passe administrateur Dispatcharr</string>
+    <string name="main_configure_dispatcharr_username_placeholder">Votre nom d\'utilisateur Dispatcharr</string>
+    <string name="main_configure_dispatcharr_password_placeholder">Votre mot de passe Dispatcharr</string>
     <string name="main_configure_dispatcharr_password_hint">Utilisez le mot de passe du tableau de bord Dispatcharr (System -> Users -> onglet Account), pas votre mot de passe XC Dispatcharr.</string>
     <string name="main_configure_userpass_info">Enregistre les identifiants et actualise automatiquement. AerioTV se connecte avec ces identifiants, puis maintient votre session active en arrière-plan. Si votre administrateur Dispatcharr change votre clé API, AerioTV se reconnecte sans rien vous demander. Les identifiants sont stockés dans l\'espace chiffré d\'Android.</string>
     <string name="main_configure_xc_username_placeholder">Nom d\'utilisateur XC</string>
@@ -167,8 +167,8 @@
         <item quantity="many">%1$d champs à vérifier.</item>
         <item quantity="other">%1$d champs à vérifier.</item>
     </plurals>
-    <string name="main_configure_vod_enabled">Charger « À la demande » depuis cette playlist</string>
-    <string name="main_configure_vod_enabled_info">Désactivé, les films et séries de cette playlist ne sont pas chargés dans À la demande. Utile si vous ne voulez que la TV en direct de ce serveur, ou si une autre playlist fournit déjà À la demande. Vous pourrez changer cela plus tard dans les Paramètres.</string>
+    <string name="main_configure_vod_enabled">Charger les films et séries</string>
+    <string name="main_configure_vod_enabled_info">Désactivé : seules la TV en direct et le guide sont chargés, plus rapide sur un boîtier TV. Activez-le maintenant ou plus tard dans Paramètres › Playlists › Modifier la playlist.</string>
     <string name="main_configure_dvr_destination">Destination des enregistrements par défaut</string>
     <string name="main_configure_dvr_destination_server">Serveur (Dispatcharr)</string>
     <string name="main_configure_dvr_destination_device">Cet appareil</string>
@@ -241,4 +241,17 @@
     <string name="main_pl_using_local">Serveur local joignable, URL locale utilisée</string>
     <string name="main_pl_using_remote">URL distante utilisée</string>
     <string name="main_pl_switch_failed">Échec du changement : %1$s</string>
+
+    <!-- First run: language step, Dispatcharr-first welcome, other sources -->
+    <string name="main_onboarding_language_title">Language · Langue</string>
+    <string name="main_onboarding_language_subtitle">Choisissez la langue de %1$s. Vous pourrez la changer plus tard dans Paramètres › Apparence.</string>
+    <string name="main_welcome_connect_dispatcharr">Se connecter à Dispatcharr</string>
+    <string name="main_welcome_connect_dispatcharr_subtitle">Connectez-vous avec votre nom d\'utilisateur et votre mot de passe Dispatcharr. Fonctionne au mieux avec Dispatch More sur le serveur.</string>
+    <string name="main_welcome_other_sources">Autres options</string>
+    <string name="main_welcome_other_sources_header">Autres sources (non prises en charge)</string>
+    <string name="main_choose_unsupported_header">Non pris en charge</string>
+    <string name="main_choose_unsupported_note">%1$s est conçu pour Dispatcharr avec Dispatch More. Les playlists Xtream Codes et M3U restent lisibles, mais ne sont pas prises en charge : les mises à jour en direct, les enregistrements sur le serveur, les rapports de problème et le choix du guide nécessitent Dispatcharr.</string>
+    <string name="main_choose_other_title">Autres sources</string>
+    <string name="main_configure_server_details">Détails du serveur</string>
+    <string name="main_configure_sign_in">Se connecter</string>
 </resources>

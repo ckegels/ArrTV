@@ -2949,7 +2949,8 @@ private fun LiveRewindChromeSection(
         // Live TV with pause/rewind OFF: the transport comes from Live Rewind,
         // so hint that it's a setting rather than silently showing no controls.
         // Only when the channel COULD buffer (raw TS) -- not HLS/DASH live.
-        showLiveRewindHint = !isCatchupMode && !liveRewindEnabled &&
+        // Not where the server keeps the recording: rewind is on there without the setting
+        showLiveRewindHint = !isCatchupMode && !liveRewindEnabled && !tsState.buffering &&
             currentChannel?.url?.takeIf { it.isNotBlank() }
                 ?.let { exoHolder.canBufferLiveRewind(it) } == true,
         // Task #148 milestone B: catch-up transport context.

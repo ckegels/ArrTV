@@ -1759,6 +1759,8 @@ class AppPreferences @Inject constructor(
     /** Live Rewind (task #143): master enable. Off until the user
      *  accepts the onboarding/update prompt (P2) or flips the toggle. */
     val liveRewindEnabled: kotlinx.coroutines.flow.Flow<Boolean> =
+        // The TV's own buffer only: a Dispatch More server's rewind is used whenever the server
+        // offers it, whatever this says (TimeshiftController, the user 2026-10-18)
         store.data.map { it[KEY_LIVE_REWIND_ENABLED] ?: false }
     suspend fun setLiveRewindEnabled(value: Boolean) {
         store.edit { it[KEY_LIVE_REWIND_ENABLED] = value }

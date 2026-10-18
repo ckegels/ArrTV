@@ -1428,6 +1428,26 @@ fun PlayerScreen(
             subtitle = currentChannel?.name,
         )
     }
+    // A session the server refuses at once -- a look back restored after Android killed the
+    // app in the background comes back with its old session id, which the server has ended
+    // (401 "Catch-up Unavailable" on the Google TV, 2026-10-18) -- gets one fresh session at
+    // the same spot before the error card stays.
+    var staleSessionReminted by remember { mutableStateOf(false) }
+    LaunchedEffect(streamUnavailable) {
+        if (!streamUnavailable || !isNativeCatchup || staleSessionReminted) return@LaunchedEffect
+        val code = exoHolder.lastCatchupHttpCode ?: return@LaunchedEffect
+        if (code !in setOf(400, 401, 403, 404, 410)) return@LaunchedEffect
+        staleSessionReminted = true
+        val outgoing = catchupCurrentUrl
+        val at = catchupPositionMs
+        val minted = onRemintCatchup(catchupChannelUuid, outgoing, catchupStartMillis + at)
+        if (minted == null) {
+            Log.w(TAG, "[CATCHUP] session refused ($code); a fresh one could not be made")
+            return@LaunchedEffect
+        }
+        Log.i(TAG, "[CATCHUP] session refused ($code); fresh session at ${at / 1000}s")
+        retuneCatchup(minted, at)
+    }
     // Commit a catch-up scrub: native sessions mint at the EXACT second
     // (serialized; rapid skips coalesce to the latest target - see
     // VODPlayerScreen's twin); XC rebuilds the wall-clock URL at the floored

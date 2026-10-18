@@ -788,6 +788,12 @@ class AerioExoPlayerHolder @Inject constructor(
      *  other path (watchdog, error reload, 503 backoff) already re-primed. */
     @Volatile private var primeGeneration = 0L
 
+    /** The HTTP status of the last terminal look-back error, or null. PlayerScreen reads it
+     *  to tell a session the server no longer knows (a look back restored after the process
+     *  was killed) from an archive that is really not there. */
+    @Volatile var lastCatchupHttpCode: Int? = null
+        private set
+
     /** Read-only view of [primeGeneration] for the follow-poller: a deferred
      *  follow that sees it move knows the connection was reopened meanwhile. */
     val currentPrimeGeneration: Long get() = primeGeneration
@@ -1700,6 +1706,7 @@ class AerioExoPlayerHolder @Inject constructor(
                     }
                     return
                 }
+                lastCatchupHttpCode = httpCode
                 Log.w(TAG, "[CATCHUP] terminal error ${error.errorCodeName}; staying (no live re-prime)")
                 // Task #148 milestone B: surface it - the unified TV player
                 // renders its catch-up error overlay off these (a provider
@@ -2554,6 +2561,7 @@ class AerioExoPlayerHolder @Inject constructor(
         lastGapKey = null
         gapHops = 0
         if (!catchupRetryPass) catchupDecodeRetries = 0
+        lastCatchupHttpCode = null
         lastCatchupUrl = url
         lastCatchupTitle = title
         lastCatchupSubtitle = subtitle

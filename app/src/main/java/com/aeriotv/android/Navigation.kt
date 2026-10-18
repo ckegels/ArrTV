@@ -716,6 +716,14 @@ fun AerioTVNavHost(
                     )
                 } else WelcomeScreen(
                     onConnectServer = { navController.navigate(Routes.CHOOSE_TYPE) },
+                    // A Dispatcharr server found on the local network: straight
+                    // to its login with the address (and a name) filled in.
+                    onPickDiscoveredServer = { server ->
+                        vm.startNewSource(SourceType.DispatcharrUserPass)
+                        vm.onUrlChange(server.baseUrl)
+                        vm.onNameChange(server.displayName)
+                        navController.navigate(Routes.configure(SourceType.DispatcharrUserPass))
+                    },
                     // "Skip for now" is iOS parity. With no playlist saved the channel
                     // list is empty; user can reach Settings -> Change playlist later.
                     // The flag stops MAIN's NeedsUrl guard from bouncing right back.

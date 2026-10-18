@@ -237,4 +237,26 @@ class GuideGridStateTest {
         s.installRows(r)
         assertEquals(0, s.focusRow)
     }
+
+    @Test
+    fun anIdleGuideMovesFocusOffAProgrammeThatJustEnded() {
+        val s = state(now = 6 * h + 10 * m)
+        s.installRows(rows(espn, fox, programmes = listOf(p(espn, "Early", 5 * h, 6 * h), p(espn, "Now", 6 * h, 8 * h), p(fox, "B", 0, 12 * h))))
+        s.focusRowAt(0, 5 * h)
+        assertEquals("Early", s.focusedCell()!!.title)
+        // It ended since the last tick (6:00 lies between the ticks): focus moves to what airs now
+        val moved = s.boundaryRetarget(6 * h + 10 * m, previousTickMs = 5 * h + 59 * m)
+        assertEquals("Early" to "Now", moved!!.first.title to moved.second.title)
+        assertEquals("Now", s.focusedCell()!!.title)
+    }
+
+    @Test
+    fun butAProgrammeTheUserChoseLongAfterItEndedStaysFocused() {
+        // Browsing the past (ArrTV's guide history): it ended well before the last tick
+        val s = state(now = 6 * h + 10 * m)
+        s.installRows(rows(espn, fox, programmes = listOf(p(espn, "Early", 5 * h, 6 * h), p(espn, "Now", 6 * h, 8 * h), p(fox, "B", 0, 12 * h))))
+        s.focusRowAt(0, 5 * h)
+        assertEquals(null, s.boundaryRetarget(6 * h + 10 * m, previousTickMs = 6 * h + 9 * m))
+        assertEquals("Early", s.focusedCell()!!.title)
+    }
 }

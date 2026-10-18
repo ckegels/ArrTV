@@ -326,6 +326,27 @@ class GuideGridState(
         return true
     }
 
+    /**
+     * Idle boundary refocus: the focused program has ended on [nowMs], so move
+     * focus to the program airing now on the SAME row. Vertical-axis no-op:
+     * the row, the viewport and the anchor are untouched; only the focused
+     * cell on the row changes, and only to a cell that is on screen. Returns
+     * (ended, airing) when it moved, else null.
+     */
+    fun boundaryRetarget(nowMs: Long, previousTickMs: Long): Pair<EPGProgramme, EPGProgramme>? {
+        val cur = focusedCell() ?: return null
+        if (cur.endMillis > nowMs) return null
+        // Only a program that ENDED since the previous clock tick moves on. A
+        // program that was already over (the user stepped back onto an aired
+        // airing to play its catch-up) keeps focus, or OK would tune live.
+        if (cur.endMillis <= previousTickMs) return null
+        val next = rows.cellAt(focusRow, nowMs) ?: return null
+        if (next.startMillis == cur.startMillis) return null
+        if (next.startMillis >= viewportEndMs || next.endMillis <= viewportStartMs) return null
+        focusCellStartMs = next.startMillis
+        return cur to next
+    }
+
     /** The Back ladder: away from now -> restore now and top; not at top -> top; else nothing. */
     fun back(nowMs: Long): BackStep {
         if (rows.isEmpty) return BackStep.NONE

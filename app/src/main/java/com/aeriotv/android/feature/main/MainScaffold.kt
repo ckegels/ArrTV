@@ -1854,7 +1854,9 @@ private fun MainTabContent(
                 )
             }
             AppTab.Favorites -> {
-    FavoritesTabContent(onChannelClick = onChannelClick)
+    // TV Favorites guide: OK on an aired cell plays catch-up (from AerioTV cc2c37c7;
+    // there was no route here, so nothing played)
+    FavoritesTabContent(onChannelClick = onChannelClick, onPlayCatchup = onPlayCatchup)
             }
             AppTab.DVR -> {
                 // Media center on every form factor (TV joined 2026-09-10).

@@ -677,10 +677,17 @@ fun GuideScreen(
     // on the channel that is still playing (now in the mini player), not
     // wherever the grid was before. Keyed on the mini's channel so it fires
     // on the fullscreen -> mini hand-off and stays quiet otherwise.
+    var miniAnchoredFor by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(miniChannelId, rows.isEmpty, tabActive) {
+        if (miniChannelId == null) miniAnchoredFor = null
         if (!tabActive) return@LaunchedEffect
         val id = miniChannelId ?: return@LaunchedEffect
         if (!isTv || rows.isEmpty) return@LaunchedEffect
+        // GH #128 (from AerioTV cc2c37c7): the guide opened from fullscreen lands on NOW
+        // as well as the playing channel (a held Left used to leave it panned back). A
+        // catch-up return restores its own timeline in the effect below.
+        if (id != miniAnchoredFor && !GuideCatchupReturn.pending()) grid.anchorToNow(System.currentTimeMillis())
+        miniAnchoredFor = id
         val found = grid.focusChannel(id)
         val requested = if (found) runCatching { gridFocus.requestFocus() }.getOrDefault(false) else false
         if (isTv) {
@@ -1575,6 +1582,8 @@ internal object GuideCatchupReturn {
     }
 
     fun consume(): Target? = pending.also { pending = null }
+
+    fun pending(): Boolean = pending != null
 }
 
 /** Share of a phone guide row (98dp) taken by secondary lines; drives Subtext Size growth. */

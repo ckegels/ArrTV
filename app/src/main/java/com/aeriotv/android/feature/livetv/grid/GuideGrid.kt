@@ -246,8 +246,36 @@ fun GuideGrid(
     }
     // Trace (AerioFocus): which branch decided the key; set inside the handler.
     var traceBy = "none"
+    // GH #128 (from AerioTV cc2c37c7): a key held in fullscreen (Left = back to the
+    // guide, or Back) keeps auto-repeating after the guide opens; those repeats must not
+    // pan the timeline back in time. Any Left / Right / Back repeat whose first press the
+    // grid never saw is swallowed, with its key-up, so the guide stays on now and the
+    // playing channel. A long Left that starts in the guide (back in time) is untouched.
+    // Plain sets: never read in composition.
+    val keysDownSeen = remember { HashSet<Key>() }
+    val keysSwallowing = remember { HashSet<Key>() }
     val keyHandlerInner: (KeyEvent) -> Boolean = handler@{ event ->
         traceBy = "unhandled"
+        if (event.key == Key.DirectionLeft || event.key == Key.DirectionRight || event.key == Key.Back) {
+            val rc = (event.nativeKeyEvent as? AndroidKeyEvent)?.repeatCount ?: 0
+            when (event.type) {
+                KeyEventType.KeyDown -> {
+                    if (rc == 0) { keysDownSeen.add(event.key); keysSwallowing.remove(event.key) }
+                    else if (event.key !in keysDownSeen) {
+                        if (keysSwallowing.add(event.key)) {
+                            android.util.Log.i("GuideGrid", "[PRESS] swallowed repeat after guide open (${guideTraceKeyName(event) ?: event.key})")
+                        }
+                        traceBy = "swallowed-repeat"
+                        return@handler true
+                    }
+                }
+                KeyEventType.KeyUp -> {
+                    keysDownSeen.remove(event.key)
+                    if (keysSwallowing.remove(event.key)) { traceBy = "swallowed-repeat-up"; return@handler true }
+                }
+                else -> Unit
+            }
+        }
         if (clockSelected) {
             traceBy = "clock"
             val native = event.nativeKeyEvent as? AndroidKeyEvent

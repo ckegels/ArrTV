@@ -355,7 +355,8 @@ fun DvrMediaTabContent(
         return buildList {
             add(com.aeriotv.android.core.tv.TvMenuAction(context.getString(R.string.media_program_info)) { showInfo(rec) })
             if (s == DvrViewModel.Recording.Status.Completed || s == DvrViewModel.Recording.Status.Stopped) {
-                add(com.aeriotv.android.core.tv.TvMenuAction(context.getString(R.string.common_play)) { play(rec) })
+                // From AerioTV 703ad30f: the same label and action as the card's primary button
+                add(com.aeriotv.android.core.tv.TvMenuAction(context.getString(if (progressOf(rec) > 0f) R.string.media_resume else R.string.common_play)) { play(rec) })
                 if (isServer) {
                     add(com.aeriotv.android.core.tv.TvMenuAction(context.getString(R.string.media_watch_from_beginning)) { playFromStart(rec) })
                     // Save to Device is a read (GET the file), never gated.
@@ -367,6 +368,9 @@ fun DvrMediaTabContent(
             }
             if (s == DvrViewModel.Recording.Status.Recording) {
                 if (rec.inProgressUrl != null) {
+                    // Saved progress offers Resume first (play() on an in-progress row resumes
+                    // the saved position)
+                    if (progressOf(rec) > 0f) add(com.aeriotv.android.core.tv.TvMenuAction(context.getString(R.string.media_resume)) { play(rec) })
                     add(com.aeriotv.android.core.tv.TvMenuAction(context.getString(R.string.media_start_at_live)) { jumpToLive(rec) })
                     add(com.aeriotv.android.core.tv.TvMenuAction(context.getString(R.string.media_watch_from_beginning)) { playFromStart(rec) })
                 }

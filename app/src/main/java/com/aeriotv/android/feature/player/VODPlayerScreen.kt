@@ -655,7 +655,9 @@ fun VODPlayerScreen(
                 Log.i(TAG, "[DVR] seek to ${rawTarget / 1000}s (written end ${writtenEnd?.div(1000) ?: "?"}s)")
                 if (writtenEnd != null) {
                     val maxPos = (writtenEnd - DVR_WRITTEN_END_GUARD_MS).coerceAtLeast(0L)
-                    if (target > maxPos) {
+                    // >=: the scrub and skip paths already cap their target at the
+                    // same guard, so a capped request arrives equal (from AerioTV cc3dc11c)
+                    if (target >= maxPos) {
                         Log.i(TAG, "[DVR] seek clamped ${target / 1000}s -> ${maxPos / 1000}s (written end ${writtenEnd / 1000}s)")
                         target = maxPos
                     }
@@ -900,7 +902,10 @@ fun VODPlayerScreen(
         // next open instead of resuming into its last minutes. Movies get
         // the same rule from the detail screen's Play / Resume split; a
         // recording has no detail screen, so the player applies it.
-        val finishedRecording = progressMeta?.vodType == "recording" &&
+        // Not for an in-progress recording (from AerioTV cc3dc11c): its duration keeps
+        // growing, so a position near the old written end read as "finished" and Resume
+        // restarted from 0.
+        val finishedRecording = progressMeta?.vodType == "recording" && !isDvr &&
             existing != null && existing.isFinished
         savedPositionMs = PhoneVodMini.resumePosition(videoId, if (finishedRecording) -1L else existing?.positionMs ?: -1L)
     }

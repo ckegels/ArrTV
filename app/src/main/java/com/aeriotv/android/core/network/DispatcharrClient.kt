@@ -212,9 +212,17 @@ class DispatcharrClient @Inject constructor() {
         }
         return try {
             response.body()
-        } catch (e: SerializationException) {
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Ktor 3 wraps decode failures in JsonConvertException, and a
+            // non-Dispatcharr URL answering 200 HTML throws
+            // NoTransformationFoundException; neither is a
+            // SerializationException, so catch broadly and name the step.
             throw DispatcharrError.UnexpectedResponse(
-                AppText.get(R.string.core_dispatcharr_login_unexpected),
+                // The step stays named in the app's language; the missing field (from AerioTV
+                // 6dde44ec) is the server's own word for it
+                AppText.get(R.string.core_dispatcharr_login_unexpected) + missingFieldSuffix(e),
             )
         }
     }
@@ -260,9 +268,11 @@ class DispatcharrClient @Inject constructor() {
         }
         val body: RefreshResponse = try {
             response.body()
-        } catch (e: SerializationException) {
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
             throw DispatcharrError.UnexpectedResponse(
-                AppText.get(R.string.core_dispatcharr_refresh_unexpected),
+                AppText.get(R.string.core_dispatcharr_refresh_unexpected) + missingFieldSuffix(e),
             )
         }
         return body.access
@@ -291,9 +301,11 @@ class DispatcharrClient @Inject constructor() {
         }
         val me: MeResponse = try {
             response.body()
-        } catch (e: SerializationException) {
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
             throw DispatcharrError.UnexpectedResponse(
-                AppText.get(R.string.core_dispatcharr_profile_unexpected),
+                AppText.get(R.string.core_dispatcharr_profile_unexpected) + missingFieldSuffix(e),
             )
         }
         // An account without an api_key is a fixable server-side state, not
@@ -3919,3 +3931,22 @@ data class RewindWindow(
     val playlist: String = "",
 )
 
+/** Field name from a kotlinx.serialization "missing field" failure, searched
+ *  through the cause chain (Ktor wraps it), or null. */
+internal fun missingFieldName(t: Throwable): String? {
+    var cur: Throwable? = t
+    var depth = 0
+    while (cur != null && depth < 6) {
+        cur.message?.let { msg ->
+            Regex("""[Ff]ields? \[?'?"?([A-Za-z0-9_]+)""").find(msg)
+                ?.takeIf { msg.contains("missing", ignoreCase = true) }
+                ?.let { return it.groupValues[1] }
+        }
+        cur = cur.cause
+        depth++
+    }
+    return null
+}
+
+internal fun missingFieldSuffix(t: Throwable): String =
+    missingFieldName(t)?.let { " (missing '$it')" } ?: ""

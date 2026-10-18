@@ -261,4 +261,5 @@
     <string name="main_choose_other_title">Autres sources</string>
     <string name="main_configure_server_details">Détails du serveur</string>
     <string name="main_configure_sign_in">Se connecter</string>
+    <string name="main_configure_api_key_required_note">Votre compte Dispatcharr doit déjà avoir une clé API. Dans Dispatcharr, ouvrez Système, puis Utilisateurs, modifiez l’utilisateur et générez une clé API avant de vous connecter ici.</string>
 </resources>

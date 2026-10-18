@@ -504,6 +504,13 @@ private fun DispatcharrLoginFields(
                 style = MaterialTheme.typography.bodySmall.subtext(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // From AerioTV 6dde44ec: sign-in with a password only works for an account that
+            // already has an API key, and nothing said so
+            Text(
+                text = stringResource(R.string.main_configure_api_key_required_note),
+                style = MaterialTheme.typography.bodySmall.subtext(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             if (showInfo) InfoBanner(
                 text = stringResource(R.string.main_configure_userpass_info),
             )

@@ -3827,7 +3827,8 @@ private fun List<DispatcharrEpgEntry>.toProgrammes(): List<EPGProgramme> =
             isRepeat = entry.isPreviouslyShown,
             // Newer grids sometimes carry the programme icon; when they do the
             // banner / Program Info get real art with no detail fetch at all.
-            iconUrl = entry.icon?.takeIf { it.isNotBlank() },
+            // A dummy-EPG programme's poster comes from custom_properties (#132)
+            iconUrl = entry.artworkUrl,
         )
     }
 

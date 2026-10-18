@@ -1181,7 +1181,10 @@ fun GuideScreen(
                 },
                 descriptionFocus = bannerFocus,
                 downTarget = if (pillsShown) pillsFocus else gridFocus,
-                upTarget = topNav,
+                // No tab bar above (ArrTV's side menu): Up stops at the description. A
+                // geometric search found the side menu's bottom item, with the rest of the
+                // menu hidden behind the playing preview.
+                upTarget = topNav ?: androidx.compose.ui.focus.FocusRequester.Cancel,
                 onDown = if (pillsShown) null else ({ clockSelectTrigger += 1; true }),
             )
         } else if (previewMode) {
@@ -1198,7 +1201,10 @@ fun GuideScreen(
                 },
                 descriptionFocus = bannerFocus,
                 downTarget = if (pillsShown) pillsFocus else gridFocus,
-                upTarget = topNav,
+                // No tab bar above (ArrTV's side menu): Up stops at the description. A
+                // geometric search found the side menu's bottom item, with the rest of the
+                // menu hidden behind the playing preview.
+                upTarget = topNav ?: androidx.compose.ui.focus.FocusRequester.Cancel,
                 // tvOS: Down from the description lands on the clock when
                 // there is no pill row between them.
                 onDown = if (pillsShown) null else ({ clockSelectTrigger += 1; true }),

@@ -1147,7 +1147,20 @@ class DvrViewModel @Inject constructor(
         val epgByChannel = if (tvgByChannelId.isEmpty() || from <= 0L || to <= from) {
             emptyMap()
         } else {
-            playlistRepository.loadCachedEpg(playlistId, from, to).groupBy { it.channelId }
+            // Best effort (from AerioTV 8013e536): a failed cache read leaves the
+            // recordings without guide details instead of failing the refresh's
+            // coroutine, which is uncaught and took the whole app down (upstream's
+            // Streamer, 2026-10-03). Nothing is answered then -- an answer is kept
+            // and not asked again (arr.107), and "not in the guide" would be wrong.
+            // Cancellation is rethrown, so a cancelled refresh still stops here.
+            try {
+                playlistRepository.loadCachedEpg(playlistId, from, to).groupBy { it.channelId }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.w("DvrViewModel", "lookUpInGuide: EPG cache read failed", e)
+                return
+            }
         }
         for (r in recordings) {
             val prog = tvgByChannelId[r.dispatcharrChannelId]

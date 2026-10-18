@@ -124,6 +124,10 @@
     <string name="watch_together_disconnect">Déconnecter</string>
     <string name="watch_together_leads">mène</string>
     <string name="watch_together_close">Fermer</string>
+    <string name="watch_together_following_in">Suit dans %1$d s</string>
+    <string name="watch_together_follow_tv_hint">OK : rester sur votre chaîne</string>
+    <string name="watch_together_dont_follow">Ne pas suivre</string>
+    <string name="watch_together_follow_now">Suivre maintenant</string>
     <string name="watch_together_hint">%1$s regarde %2$s</string>
     <string name="watch_together_hint_tv">OK : regarder ensemble</string>
     <string name="watch_together_hint_phone">Touchez pour regarder ensemble</string>

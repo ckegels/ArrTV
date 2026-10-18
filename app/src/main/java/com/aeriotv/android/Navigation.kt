@@ -265,6 +265,7 @@ fun AerioTVNavHost(
     com.aeriotv.android.feature.player.WatchTogetherPrompts()
     com.aeriotv.android.feature.player.WatchTogetherSheet()
     com.aeriotv.android.feature.player.WatchTogetherHint()
+    com.aeriotv.android.feature.player.WatchTogetherFollowCard()
     // At the start of the app, once: a link left from before ends, and a device that is
     // watching -- this login's, or another person's in the house -- is shown on the start card.
     // Here, not on the guide: a TV opens a stream at once and the guide is never up (the user)

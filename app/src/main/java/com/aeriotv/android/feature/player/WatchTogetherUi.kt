@@ -50,13 +50,12 @@ internal fun deviceOfPerson(name: String, user: String): String =
     listOf(user, name).filter { it.isNotBlank() }.joinToString(" · ")
 
 /**
- * The two pop-ups. Joining: Allow / Decline, Allow when unanswered. Following: Follow / Stay,
- * Follow when unanswered; Stay or the pop-up dismissed keeps this channel (the other leaves).
+ * Another person's request to join this device: Allow / Decline, Allow when unanswered. (A
+ * channel change to follow is the small card at the top right instead, WatchTogetherFollowCard.)
  */
 @Composable
 fun WatchTogetherPrompts() {
     val join by WatchTogether.joinRequest.collectAsStateWithLifecycle()
-    val follow by WatchTogether.followRequest.collectAsStateWithLifecycle()
     join?.let { request ->
         Countdown(request) { WatchTogether.answer(allow = true) }.let { left ->
             val focus = remember { FocusRequester() }
@@ -84,40 +83,6 @@ fun WatchTogetherPrompts() {
                 dismissButton = {
                     TextButton(onClick = { WatchTogether.answer(allow = false) }) {
                         Text(stringResource(R.string.watch_together_decline))
-                    }
-                },
-            )
-            FocusOn(focus, request)
-        }
-    }
-    follow?.let { request ->
-        Countdown(request) { WatchTogether.follow() }.let { left ->
-            val focus = remember { FocusRequester() }
-            val who = deviceOfPerson(request.name, request.user)
-            AlertDialog(
-                containerColor = solidDialog(),
-                titleContentColor = MaterialTheme.colorScheme.onSurface,
-                textContentColor = MaterialTheme.colorScheme.onSurface,
-                onDismissRequest = { WatchTogether.stay() },
-                title = { Text(stringResource(R.string.watch_together_follow_title, who)) },
-                text = {
-                    Text(
-                        stringResource(
-                            R.string.watch_together_follow_message,
-                            who,
-                            request.channelName.ifBlank { request.channel.take(8) },
-                        ),
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = { WatchTogether.follow() },
-                        modifier = Modifier.focusRequester(focus),
-                    ) { Text(stringResource(R.string.watch_together_follow, left)) }
-                },
-                dismissButton = {
-                    TextButton(onClick = { WatchTogether.stay() }) {
-                        Text(stringResource(R.string.watch_together_stay))
                     }
                 },
             )
@@ -301,6 +266,94 @@ fun TvWatchTogetherCircle(modifier: Modifier = Modifier) {
     )
 }
 
+
+/** A channel change is only shown once the other has stayed on it this long: zapping through
+ *  four channels was four pop-ups (the user, 2026-10-18), now it is one card, for the last. */
+internal const val SETTLE_SECONDS = 5
+
+/**
+ * The device this one watches together with changed channel: a small card at the top right,
+ * over whatever plays -- "SHIELD switched to SAT.1 · following in 10 s" -- once that channel
+ * has been kept [SETTLE_SECONDS], one card at a time (a newer change replaces it). Ten seconds
+ * unanswered is Follow; "Don't follow" stands out: on a TV, OK or Back is Don't follow
+ * (WatchTogether.cardKey), on a phone it is the highlighted button beside "Follow now".
+ */
+@Composable
+fun WatchTogetherFollowCard() {
+    val request by WatchTogether.followRequest.collectAsStateWithLifecycle()
+    var shown by remember { androidx.compose.runtime.mutableStateOf<WatchTogether.FollowRequest?>(null) }
+    var left by remember { mutableIntStateOf(ANSWER_SECONDS) }
+    LaunchedEffect(request) {
+        shown = null
+        WatchTogether.followShown.value = false
+        val current = request ?: return@LaunchedEffect
+        kotlinx.coroutines.delay(SETTLE_SECONDS * 1_000L)
+        left = ANSWER_SECONDS
+        shown = current
+        WatchTogether.followShown.value = true
+        while (left > 0) {
+            kotlinx.coroutines.delay(1_000)
+            left -= 1
+        }
+        WatchTogether.followShown.value = false
+        if (WatchTogether.followRequest.value == current) WatchTogether.follow()
+    }
+    val current = shown ?: return
+    val tv = com.aeriotv.android.ui.settings.rememberIsTvDevice()
+    val who = deviceOfPerson(current.name, current.user)
+    androidx.compose.ui.window.Popup(
+        alignment = Alignment.TopEnd,
+        offset = androidx.compose.ui.unit.IntOffset(-24, 24),
+        properties = androidx.compose.ui.window.PopupProperties(focusable = false),
+    ) {
+        androidx.compose.material3.Surface(
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+            color = solidDialog(),
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            tonalElevation = 6.dp,
+            shadowElevation = 8.dp,
+            modifier = Modifier.widthIn(max = 360.dp),
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    androidx.compose.material3.Icon(Icons.Outlined.Groups, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Column {
+                        Text(
+                            stringResource(
+                                R.string.watch_together_follow_message,
+                                who,
+                                current.channelName.ifBlank { current.channel.take(8) },
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            stringResource(R.string.watch_together_following_in, left),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                if (tv) {
+                    Text(
+                        stringResource(R.string.watch_together_follow_tv_hint),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { WatchTogether.stay() }) { Text(stringResource(R.string.watch_together_dont_follow)) }
+                        TextButton(onClick = { WatchTogether.follow() }) { Text(stringResource(R.string.watch_together_follow_now)) }
+                    }
+                }
+            }
+        }
+    }
+}
 
 /** How long the start card stays, and the buttons stand out after it. */
 internal const val HINT_SECONDS = 10

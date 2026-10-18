@@ -13,6 +13,9 @@ class WatchTogetherHintTest {
 
     @After
     fun reset() {
+        WatchTogether.followRequest.value = null
+        WatchTogether.followShown.value = false
+        WatchTogether.currentChannel = null
         WatchTogether.hint.value = null
         WatchTogether.highlight.value = false
         WatchTogether.sheetOpen.value = false
@@ -47,5 +50,32 @@ class WatchTogetherHintTest {
         WatchTogether.hint.value = null
         assertFalse(WatchTogether.hintKey(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_CENTER, 0))
         assertFalse(WatchTogether.hintKey(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK, 0))
+    }
+
+    private val change = WatchTogether.FollowRequest("shield-1", "SHIELD", "admin", "u2", "SAT.1")
+
+    @Test
+    fun onTheFollowCardOkAndBackAreDontFollow() {
+        for (key in listOf(KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_BACK)) {
+            WatchTogether.followRequest.value = change
+            WatchTogether.followShown.value = true
+            assertTrue(WatchTogether.hintKey(KeyEvent.ACTION_DOWN, key, 0))
+            assertNull(WatchTogether.followRequest.value)
+            assertTrue(WatchTogether.hintKey(KeyEvent.ACTION_UP, key, 0))
+        }
+    }
+
+    @Test
+    fun beforeTheCardIsShownTheKeysAreThePlayers() {
+        // Still waiting for the zapping to settle: nothing on screen to answer
+        WatchTogether.followRequest.value = change
+        assertFalse(WatchTogether.hintKey(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_CENTER, 0))
+    }
+
+    @Test
+    fun aFollowToTheChannelPlayingIsNoQuestion() {
+        WatchTogether.currentChannel = { "u2" }
+        WatchTogether.askedToFollow(change)
+        assertNull(WatchTogether.followRequest.value)
     }
 }

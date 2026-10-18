@@ -142,6 +142,13 @@ object WatchTogether {
         highlight.value = true
     }
 
+    /** The follow card is on screen (after its settle time): OK and Back are Don't follow. */
+    val followShown = MutableStateFlow(false)
+
+    /** The channel this device plays now (installed by DispatchMoreLinks), so a follow to it is no question. */
+    @Volatile
+    var currentChannel: (() -> String?)? = null
+
     /** The key the card took on its way down, so its release goes nowhere either. */
     @Volatile
     private var swallowUp = -1
@@ -155,7 +162,21 @@ object WatchTogether {
             swallowUp = -1
             return true
         }
-        if (hint.value == null || action != android.view.KeyEvent.ACTION_DOWN || repeatCount != 0) return false
+        if (action != android.view.KeyEvent.ACTION_DOWN || repeatCount != 0) return false
+        // The follow card first: OK and Back keep this channel ("Don't follow" stands out)
+        if (followShown.value && followRequest.value != null) {
+            return when (keyCode) {
+                android.view.KeyEvent.KEYCODE_DPAD_CENTER, android.view.KeyEvent.KEYCODE_ENTER,
+                android.view.KeyEvent.KEYCODE_NUMPAD_ENTER, android.view.KeyEvent.KEYCODE_BACK -> {
+                    swallowUp = keyCode
+                    followShown.value = false
+                    stay()
+                    true
+                }
+                else -> false
+            }
+        }
+        if (hint.value == null) return false
         return when (keyCode) {
             android.view.KeyEvent.KEYCODE_DPAD_CENTER, android.view.KeyEvent.KEYCODE_ENTER,
             android.view.KeyEvent.KEYCODE_NUMPAD_ENTER -> {
@@ -190,6 +211,11 @@ object WatchTogether {
     }
 
     fun askedToFollow(request: FollowRequest) {
+        if (currentChannel?.invoke() == request.channel) {
+            // Already there (the leader followed this device's own change): nothing to ask
+            followRequest.value = null
+            return
+        }
         Log.i(TAG, "${request.name} changed to ${request.channel}; follow or stay")
         followRequest.value = request
     }
@@ -285,6 +311,9 @@ class DispatchMoreLinks @Inject constructor(
         WatchTogether.stayer = { device -> stayInBackground(device) }
         WatchTogether.remover = { device -> removeInBackground(device) }
         WatchTogether.refresher = { scope.launch { state() } }
+        WatchTogether.currentChannel = {
+            holder.currentChannelId?.takeIf { it.startsWith("disp:") }?.removePrefix("disp:")
+        }
         WatchTogether.notifier = { text ->
             android.os.Handler(android.os.Looper.getMainLooper()).post {
                 android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_LONG).show()

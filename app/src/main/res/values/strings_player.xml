@@ -123,6 +123,10 @@
     <string name="watch_together_disconnect">Disconnect</string>
     <string name="watch_together_leads">leads</string>
     <string name="watch_together_close">Close</string>
+    <string name="watch_together_following_in">Following in %1$d s</string>
+    <string name="watch_together_follow_tv_hint">OK: stay on your channel</string>
+    <string name="watch_together_dont_follow">Don\'t follow</string>
+    <string name="watch_together_follow_now">Follow now</string>
     <string name="watch_together_hint">%1$s is watching %2$s</string>
     <string name="watch_together_hint_tv">OK: watch together</string>
     <string name="watch_together_hint_phone">Tap to watch together</string>

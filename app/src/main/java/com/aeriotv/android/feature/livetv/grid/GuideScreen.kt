@@ -446,13 +446,18 @@ fun GuideScreen(
     val jumpWindowStart = jumpTargetMs?.let { (it - 3 * 3_600_000L) / QUANTUM_MS * QUANTUM_MS }
     // Quantized to 15 min so re-entering the tab within that window reuses
     // the memoized rows instead of rebuilding them for a new "now".
-    val windowStartMs = remember(historyHours, jumpWindowStart) {
+    // Keyed on the 15-min "now" quantum too (from AerioTV 9188e3ab): the guide composition
+    // outlives the app going to the background (kept tabs), so a window computed once at
+    // composition stayed pinned to that hour and the viewport clamped into it -- the guide
+    // opened hours behind. (Rows reuse across the roll keeps this cheap on TV, 09b45e79.)
+    val nowQuantum = nowMs / QUANTUM_MS
+    val windowStartMs = remember(historyHours, jumpWindowStart, nowQuantum) {
         minOf(
             (System.currentTimeMillis() - historyHours * 3_600_000L) / QUANTUM_MS * QUANTUM_MS,
             jumpWindowStart ?: Long.MAX_VALUE,
         )
     }
-    val windowEndMs = remember(forwardHours, jumpWindowEnd) {
+    val windowEndMs = remember(forwardHours, jumpWindowEnd, nowQuantum) {
         maxOf(
             (System.currentTimeMillis() + forwardHours * 3_600_000L) / QUANTUM_MS * QUANTUM_MS + QUANTUM_MS,
             jumpWindowEnd ?: 0L,
@@ -567,6 +572,50 @@ fun GuideScreen(
         }
     }
     val snapToNow: () -> Unit = { jumpTargetMs = null; pendingJumpScroll = false; grid.anchorToNow(System.currentTimeMillis()) }
+
+    // The guide always opens and resumes at now (from AerioTV 9188e3ab). The composition
+    // (and the retained grid) survives the app being backgrounded and the tab being hidden,
+    // so neither path went through resetForEntry: coming back after a long idle showed the
+    // hours-old viewport. On every foreground start and every tab re-entry, refresh the clock
+    // and anchor at now, unless a catch-up return is restoring its own timeline.
+    val guideLifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    var foregroundStarts by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    androidx.compose.runtime.DisposableEffect(guideLifecycle) {
+        // Only an ON_START that follows an ON_STOP is a resume: adding the observer replays
+        // ON_START for an already started owner, and that first entry is resetForEntry's job.
+        var stopped = false
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
+            when (e) {
+                androidx.lifecycle.Lifecycle.Event.ON_STOP -> stopped = true
+                androidx.lifecycle.Lifecycle.Event.ON_START -> if (stopped) { stopped = false; foregroundStarts++ }
+                else -> Unit
+            }
+        }
+        guideLifecycle.addObserver(obs)
+        onDispose { guideLifecycle.removeObserver(obs) }
+    }
+    // Tab re-entry: a false -> true flip of tabActive after this composition was shown once
+    var tabEntries by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val lastTabActive = remember { booleanArrayOf(tabActive) }
+    LaunchedEffect(tabActive) {
+        if (tabActive && !lastTabActive[0]) tabEntries++
+        lastTabActive[0] = tabActive
+    }
+    LaunchedEffect(foregroundStarts, tabEntries) {
+        if (foregroundStarts == 0 && tabEntries == 0) return@LaunchedEffect
+        // Empty rows: the window is unset (a fresh state already sits at now)
+        if (!tabActive || GuideCatchupReturn.pending() || grid.rows.isEmpty) return@LaunchedEffect
+        val now = System.currentTimeMillis()
+        val before = grid.viewportStartMs
+        nowMs = now
+        jumpTargetMs = null
+        pendingJumpScroll = false
+        grid.anchorToNow(now)
+        com.aeriotv.android.ui.tv.TvFocusTrace.guide(
+            "anchor-at-now resumes=$foregroundStarts tabEntries=$tabEntries viewportBefore=$before " +
+                "viewportAfter=${grid.viewportStartMs} behindMin=${(now - before) / 60_000L} rows=${grid.rows.size}",
+        )
+    }
 
     val gridFocus = remember { FocusRequester() }
     val pillsFocus = remember { FocusRequester() }

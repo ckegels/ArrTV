@@ -69,6 +69,7 @@ class AerioTVApplication : Application(), Configuration.Provider, SingletonImage
     @Inject lateinit var playlistDao: PlaylistDao
     @Inject lateinit var aerioDatabase: AerioDatabase
     @Inject lateinit var timeshiftStore: com.aeriotv.android.core.timeshift.TimeshiftBufferStore
+    @Inject lateinit var dispatcharrLiveUpdates: com.aeriotv.android.core.data.sync.DispatcharrLiveUpdates
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -137,6 +138,13 @@ class AerioTVApplication : Application(), Configuration.Provider, SingletonImage
             .build()
     }
 
+    /** What the device is called in the server's Diagnostics: the name the
+     *  user gave it in Android's settings ("Living room SHIELD"), else its model. */
+    private fun deviceName(): String =
+        runCatching {
+            android.provider.Settings.Global.getString(contentResolver, android.provider.Settings.Global.DEVICE_NAME)
+        }.getOrNull()?.takeIf { it.isNotBlank() } ?: android.os.Build.MODEL.orEmpty()
+
     override fun onCreate() {
         super.onCreate()
         // Crash capture FIRST, and independent of the Debug Logging toggle: a
@@ -145,10 +153,50 @@ class AerioTVApplication : Application(), Configuration.Provider, SingletonImage
         // A pending report from the previous run is folded into the debug log
         // file the Settings screens already view and share.
         com.aeriotv.android.core.debug.CrashReporter.install(this)
+        // "Is the app in the foreground" for the guide sweep and the guide's
+        // memory-pressure rule, from the PROCESS lifecycle. It used to follow
+        // the main screen, which stops whenever the fullscreen player covers
+        // it: watching a channel then read as "backgrounded", the sweep
+        // paused and a RUNNING_CRITICAL trim threw the guide away.
+        androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.addObserver(
+            androidx.lifecycle.LifecycleEventObserver { _, event ->
+                when (event) {
+                    androidx.lifecycle.Lifecycle.Event.ON_START ->
+                        com.aeriotv.android.core.data.repository.EpgSweepGate.appInForeground = true
+                    androidx.lifecycle.Lifecycle.Event.ON_STOP ->
+                        com.aeriotv.android.core.data.repository.EpgSweepGate.appInForeground = false
+                    else -> Unit
+                }
+            },
+        )
         appScope.launch {
             com.aeriotv.android.core.debug.CrashReporter
                 .publishToDebugLog(this@AerioTVApplication, debugLogger.logFile())
         }
+        // Dispatch More: this install's id and name, and the servers known to
+        // take them from the last probe, before the first tune can go out.
+        appScope.launch {
+            val stored = runCatching { appPreferences.dispatchMoreDeviceId() }.getOrNull()
+            val id = com.aeriotv.android.core.network.DispatchMore.setDevice(stored, deviceName())
+            com.aeriotv.android.core.network.DispatchMore.setMaxVideo(
+                com.aeriotv.android.core.playback.DecodeCapability.maxVideoHeight(),
+            )
+            if (id != stored) runCatching { appPreferences.setDispatchMoreDeviceId(id) }
+            com.aeriotv.android.core.network.DispatchMore.restore(
+                runCatching { appPreferences.dispatchMoreServers() }.getOrNull(),
+            )
+        }
+        // arrTV optimizations: each switch sets its flag, now and on every change.
+        com.aeriotv.android.core.playback.ArrTvOptimization.entries.forEach { o ->
+            appScope.launch { appPreferences.arrTvOptimization(o).collect { o.apply(it) } }
+        }
+        com.aeriotv.android.core.playback.ArrTvWait.entries.forEach { w ->
+            appScope.launch { appPreferences.arrTvWait(w).collect { w.apply(it) } }
+        }
+        // Dispatcharr live change notifications (Settings > General > Live
+        // updates). Idle unless the setting is on, the active playlist logs in
+        // with username + password, and the app is in the foreground.
+        dispatcharrLiveUpdates.start(appScope)
         // Time Format: seed the process-wide clock mode and follow the pref.
         com.aeriotv.android.core.ui.ClockFormat.init(this)
         appScope.launch {

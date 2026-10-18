@@ -82,6 +82,7 @@ class AerioExoPlayerHolder @Inject constructor(
     private val timeshift: dagger.Lazy<com.aeriotv.android.core.timeshift.TimeshiftController>,
     private val appPreferences: com.aeriotv.android.core.preferences.AppPreferences,
     private val firstByteLearner: com.aeriotv.android.core.preferences.LiveFirstByteLearner,
+    private val dispatchMoreReports: dagger.Lazy<com.aeriotv.android.core.network.DispatchMoreReports>,
 ) {
 
     var player: ExoPlayer? = null
@@ -189,6 +190,18 @@ class AerioExoPlayerHolder @Inject constructor(
      *  API-key auth lives here. */
     var httpHeaders: Map<String, String> = emptyMap()
 
+    /**
+     * The live stream that last really played (reached playing, not only
+     * asked for). When the user zaps A -> B -> C quickly, B may never play and
+     * A is still what the server has open, so C's request must name A. Cleared
+     * when playback is left: the next tune after that leaves nothing.
+     */
+    @Volatile private var playingStreamUrl: String? = null
+
+    /** Dispatch More headers for the live source [playUrl] is building: the
+     *  device, and on a channel change the channel being left. */
+    @Volatile private var tuneHeaders: Map<String, String> = emptyMap()
+
     // ---- live stall watchdog ----
     // Port of the iOS MPVPlayerView reload-watchdog (commits 331f0bf / a6cf4b4
     // / 0c83124 / 53752ad). A live stream can wedge mid-play (server/proxy
@@ -220,11 +233,40 @@ class AerioExoPlayerHolder @Inject constructor(
         }
         // Learned live start buffer: the tracer reports the feed shape at every
         // stall, this decides whether the feed was bursty-but-real-time.
-        tracer.onStall = { snapshot -> learnStartBuffer(snapshot) }
+        tracer.onStall = { snapshot ->
+            learnStartBuffer(snapshot)
+            reportStallToServer(snapshot)
+        }
         // No-first-byte failover: the tracer already knows when the first byte
         // lands, so the deadline is cancelled from there rather than by a second
         // counter.
         tracer.onFirstByte = { liveFailover.noteFirstByte() }
+        // The server leads the first moves when its own faster failover is on
+        // for this stream (it only knows this device through the device header).
+        liveFailover.pictureExpected = {
+            val p = player
+            p != null && !remoteAudioOnly &&
+                !p.trackSelectionParameters.disabledTrackTypes.contains(C.TRACK_TYPE_VIDEO) &&
+                (p.currentTracks.isEmpty || p.currentTracks.containsType(C.TRACK_TYPE_VIDEO))
+        }
+        liveFailover.picturePlaying = {
+            val p = player
+            p != null && p.isPlaying && videoFrameRendered
+        }
+        liveFailover.alternatives = {
+            com.aeriotv.android.core.network.DispatchMore.alternativesFor(lastPlayUrl)
+        }
+        liveFailover.serverFastFailover = {
+            ArrTvOptimizations.identifyDevice &&
+                com.aeriotv.android.core.network.DispatchMore.serverFor(lastPlayUrl)?.fastFailover == true
+        }
+        // 409 on a failover step: this device plays the channel on a stream of
+        // its own; a fresh connection gets it one chosen afresh (contract 8.3).
+        liveFailover.onOwnStream = {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                if (ArrTvOptimizations.freezeRescue) reopenKeepingOld("the server keeps this device on a stream of its own")
+            }
+        }
         // Bytes still arriving, however slowly: push the silent-start deadline
         // out instead of walking off a working-but-slow upstream (Glitzbr
         // 2026-09-15, an OTA HDHomeRun feed that degraded to 0.68 of real time).
@@ -1017,6 +1059,29 @@ class AerioExoPlayerHolder @Inject constructor(
     // fresh GET would only abandon the connection the proxy is still advancing
     // on) -- if nothing arrived by then the whole channel is dead.
     private val liveNoDataStartupThresholdMs = 50_000L
+    /** Bytes arriving this long with nothing buffered: a stream this device
+     *  cannot play. A playable live start buffers within a few seconds of its
+     *  first byte (learned first-byte times here are 1-3 s). */
+    private val UNPLAYABLE_AFTER_MS = 15_000L
+    /** The same with "faster failover" on. */
+    private val UNPLAYABLE_AFTER_FAST_MS = 6_000L
+
+    /** Freeze rescue: the picture stopped after its first frame this long,
+     *  with bytes on the wire in the last [FREEZE_BYTES_WITHIN_MS] and under
+     *  [FREEZE_BUFFER_AHEAD_MS] buffered (a player that is honestly filling
+     *  its buffer soon has more than that and goes READY). */
+    private val FREEZE_RESCUE_AFTER_MS = 6_000L
+    private val FREEZE_BYTES_WITHIN_MS = 3_000L
+    private val FREEZE_BUFFER_AHEAD_MS = 1_000L
+    private val FREEZE_RESCUES_PER_TUNE = 2
+    /** The old connection is kept at most this long after a rescue reopen. */
+    private val HELD_CALLS_MAX_MS = 8_000L
+    private var freezeSinceMs = 0L
+    private var freezeRescues = 0
+    /** The previous connection's Calls, held open across a rescue reopen
+     *  until the new connection's first byte (main thread). */
+    private var heldOldCalls: List<LiveCallTracker>? = null
+    private var heldOldSinceMs = 0L
     private val liveReadTimeoutMs = 55_000
     private var noDataHealAttempts = 0
     /** Same-url retries already spent on a "Channel is stopping" 503 this tune.
@@ -1274,6 +1339,16 @@ class AerioExoPlayerHolder @Inject constructor(
     }
 
     /** Arms the watchdog on first steady playback + recovers on a hard error. */
+    /** Feeds PlaybackActivityTracker.watching: the instance lives all session, isPlaying does not. */
+    private val watchingListener = object : Player.Listener {
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            PlaybackActivityTracker.mainPlayingChanged(isPlaying)
+            // The channel actually playing (not the last one asked for): what a
+            // later channel change tells a Dispatch More server it is leaving.
+            if (isPlaying && !isCatchup && !isTimeshifting) playingStreamUrl = lastPlayUrl
+        }
+    }
+
     private val watchdogListener = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
             // Reaching READY means the failure (if any) is behind us, so a later
@@ -1601,6 +1676,7 @@ class AerioExoPlayerHolder @Inject constructor(
             // rendered" from "decoded but never painted". Once per prime, so
             // it's cheap enough for release builds.
             Log.i(TAG, "first video frame rendered ch=$currentChannelId (+${SystemClock.elapsedRealtime() - streamPrimedAtMs}ms)")
+            liveFailover.noteFirstFrame()
             tracer.onFirstFrame()
         }
     }
@@ -1793,6 +1869,7 @@ class AerioExoPlayerHolder @Inject constructor(
             .apply {
                 PlaybackActivityTracker.playerCreated()
                 addListener(LoggingPlayerListener)
+                addListener(watchingListener)
                 addListener(watchdogListener)
                 // Always-on: network LOAD errors into the shareable log (GH #32).
                 addAnalyticsListener(LoadErrorDiagnosticsListener())
@@ -2365,7 +2442,10 @@ class AerioExoPlayerHolder @Inject constructor(
         clearPauseStamp("re-prime")
         // A caller-supplied channel id is a real tune (channel change, user
         // Retry): the clean-end reconnect budget starts over.
-        if (channelId != null) resetCleanEndBudget()
+        if (channelId != null) {
+            resetCleanEndBudget()
+            freezeRescues = 0
+        }
         if (kind == "live") liveTuneWallSec = System.currentTimeMillis() / 1000.0
         resetWatchdogStateForNewStream()
         // watchdogReloadEnabled is kept current by the collector in init{}; the
@@ -2375,9 +2455,23 @@ class AerioExoPlayerHolder @Inject constructor(
         // UNLESS a companion remote explicitly asked for Audio Only, which a
         // watchdog/poller re-prime must not undo.
         setVideoTrackEnabled(!remoteAudioOnly)
+        // A caller-supplied channel id is the user's tune; an internal re-prime
+        // (watchdog, failover, LAN/WAN flip) passes none and leaves nothing.
+        tuneHeaders = if (kind == "live") {
+            com.aeriotv.android.core.network.DispatchMore.streamHeaders(
+                url,
+                previousUrl = if (channelId != null) playingStreamUrl else null,
+            )
+        } else {
+            emptyMap()
+        }
+        tuneHeaders[com.aeriotv.android.core.network.DispatchMore.HEADER_PREVIOUS]?.let {
+            Log.i(TAG, "[TUNE] leaving channel $it (told the server)")
+        }
         tracer.markTuneStart(title, kind)
         primeGeneration += 1
         noteSourceOpen(url, effectiveChannelId)
+        retireHeldCalls()
         val staleCalls = takeLiveCallTrackers()
         val source = wrapForSwitchSkip(
             url, buildMediaSource(url, title, subtitle, artworkUri, drmLicenseType, drmLicenseKey),
@@ -2444,7 +2538,7 @@ class AerioExoPlayerHolder @Inject constructor(
         val factory = OkHttpDataSource.Factory(calls)
             .setUserAgent(okHttpSafeUserAgent(headerUa ?: DEFAULT_PLAYBACK_USER_AGENT))
         val nonUaHeaders = okHttpSafeHeaders(
-            httpHeaders.filterKeys { !it.equals("User-Agent", ignoreCase = true) },
+            tuneHeaders + httpHeaders.filterKeys { !it.equals("User-Agent", ignoreCase = true) },
         )
         if (nonUaHeaders.isNotEmpty()) factory.setDefaultRequestProperties(nonUaHeaders)
         return factory
@@ -2627,6 +2721,8 @@ class AerioExoPlayerHolder @Inject constructor(
             .readTimeout(liveReadTimeoutMs.toLong(), TimeUnit.MILLISECONDS)
             .followRedirects(true)
             .followSslRedirects(true)
+            // Dispatch More: how many other streams the channel could switch to
+            .addInterceptor(com.aeriotv.android.core.network.DispatchMore.responseInterceptor)
             .build()
     }
 
@@ -2663,6 +2759,7 @@ class AerioExoPlayerHolder @Inject constructor(
         cleanEndJob = null
         currentChannelId = null
         currentChannelIdForRebuild = null
+        playingStreamUrl = null
         // Disarm the stall watchdog so a deliberate stop isn't seen as a wedge.
         hasReachedPlaybackRestart = false
         lastPlayUrl = null
@@ -2670,10 +2767,92 @@ class AerioExoPlayerHolder @Inject constructor(
         // Disarm the first-byte deadline with the pipeline but KEEP the tried
         // set: an internal retry is the same tune on the same channel.
         liveFailover.disarm()
+        retireHeldCalls()
         val staleCalls = takeLiveCallTrackers()
         p.stop()
         retireLiveCalls(p, staleCalls)
         p.clearMediaItems()
+    }
+
+    /**
+     * Dispatch More "Stutter": a live rebuffer after the first frame goes to the
+     * server straight away (when it says stall_switch), which moves the channel
+     * to its next stream of the same quality or lower. Not for catch-up or
+     * timeshift; the server ignores the first 10 s after a start or a switch.
+     */
+    private fun reportStallToServer(snapshot: PlaybackTracer.FeedStallSnapshot) {
+        if (!snapshot.isLive || isCatchup || isTimeshifting) return
+        val url = lastPlayUrl ?: return
+        val facts = tracer.reportFacts()
+        dispatchMoreReports.get().reportStall(
+            url,
+            mapOf(
+                "stalls" to facts["stalls"],
+                "feed_media_ratio" to snapshot.feedMediaRatio,
+                "worst_gap_ms" to snapshot.worstGapMs,
+                "bandwidth_kbps" to facts["bitrate_estimate_kbps"],
+                "dropped_frames" to facts["dropped_frames"],
+            ),
+        )
+    }
+
+    /** The stream the player is on, for a problem report: the live URL, or
+     *  null during catch-up / timeshift (not a channel the server streams). */
+    val reportableStreamUrl: String?
+        get() = lastPlayUrl.takeIf { !isCatchup && !isTimeshifting }
+
+    /**
+     * The player's side of a problem report (Dispatch More, contract section 7):
+     * its state and last error, what it is playing and how, and what this tune
+     * measured. Main thread (reads the ExoPlayer). The URL has its login taken
+     * out here too, though the server removes it as well.
+     */
+    fun problemReportPlayer(): Map<String, Any?> {
+        val p = player
+        val video = p?.videoFormat
+        val audio = p?.audioFormat
+        val error = p?.playerError
+        return buildMap {
+            put(
+                "state",
+                when (p?.playbackState) {
+                    Player.STATE_IDLE -> "IDLE"
+                    Player.STATE_BUFFERING -> "BUFFERING"
+                    Player.STATE_READY -> if (p.isPlaying) "PLAYING" else "READY"
+                    Player.STATE_ENDED -> "ENDED"
+                    else -> "NO_PLAYER"
+                },
+            )
+            put("error", _lastErrorText.value ?: error?.let { "${it.errorCodeName}: ${it.message}" })
+            put("error_code", error?.errorCode)
+            put("url", lastPlayUrl?.let { com.aeriotv.android.core.debug.LogSanitizer.redactUrl(it) })
+            put("position_ms", p?.currentPosition)
+            put("buffered_ms", p?.totalBufferedDuration)
+            put(
+                "video",
+                video?.let {
+                    listOfNotNull(
+                        it.width.takeIf { w -> w > 0 }?.let { w -> "${w}x${it.height}" },
+                        it.codecs ?: it.sampleMimeType,
+                        it.frameRate.takeIf { f -> f > 0f }?.let { f -> "${"%.2f".format(f)}fps" },
+                    ).joinToString(" ")
+                },
+            )
+            put(
+                "audio",
+                audio?.let {
+                    listOfNotNull(
+                        it.codecs ?: it.sampleMimeType,
+                        it.channelCount.takeIf { c -> c > 0 }?.let { c -> "${c}ch" },
+                    ).joinToString(" ")
+                },
+            )
+            put("bitrate_kbps", video?.bitrate?.takeIf { it != Format.NO_VALUE }?.let { it / 1000 })
+            put("catchup", isCatchup)
+            put("timeshift", isTimeshifting)
+            put("audio_only", remoteAudioOnly)
+            putAll(tracer.reportFacts())
+        }
     }
 
     /** GH #22: true when there is nothing actually playing or loading --
@@ -2729,6 +2908,7 @@ class AerioExoPlayerHolder @Inject constructor(
         resumeGateActive = false
         currentChannelId = null
         currentChannelIdForRebuild = null
+        playingStreamUrl = null
         // Full teardown clears the stream-failover walk and any pending
         // "Channel is stopping" retry.
         stoppingRetryJob?.cancel()
@@ -2740,12 +2920,15 @@ class AerioExoPlayerHolder @Inject constructor(
         watchdogJob?.cancel()
         watchdogJob = null
         lastPlayUrl = null
+        retireHeldCalls()
         val staleCalls = takeLiveCallTrackers()
         try {
             tracer.tracedPlayer = null
             p.removeAnalyticsListener(tracer.analyticsListener)
             p.removeListener(LoggingPlayerListener)
             p.removeListener(watchdogListener)
+            p.removeListener(watchingListener)
+            PlaybackActivityTracker.mainPlayingChanged(false)
             p.release()
         } catch (t: Throwable) {
             Log.w(TAG, "ExoPlayer release failed", t)
@@ -2890,6 +3073,66 @@ class AerioExoPlayerHolder @Inject constructor(
                 // holds, playWhenReady is false and the stale-position check
                 // deliberately skips the stream.
                 tickResumeGate(p, now)
+
+                // Bytes but nothing playable: a live Dispatcharr stream this
+                // device cannot play (a 4K stream on a 1080p Chromecast HD)
+                // arrives at full rate and never buffers a millisecond. The
+                // server sees a healthy stream and never fails it over, and the
+                // net below used to wait 50 s, call the channel unavailable and
+                // reconnect to the same stream, forever. Ask for the channel's
+                // next stream instead, on the connection that is open; the
+                // stream that follows gets the full budget again.
+                val lastUrl = lastPlayUrl
+                val unplayableAfterMs =
+                    if (ArrTvOptimizations.fastFailover) UNPLAYABLE_AFTER_FAST_MS else UNPLAYABLE_AFTER_MS
+                if (ArrTvOptimizations.skipUnplayable &&
+                    lastUrl != null && isRawTsUrl(lastUrl) && p.playWhenReady &&
+                    !hasReachedPlaybackRestart && !videoFrameRendered &&
+                    p.playbackState == Player.STATE_BUFFERING &&
+                    p.currentPosition <= 0L && p.bufferedPosition <= 0L &&
+                    !liveFailover.stepping &&
+                    liveFailover.bytesFlowingForMs() >= unplayableAfterMs
+                ) {
+                    val flowingMs = liveFailover.bytesFlowingForMs()
+                    Log.w(TAG, "[UNPLAYABLE] live bytes for ${flowingMs}ms, nothing buffered ch=$currentChannelId")
+                    streamPrimedAtMs = now
+                    liveFailover.onUnplayable("bytes for ${flowingMs}ms but nothing playable")
+                }
+
+                // Freeze rescue (arrTV optimization, contract 8.6): the picture
+                // stopped after its first frame while data keeps arriving and
+                // nothing more is buffered -- a stream swapped inside the open
+                // connection (failover, change_stream, the stutter switch) into
+                // one the player cannot follow (HEVC 4K -> AVC 1080p on a
+                // Chromecast HD rendered one frame and waited for good). Every
+                // other net stays quiet there: the stale reload wants silent
+                // ingest, [UNPLAYABLE] and [NO-DATA] want no frame at all. Reopen
+                // the channel on a new connection, keeping the old one until the
+                // new one has its first byte (the server stops a channel the
+                // moment it has no viewer and would start it again from its
+                // first stream). Twice per tune; then the next stream.
+                retireHeldCallsIfDue(now)
+                val bufferAheadMs = (bufferedNow - p.currentPosition).coerceAtLeast(0L)
+                val frozenWhileFed = ArrTvOptimizations.freezeRescue &&
+                    lastUrl != null && isRawTsUrl(lastUrl) && p.playWhenReady &&
+                    !isTimeshifting && !isCatchup && videoFrameRendered &&
+                    p.playbackState == Player.STATE_BUFFERING &&
+                    bufferAheadMs < FREEZE_BUFFER_AHEAD_MS &&
+                    liveFailover.msSinceLastByte() < FREEZE_BYTES_WITHIN_MS &&
+                    !liveFailover.stepping && heldOldCalls == null
+                if (!frozenWhileFed) {
+                    freezeSinceMs = 0L
+                } else if (freezeSinceMs == 0L) {
+                    freezeSinceMs = now
+                } else if (now - freezeSinceMs >= FREEZE_RESCUE_AFTER_MS) {
+                    freezeSinceMs = 0L
+                    if (freezeRescues < FREEZE_RESCUES_PER_TUNE) {
+                        freezeRescues += 1
+                        reopenKeepingOld("picture frozen with data arriving (rescue $freezeRescues)")
+                    } else if (ArrTvOptimizations.skipUnplayable) {
+                        liveFailover.onUnplayable("still frozen after $freezeRescues reopens")
+                    }
+                }
 
                 // Cold-start NO-DATA net (never-started stream). Runs INDEPENDENT
                 // of hasReachedPlaybackRestart: a dead Dispatcharr proxy stream
@@ -3044,6 +3287,67 @@ class AerioExoPlayerHolder @Inject constructor(
         }
     }
 
+    /**
+     * Reopen the live stream on a NEW connection while the old one stays open
+     * until the new one has its first byte (freeze rescue, contract 8.6; a
+     * 409 stream of its own). Unlike [forceReload], whose new source waits for
+     * the old Calls to be cancelled first, the channel keeps a viewer the
+     * whole time: Dispatcharr stops a channel the moment its last viewer goes
+     * and would start it again from its first stream.
+     */
+    private fun reopenKeepingOld(reason: String): Boolean {
+        if (isTimeshifting || isCatchup) return false
+        val p = player ?: return false
+        val url = lastPlayUrl ?: return false
+        val now = SystemClock.elapsedRealtime()
+        retireHeldCalls()
+        Log.w(TAG, "[RESCUE] reopening ch=$currentChannelId: $reason")
+        tracer.recover("reopen: $reason")
+        tracer.markTuneStart(lastPlayTitle, PlaybackTracer.urlKind(url))
+        hasReachedPlaybackRestart = false
+        lastKnownPositionMs = 0L
+        lastPositionAdvanceAtMs = now
+        videoFrameRendered = false
+        streamPrimedAtMs = now
+        lastKnownBufferedPositionMs = 0L
+        lastBufferAdvanceAtMs = now
+        LoggingPlayerListener.sawTracksChangedSincePrime = false
+        primeGeneration += 1
+        noteSourceOpen(url, currentChannelIdForRebuild ?: currentChannelId)
+        val staleCalls = takeLiveCallTrackers()
+        // The new source must not wait for the old Calls: they stay open.
+        pendingRetireGate?.countDown()
+        pendingRetireGate = null
+        val source = wrapForSwitchSkip(
+            url,
+            buildMediaSource(url, lastPlayTitle, lastPlaySubtitle, lastPlayArtworkUri, lastPlayDrmType, lastPlayDrmKey),
+        )
+        p.setMediaSource(source)
+        p.prepare()
+        p.playWhenReady = true
+        if (staleCalls.isNotEmpty()) {
+            heldOldCalls = staleCalls
+            heldOldSinceMs = now
+        }
+        return true
+    }
+
+    /** Close the connection held across a rescue reopen once the new one has
+     *  its first byte, or after [HELD_CALLS_MAX_MS]. Watchdog tick (main). */
+    private fun retireHeldCallsIfDue(now: Long) {
+        if (heldOldCalls == null) return
+        if (tracer.hasFirstByte() || now - heldOldSinceMs >= HELD_CALLS_MAX_MS) retireHeldCalls()
+    }
+
+    /** Close a held connection now (a new tune, stop, teardown, or due). */
+    private fun retireHeldCalls() {
+        val held = heldOldCalls ?: return
+        heldOldCalls = null
+        val looper = player?.playbackLooper
+        val posted = looper?.let { android.os.Handler(it).post { held.forEach { c -> c.cancelAll() } } } == true
+        if (!posted) held.forEach { it.cancelAll() }
+    }
+
     /** Re-prime the demuxer + decoder against the SAME url (mpv loadfile
      *  replace). Returns true when a reload actually ran (false while inside
      *  the cooldown or past the attempt cap). */
@@ -3101,6 +3405,7 @@ class AerioExoPlayerHolder @Inject constructor(
         lastBufferAdvanceAtMs = now
         primeGeneration += 1
         noteSourceOpen(url, currentChannelIdForRebuild ?: currentChannelId)
+        retireHeldCalls()
         val staleCalls = takeLiveCallTrackers()
         val source = wrapForSwitchSkip(
             url,
@@ -3437,6 +3742,7 @@ class AerioExoPlayerHolder @Inject constructor(
         LoggingPlayerListener.sawTracksChangedSincePrime = false
         primeGeneration += 1
         noteSourceOpen(url, currentChannelIdForRebuild ?: currentChannelId)
+        retireHeldCalls()
         val staleCalls = takeLiveCallTrackers()
         val source = wrapForSwitchSkip(
             url,

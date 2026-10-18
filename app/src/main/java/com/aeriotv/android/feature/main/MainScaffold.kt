@@ -1009,7 +1009,12 @@ fun MainScaffold(
                         retainedCount = retainedList.size,
                         onRetainedClick = { showRetainedDialog = true },
                         onRefresh = { viewModel.refreshPlaylist() },
+                        // Spins only while the bar can be seen: collapsed under
+                        // a scrolled media page it holds a still glyph (perf
+                        // 2026-10-03, the spinner ran the frame clock for the
+                        // whole On Demand refill).
                         refreshing = anyBackgroundWork,
+                        refreshAnimates = barTarget == 1f,
                         tabs = tabs,
                         selected = selectedTab,
                         onSelect = { selectedTab = it; initialTabApplied = true },
@@ -1976,6 +1981,7 @@ private fun TvTopTabBar(
     onWatchTogether: (() -> Unit)? = null,
     /** Watch together stands out (the start card is up, or someone is joined). */
     watchTogetherHighlighted: Boolean = false,
+    refreshAnimates: Boolean = true,
     /** Reports the leftmost pixel the bar actually occupies (the action
      *  circles when shown, otherwise the centered capsule) so the top-left
      *  gesture hints can size themselves to the real gutter instead of a
@@ -2215,6 +2221,7 @@ private fun TvTopTabBar(
                         contentDescription = stringResource(R.string.main_refresh_channels_guide),
                         onClick = onRefresh,
                         spinning = refreshing,
+                        spinAnimates = refreshAnimates,
                     )
                     if (retainedCount > 0) {
                         TvBarCircleButton(
@@ -2271,6 +2278,7 @@ private fun TvBarCircleButton(
     modifier: Modifier = Modifier,
     selected: Boolean = false,
     spinning: Boolean = false,
+    spinAnimates: Boolean = true,
 ) {
     // TV chrome canon (ui/tv/TvChrome.kt, tvOS TVNavCircleButtonStyle):
     // quiet translucent circle at rest, white platter with a dark glyph
@@ -2283,6 +2291,7 @@ private fun TvBarCircleButton(
         modifier = modifier,
         selected = selected,
         spinning = spinning,
+        spinAnimates = spinAnimates,
         size = com.aeriotv.android.ui.tv.TvChrome.circleSize,
     )
 }

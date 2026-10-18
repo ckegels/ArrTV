@@ -488,15 +488,49 @@ fun GuideScreen(
     LaunchedEffect(grid.viewportStartMs, grid.viewportDurationMs) {
         viewModel.ensureGuideCovers(grid.viewportStartMs, grid.viewportStartMs + grid.viewportDurationMs)
     }
+    // Window-roll reuse (perf 2026-10-03, Streamer perf4): the window start
+    // is quantized to 15 min, so a channel played for a while comes back to a
+    // window that rolled one or more quanta, and a new rows object reinstalled
+    // all 799 rows (reused=false, 785 ms Davey). When the retained rows are
+    // for the SAME channel list (by content: the list is recomputed on entry,
+    // and again when the recents change after a play) and the same catalog,
+    // and the window stayed put or only advanced by the same amount at both
+    // ends (at most WINDOW_ROLL_REUSE_MAX_MS), keep
+    // them: they cover the new window's start (plus that much extra past),
+    // the far edge is a week out and the forward loader extends it anyway,
+    // and the retained state already took the new viewport start in
+    // resetForEntry. Anything else (new channels, new EPG, a jump, a Guide
+    // Days change, a long absence) builds new rows as before. TV only; the
+    // phone keeps building fresh rows.
+    // Plain holder, not state: written by the rows calc, read by the install log.
+    val windowRoll = remember { LongArray(1) }
     val rows = remember(displayChannels, state.epgByChannel, windowStartMs, windowEndMs) {
-        com.aeriotv.android.feature.livetv.GuideMemo.get(
-            "rows",
-            listOf(
-                com.aeriotv.android.feature.livetv.GuideMemo.Ref(displayChannels),
-                com.aeriotv.android.feature.livetv.GuideMemo.Ref(state.epgByChannel),
-                windowStartMs, windowEndMs,
-            ),
-        ) { GuideGridRows(displayChannels, state.epgByChannel as? GuideCatalog, windowStartMs, windowEndMs) }
+        val held = grid.rows
+        val roll = windowStartMs - held.windowStartMs
+        if (isTv && !held.isEmpty &&
+            held.catalog === (state.epgByChannel as? GuideCatalog) &&
+            roll >= 0L && roll <= WINDOW_ROLL_REUSE_MAX_MS &&
+            windowEndMs - held.windowEndMs == roll &&
+            (held.channels === displayChannels || held.channels == displayChannels)
+        ) {
+            windowRoll[0] = roll
+            held
+        } else {
+            windowRoll[0] = 0L
+            if (isTv && !held.isEmpty) com.aeriotv.android.ui.tv.TvFocusTrace.guide(
+                "rows-reuse miss channelsSame=${held.channels == displayChannels} " +
+                    "catalogSame=${held.catalog === (state.epgByChannel as? GuideCatalog)} roll=$roll " +
+                    "endRoll=${windowEndMs - held.windowEndMs}",
+            )
+            com.aeriotv.android.feature.livetv.GuideMemo.get(
+                "rows",
+                listOf(
+                    com.aeriotv.android.feature.livetv.GuideMemo.Ref(displayChannels),
+                    com.aeriotv.android.feature.livetv.GuideMemo.Ref(state.epgByChannel),
+                    windowStartMs, windowEndMs,
+                ),
+            ) { GuideGridRows(displayChannels, state.epgByChannel as? GuideCatalog, windowStartMs, windowEndMs) }
+        }
     }
     LaunchedEffect(rows) {
         // Same rows object as the retained state already holds: the install
@@ -1672,6 +1706,9 @@ internal object GuideOpenGroups {
  * to exactly one live composition and resets it for entry; [give] returns it
  * on dispose.
  */
+/** Largest window roll [GuideScreen] absorbs by keeping the retained rows. */
+private const val WINDOW_ROLL_REUSE_MAX_MS = 2 * 3_600_000L
+
 internal object RetainedGuideGrid {
     private val held = HashMap<Boolean, GuideGridState>()
 

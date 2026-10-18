@@ -125,6 +125,8 @@ class MainActivity : ComponentActivity() {
             exoWindowState.mode.value == ExoWindowState.Mode.Mini
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // The live remote tour drives the app itself; the real remote only stops it.
+        if (com.aeriotv.android.feature.tutorial.TutorialDirector.interceptRealKey(event)) return true
         // The mini-player no longer hijacks OK. Previously, while the mini was
         // Active, EVERY D-pad Select was consumed (double-press = resume), which
         // trapped the user: a single OK on a guide cell did nothing, so they

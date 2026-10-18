@@ -427,6 +427,30 @@ class AerioExoPlayerHolder @Inject constructor(
         // just buys an 18 s pause (Apple device result 2026-09-13).
     }
 
+    /** From AerioTV d2b38f2c: a tune that applies a learned value rolls its 30 minute
+     *  TTL forward, so expiry counts from the last tune that used it -- a channel
+     *  watched for hours kept its hold-back only for the first half hour. Never
+     *  forever: an unused value still lapses 30 minutes after its last use. */
+    private val lastRestampAtMs = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    private fun restampLearnedOnUse(
+        key: String,
+        entry: com.aeriotv.android.core.preferences.LearnedStartBuffer,
+    ) {
+        val now = System.currentTimeMillis()
+        // 20 s debounce: one tune can read the value more than once (tune path plus
+        // rebuffer gate), so re-stamp and log only once.
+        val last = lastRestampAtMs[key]
+        if (last != null && now - last < RESTAMP_DEBOUNCE_MS) return
+        lastRestampAtMs[key] = now
+        Log.i(TAG, "[HOLDBACK] learned value re-stamped on use")
+        cachedLiveStartBuffers = cachedLiveStartBuffers +
+            (key to com.aeriotv.android.core.preferences.LearnedStartBuffer(entry.ms, now))
+        prefScope.launch {
+            cachedLiveStartBuffers = appPreferences.setLiveStartBufferMs(key, entry.ms, now)
+        }
+    }
+
     /**
      * How much media must be buffered AHEAD of the playhead before the resume
      * gate lets playback run again:
@@ -2618,6 +2642,9 @@ class AerioExoPlayerHolder @Inject constructor(
             )
         }
         val learnedGateMs = if (learnedExpired) 0 else learnedEntry?.ms ?: 0
+        if (!learnedExpired && learnedEntry != null && learnedEntry.ms > 0) {
+            restampLearnedOnUse(effectiveChannelId!!, learnedEntry)
+        }
         val startGateMs = maxOf(LIVE_START_GATE_DEFAULT_MS, learnedGateMs)
             .coerceAtMost(LIVE_START_GATE_MAX_MS)
         Log.i(TAG, "[HOLDBACK] ch=${title ?: "?"} start gate $startGateMs ms (learned $learnedGateMs ms)")
@@ -4473,6 +4500,7 @@ class AerioExoPlayerHolder @Inject constructor(
          *  and uses the base gate, so one bad session does not pin a channel
          *  (Logan 2026-09-12). A fresh learn re-arms it. */
         private const val HOLDBACK_LEARNED_TTL_MS = 30L * 60L * 1_000L
+        private const val RESTAMP_DEBOUNCE_MS = 20_000L
         /** Cushion added on top of the worst observed delivery gap so the feed
          *  has room to land the next burst before the buffer runs dry. */
         private const val RESUME_GATE_HEADROOM_MS = 2_000L

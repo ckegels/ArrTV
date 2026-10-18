@@ -361,6 +361,16 @@ class PlaylistRepository @Inject constructor(
             Log.i(TAG_CAPS, "credentials changed for ${playlistId.take(8)}; dropping the old account's cached identity")
             dropCachedIdentity(priorRow!!)
         }
+        // A new host, scheme or port on either route (from AerioTV 4f3c0c1c): drop what was
+        // learned against the old host BEFORE the new JWT pair lands, so this save's
+        // fetches start clean. The re-probe of permissions follows at the end of the save.
+        if (priorRow != null && hostChanged(
+                priorRow.urlString, normalisedBase,
+                priorRow.lanUrlString, request.lanUrl,
+            )
+        ) {
+            invalidateForHostChange(priorRow, normalisedBase, request.lanUrl)
+        }
 
         // For Dispatcharr User/Pass, do the JWT exchange up front and resolve to an api_key
         // so the rest of the flow looks identical to API-key mode. iOS does this too
@@ -576,6 +586,60 @@ class PlaylistRepository @Inject constructor(
      * the self-heal in [probeCapabilitiesUncoalesced] for a row whose
      * stored key turned out to belong to somebody else.
      */
+    /** "scheme://host:port", lowercased, default port filled in; "" when blank or unparseable. */
+    private fun hostKey(raw: String?): String {
+        var v = raw?.trim().orEmpty()
+        if (v.isEmpty()) return ""
+        if (!v.startsWith("http://", true) && !v.startsWith("https://", true)) v = "http://$v"
+        val uri = runCatching { java.net.URI(v) }.getOrNull() ?: return ""
+        val host = uri.host?.lowercase()?.takeIf { it.isNotBlank() } ?: return ""
+        val scheme = (uri.scheme ?: "http").lowercase()
+        val port = if (uri.port > 0) uri.port else if (scheme == "https") 443 else 80
+        return "$scheme://$host:$port"
+    }
+
+    /** True when either route of the playlist now points at another host, scheme, or port. */
+    private fun hostChanged(oldBase: String?, newBase: String?, oldLan: String?, newLan: String?): Boolean =
+        hostKey(oldBase) != hostKey(newBase) || hostKey(oldLan) != hostKey(newLan)
+
+    /**
+     * Forget everything learned against a playlist's OLD host after an edit moved it to
+     * another one (from AerioTV 4f3c0c1c: a playlist moved from its LAN address to a public
+     * one behind an SSO proxy only worked after Refresh Permissions, even across a
+     * relaunch). The playlist id is untouched, so favorites, recents and DVR stay attached.
+     *
+     * Cleared: the JWT pair (ArrTV keeps it across restarts since arr.113, so a stale one
+     * would outlive a relaunch too), the 403-derived capability corrections, retained live
+     * rewind connections to the old host, the memoized catch-up credentials, the persisted
+     * auth header shape. (ArrTV's permission probe has no throttle to reset.)
+     */
+    private suspend fun invalidateForHostChange(prior: PlaylistEntity, newBase: String, newLan: String?) {
+        val cleared = mutableListOf<String>()
+        dispatcharrTokenStore.clear(prior.id)
+        cleared += "JWT pair"
+        CapabilityCorrections.clear(prior.id)
+        cleared += "capability corrections"
+        timeshiftController.stopAllRetained()
+        cleared += "retained rewind connections"
+        catchupResolver.invalidateCredentialMemos()
+        cleared += "catch-up credentials"
+        val current = dao.byId(prior.id)
+        if (current != null && current.dispatcharrAuthMode.isNotBlank()) {
+            cleared += "auth header mode '${current.dispatcharrAuthMode}'"
+            runCatching { dao.update(current.copy(dispatcharrAuthMode = "")) }
+                .onFailure { Log.w(TAG_CAPS, "host-change auth mode reset failed", it) }
+        } else {
+            cleared += "auth header mode (default)"
+        }
+        val oldLan = hostKey(prior.lanUrlString).takeIf { it.isNotEmpty() }?.let { " (local $it)" } ?: ""
+        val newLanKey = hostKey(newLan).takeIf { it.isNotEmpty() }?.let { " (local $it)" } ?: ""
+        Log.i(
+            TAG_CAPS,
+            "[PLAYLIST] host changed ${hostKey(prior.urlString)}$oldLan -> ${hostKey(newBase)}$newLanKey: " +
+                "cleared ${cleared.joinToString(", ")} playlist=${prior.id.take(8)}",
+        )
+    }
+
     private suspend fun dropCachedIdentity(priorRow: PlaylistEntity) {
         // The JWT pair was minted for the OLD account. In User/Pass mode a
         // re-login replaces it, but only on success; in API Key mode nothing

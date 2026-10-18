@@ -2218,9 +2218,16 @@ class AerioExoPlayerHolder @Inject constructor(
             it is androidx.media3.extractor.mp4.FragmentedMp4Extractor
         }
         if (ts == null) return@ExtractorsFactory all
+        // ContinuousTsExtractor (from AerioTV 7cee8fa8): when Dispatcharr swaps the channel's
+        // source stream on this same connection (failover, Dispatch More's stutter switch),
+        // the new provider's timestamps have nothing to do with the old ones; MODE_SINGLE_PMT
+        // only unwraps the 33-bit roll, so audio and queued video landed on different
+        // timelines -- video held as "too early" (a frozen picture while the time ran on) or
+        // a jump of half an hour. It rebases every sample onto one running timeline.
+        val continuous: Extractor = ContinuousTsExtractor(ts)
         buildList {
             fmp4?.let { add(it) }
-            add(object : Extractor by ts {
+            add(object : Extractor by continuous {
                 override fun sniff(
                     input: androidx.media3.extractor.ExtractorInput,
                 ): Boolean = true

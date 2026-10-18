@@ -1467,7 +1467,7 @@ class DispatcharrClient @Inject constructor() {
                 },
             )
         }
-        if (response.status.value == 404) {
+        if (response.status.value == 404 && !isSessionLevelNotFound(response.bodyAsText())) {
             android.util.Log.i("DispatcharrCatchup", "position endpoint absent (404) - disabling reports")
             false
         } else {
@@ -3574,3 +3574,17 @@ data class DispatcharrProgramDetail(
 data class DispatcharrProgramImage(
     val url: String? = null,
 )
+
+
+/**
+ * Whether a 404 from the position endpoint is about the SESSION -- the server's own JSON
+ * `{"error": "No active playback for this session"}` or `"Session not found"` -- rather
+ * than a server without the endpoint (a plain "Not Found" page). The first report goes
+ * out the moment playback starts, before the server has registered it, and is answered
+ * "No active playback"; reading that as "no endpoint" switched reporting off for the
+ * whole programme, and with it the keep-alive a long pause needs.
+ */
+internal fun isSessionLevelNotFound(body: String?): Boolean {
+    val text = body?.trim().orEmpty()
+    return text.startsWith("{") && text.contains("\"error\"")
+}

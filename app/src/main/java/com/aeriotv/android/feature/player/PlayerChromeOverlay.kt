@@ -55,6 +55,7 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.ClosedCaption
+import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Info
@@ -1058,6 +1059,19 @@ private fun PlayerControlCircle(
 }
 
 
+/**
+ * Dispatch More: "Send a report to the server" for the Options menu, set by
+ * PlayerScreen while it is shown. Read by the menu itself rather than passed
+ * through each place that opens it, so every menu offers it -- the info bar
+ * style opens its own.
+ */
+internal class ProblemReportAction(val available: () -> Boolean, val open: () -> Unit)
+
+internal object ProblemReportMenu {
+    @Volatile
+    var action: ProblemReportAction? = null
+}
+
 @Composable
 private fun PlayerMoreMenu(
     expanded: Boolean,
@@ -1111,6 +1125,28 @@ private fun PlayerMoreMenu(
                 fontSize = 12.sp.subtext(),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f).forText(),
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 4.dp),
+            )
+        }
+        // Asked each time the menu opens, from whichever place opened it (the
+        // standard chrome, or the info bar's hold OK): the server's switch and
+        // the stream can both have changed since the screen was drawn.
+        val report = ProblemReportMenu.action
+        val offerReport = remember(expanded) { expanded && report?.available?.invoke() == true }
+        if (offerReport && report != null) {
+            // First, so it is one press away when something just went wrong.
+            DropdownMenuItem(
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Outlined.Flag,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
+                },
+                text = { Text("Send a report to the server") },
+                onClick = {
+                    onDismiss()
+                    report.open()
+                },
             )
         }
         DropdownMenuItem(

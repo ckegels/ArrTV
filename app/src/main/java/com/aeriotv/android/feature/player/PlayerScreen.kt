@@ -82,6 +82,10 @@ const val PLAYER_CHROME_HIDE_MS = 3_000L
  *  "what am I watching" card, and shortening it with the chrome would change
  *  unrelated behavior. */
 private const val LAUNCH_HINT_MS = 4_000L
+/** Info bar style: how long the bar stays up without input, the same whether
+ *  a channel change or the user opened it (7 s, and the 3 s chrome
+ *  timer when opened by hand, closed it before it could be read or used). */
+private const val INFO_BAR_HINT_MS = 10_000L
 private const val SWIPE_THRESHOLD_PX = 120f
 // Min gap between two hardware D-pad channel flips. Auto-repeat on a held UP/DOWN
 // fires rapidly; this paces it so a hold surfs one channel at a time instead of
@@ -178,6 +182,8 @@ fun PlayerScreen(
     val videoScaleMode by settingsVm.videoScaleMode.collectAsStateWithLifecycle(
         initialValue = VIDEO_SCALE_FIT,
     )
+    // Settings > Player > Overlay Style: TV info bar (hold OK = options menu).
+    val infoBarStyle by settingsVm.playerInfoBarStyle.collectAsStateWithLifecycle(initialValue = false)
     // Live Rewind pref, to hint (below) that pause/rewind needs it turned on.
     val liveRewindEnabled by settingsVm.liveRewindEnabled.collectAsStateWithLifecycle(initialValue = true)
     val playerEntry = remember {
@@ -711,6 +717,8 @@ fun PlayerScreen(
     // Declared HERE (above BackHandler) so the BackHandler closure
     // can read + mutate it.
     var chromeVisible by remember { mutableStateOf(!isTvForm) }
+    // The launch hint (see below), declared here so Back can put it away.
+    var launchHintActive by remember { mutableStateOf(true) }
     // (chromeFromFlip removed in task #148: flips no longer raise the
     // bottom chrome at all - only the top program card via the
     // launch-hint window - so the latch had nothing left to track.)
@@ -811,6 +819,13 @@ fun PlayerScreen(
             // LIVE affordance. The native session revoke runs in onDispose.
             PlayerDoubleBack.clear()
             closeCatchupReplay(exoHolder, exoWindowState, miniPlayerVm, context, onClose)
+        } else if (isTvForm && infoBarStyle && (chromeVisible || launchHintActive)) {
+            // Info bar style: Back first puts the overlay away -- the OK view
+            // with its cards, or the bar a channel change shows -- and leaves
+            // the stream alone on screen; the next Back goes on to the guide
+            // as below. (The standard chrome keeps Back = minimize.)
+            chromeVisible = false
+            launchHintActive = false
         } else if (isTvForm) {
             // #10 back model (Archie 2026-07-02): a SINGLE Back minimizes the
             // fullscreen player straight to the corner mini. OK/Select is now
@@ -884,7 +899,6 @@ fun PlayerScreen(
     // chrome (close button, control bar, dim scrim) with it. After the
     // first auto-hide the pill follows chromeVisible (i.e. the Back-press
     // path surfaces it alongside the full chrome).
-    var launchHintActive by remember { mutableStateOf(true) }
     // Remote Control A2: showProgramInfo action re-arms the same card
     // without a channel change (OK = info panel in the standard scheme).
     var programInfoPulse by remember { mutableStateOf(0) }
@@ -895,7 +909,7 @@ fun PlayerScreen(
         // session-scoped last-channel zap memory.
         currentChannel?.id?.let { exoWindowState.recordTune(it) }
         launchHintActive = true
-        kotlinx.coroutines.delay(LAUNCH_HINT_MS)
+        kotlinx.coroutines.delay(if (isTvForm && infoBarStyle) INFO_BAR_HINT_MS else LAUNCH_HINT_MS)
         launchHintActive = false
     }
     val pillVisible = chromeVisible || launchHintActive
@@ -1133,6 +1147,8 @@ fun PlayerScreen(
     // auto-hide timer so the chrome does not fade mid-interaction.
     val chromeMenuOpenState = remember { mutableStateOf(false) }
     var chromeMenuOpen by chromeMenuOpenState
+    // Bumped by the "Options menu" remote action; the chrome opens its menu.
+    val optionsMenuRequestState = remember { mutableIntStateOf(0) }
     // GH #33: the cast/companion device chooser (rendered inside the auto-hiding
     // chrome's castSlot) pins the chrome open via interactionLocked below.
     val castChooserOpenState = remember { mutableStateOf(false) }
@@ -1478,6 +1494,42 @@ fun PlayerScreen(
                 // seek commits after the presses stop). Consume both
                 // actions so the release can't click anything behind.
                 val native = event.nativeKeyEvent
+                // Info bar style: hold OK opens the options menu, also while
+                // the card row is up (a short press still reaches the focused
+                // card: DOWN passes through, only the hold and its release
+                // are consumed). It opens the moment the hold is recognised,
+                // as a long press does everywhere; the menu then swallows OK
+                // until a fresh press (OptionsMenuHoldGate), which would
+                // otherwise pick its first row.
+                if (isTvForm && infoBarStyle && chromeVisible && !chromeMenuOpen && !isCatchupMode &&
+                    !recentsOverlayVisible && !channelListVisible &&
+                    (native.keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER ||
+                        native.keyCode == android.view.KeyEvent.KEYCODE_ENTER)
+                ) {
+                    when (native.action) {
+                        android.view.KeyEvent.ACTION_DOWN -> {
+                            if (native.repeatCount == 0) {
+                                okLongFired = false
+                            } else {
+                                if (!okLongFired && (native.isLongPress || native.repeatCount >= 4)) {
+                                    okLongFired = true
+                                    OptionsMenuHoldGate.holding = true
+                                    exoWindowState.onPlayerRemoteAction?.invoke(
+                                        com.aeriotv.android.core.remote.PlayerRemoteAction.OPTIONS_MENU,
+                                    )
+                                }
+                                return@onPreviewKeyEvent true
+                            }
+                        }
+                        android.view.KeyEvent.ACTION_UP -> if (okLongFired) {
+                            // Consumed; the menu's gate stays up until a
+                            // fresh press (this release can be the CANCELED
+                            // one Android sends when the menu takes focus).
+                            okLongFired = false
+                            return@onPreviewKeyEvent true
+                        }
+                    }
+                }
                 // Remote Control A2: OK short/long split. Only engaged when
                 // an okLong action is mapped (e.g. the standard scheme's long-OK =
                 // options menu) AND the chrome is hidden (visible chrome
@@ -1490,7 +1542,17 @@ fun PlayerScreen(
                     (native.keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER ||
                         native.keyCode == android.view.KeyEvent.KEYCODE_ENTER)
                 ) {
+                    // Info bar style: an unmapped hold-OK opens the options menu.
                     val okLongAction = remoteMap.playerAction(com.aeriotv.android.core.remote.RemoteSlot.OK_LONG)
+                        .let {
+                            if (it == com.aeriotv.android.core.remote.PlayerRemoteAction.NONE && infoBarStyle &&
+                                !isCatchupMode
+                            ) {
+                                com.aeriotv.android.core.remote.PlayerRemoteAction.OPTIONS_MENU
+                            } else {
+                                it
+                            }
+                        }
                     if (okLongAction != com.aeriotv.android.core.remote.PlayerRemoteAction.NONE) {
                         when (native.action) {
                             android.view.KeyEvent.ACTION_DOWN -> {
@@ -1500,12 +1562,20 @@ fun PlayerScreen(
                                     (native.isLongPress || native.repeatCount >= 4)
                                 ) {
                                     okLongFired = true
+                                    // Fires at the hold, as a long press does.
+                                    // The Options menu takes focus when it
+                                    // opens; it swallows OK until a fresh press
+                                    // (OptionsMenuHoldGate), which would
+                                    // otherwise pick its first row.
+                                    if (okLongAction == com.aeriotv.android.core.remote.PlayerRemoteAction.OPTIONS_MENU) {
+                                        OptionsMenuHoldGate.holding = true
+                                    }
                                     exoWindowState.onPlayerRemoteAction?.invoke(okLongAction)
                                 }
                                 return@onPreviewKeyEvent true
                             }
                             android.view.KeyEvent.ACTION_UP -> {
-                                if (!okLongFired) {
+                                if (!okLongFired && !native.isCanceled) {
                                     exoWindowState.onPlayerRemoteAction?.invoke(
                                         remoteMap.playerAction(com.aeriotv.android.core.remote.RemoteSlot.OK_SHORT),
                                     )
@@ -1753,6 +1823,16 @@ fun PlayerScreen(
             playbackSpeedSheetState = playbackSpeedSheetState,
             multiviewPickerOpenState = multiviewPickerOpenState,
             chromeMenuOpenState = chromeMenuOpenState,
+            optionsMenuRequest = optionsMenuRequestState.intValue,
+            infoBarStyle = infoBarStyle,
+            numberingGroup = initialGroup,
+            epgByChannel = epgByChannel,
+            currentIndexState = currentIndexState,
+            onHideChrome = { chromeVisible = false },
+            onShowRecents = {
+                chromeVisible = false
+                recentsOverlayVisible = true
+            },
             castChooserOpenState = castChooserOpenState,
             audioOnlyState = audioOnlyState,
             sleepEndsAtState = sleepEndsAtState,
@@ -1874,7 +1954,7 @@ fun PlayerScreen(
         // Never auto-hide while the stream is unavailable: the chrome hosts the
         // Retry control the user needs, so it must stay put during an outage.
         if (chromeVisible && !interactionLocked && !streamUnavailable) {
-            delay(PLAYER_CHROME_HIDE_MS)
+            delay(if (isTvForm && infoBarStyle) INFO_BAR_HINT_MS else PLAYER_CHROME_HIDE_MS)
             chromeVisible = false
         }
     }
@@ -1923,7 +2003,10 @@ fun PlayerScreen(
             if (cur < 0 || list.isEmpty()) return@flip false
             val now = android.os.SystemClock.uptimeMillis()
             if (now - lastFlipAt < FLIP_DEBOUNCE_MS) return@flip true // eat repeats, stay responsive
-            val next = (cur + delta).coerceIn(0, list.lastIndex)
+            // Wrap around the ends: Down on the first channel goes to the
+            // last and Up on the last to the first (it used to stop there, so
+            // Down on channel 1 looked broken).
+            val next = Math.floorMod(cur + delta, list.size)
             if (next != cur) {
                 lastFlipAt = now
                 // Trace: stamp the real D-pad press for press->firstFrame.
@@ -1967,8 +2050,12 @@ fun PlayerScreen(
                     true
                 }
                 com.aeriotv.android.core.remote.PlayerRemoteAction.OPTIONS_MENU -> {
+                    // The chrome opens its menu on the pulse and reports it
+                    // back through onInteractingChange (chromeMenuOpen). Set
+                    // chromeMenuOpen here directly and nothing opened the
+                    // menu, while the flag pinned the chrome open.
                     chromeVisible = true
-                    chromeMenuOpen = true
+                    optionsMenuRequestState.intValue += 1
                     true
                 }
                 com.aeriotv.android.core.remote.PlayerRemoteAction.MINIMIZE_TO_GUIDE -> {
@@ -2051,8 +2138,13 @@ fun PlayerScreen(
     // On TV, when the chrome hides (fullscreen video), pull D-pad focus to the
     // playback surface so the remote's up/down reaches the channel-flip handler
     // instead of being swallowed by a stale focus target.
-    LaunchedEffect(chromeVisible, isTvForm) {
-        if (isTvForm && !chromeVisible) {
+    // Not while Recently Watched or the channel list is up: History in the
+    // info bar hides the chrome and opens Recently Watched in one go, and this
+    // pull took the focus away from the list it had just opened (nothing
+    // lit, no key reached it). When the list closes this runs again and the
+    // video gets the focus back.
+    LaunchedEffect(chromeVisible, isTvForm, recentsOverlayVisible, channelListVisible) {
+        if (isTvForm && !chromeVisible && !recentsOverlayVisible && !channelListVisible) {
             delay(100)
             runCatching { playbackFocus.requestFocus() }
         }
@@ -2469,6 +2561,13 @@ private fun LiveRewindChromeSection(
     playbackSpeedSheetState: MutableState<Float?>,
     multiviewPickerOpenState: MutableState<Boolean>,
     chromeMenuOpenState: MutableState<Boolean>,
+    optionsMenuRequest: Int,
+    infoBarStyle: Boolean,
+    numberingGroup: String,
+    epgByChannel: Map<String, List<EPGProgramme>>,
+    currentIndexState: MutableIntState,
+    onHideChrome: () -> Unit,
+    onShowRecents: () -> Unit,
     castChooserOpenState: MutableState<Boolean>,
     audioOnlyState: MutableState<Boolean>,
     sleepEndsAtState: MutableState<Long?>,
@@ -2576,10 +2675,64 @@ private fun LiveRewindChromeSection(
         showProgramSubtitle = cardShowProgramSubtitle,
         showProgramDescription = cardShowProgramDescription,
     )
+    // Info bar style (TV): the next channels in guide order for the card row,
+    // their current programmes, and what follows the current programme.
+    val infoBar = if (infoBarStyle && isTvForm && !isCatchupMode) {
+        var currentIndex by currentIndexState
+        val idx = currentIndex
+        val upcoming = remember(channels, idx) {
+            if (idx < 0 || channels.size < 2) {
+                emptyList()
+            } else {
+                (1..minOf(INFO_BAR_UPCOMING, channels.size - 1)).map { channels[(idx + it) % channels.size] }
+            }
+        }
+        val nextProgramme = remember(epgByChannel, currentChannel, nowProgramme) {
+            val list = currentChannel?.let { epgByChannel[it.guideMatchKey] }.orEmpty()
+            val after = nowProgramme?.endMillis ?: System.currentTimeMillis()
+            list.filter { it.startMillis >= after && !it.isPlaceholder }.minByOrNull { it.startMillis }
+        }
+        TvInfoBarModel(
+            upcoming = upcoming,
+            position = remember(channels, currentChannel?.id, numberingGroup) {
+                // The guide numbers each group 1..n (TiviMate): the position
+                // within the channel's own group, or in the whole list when
+                // the guide showed All Channels.
+                val ch = currentChannel ?: return@remember null
+                val list = if (numberingGroup == com.aeriotv.android.feature.playlist.PlaylistViewModel.ALL_GROUPS) {
+                    channels
+                } else {
+                    channels.filter { it.groupTitle.equals(ch.groupTitle, ignoreCase = true) }
+                }
+                list.indexOfFirst { it.id == ch.id }.takeIf { it >= 0 }?.plus(1)
+            },
+            nextProgramme = nextProgramme,
+            nowFor = { ch -> epgByChannel[ch.guideMatchKey]?.nowPlaying() },
+            onTuneChannel = { ch ->
+                onHideChrome()
+                val i = channels.indexOfFirst { it.id == ch.id }
+                if (i >= 0 && i != currentIndex) {
+                    com.aeriotv.android.core.data.repository.EpgSweepGate.onTuneStart()
+                    exoHolder.markTunePress(ch.name)
+                    currentIndex = i
+                }
+            },
+            onOpenGuide = {
+                exoWindowState.onPlayerRemoteAction?.invoke(
+                    com.aeriotv.android.core.remote.PlayerRemoteAction.MINIMIZE_TO_GUIDE,
+                )
+            },
+            onOpenHistory = onShowRecents,
+        )
+    } else {
+        null
+    }
     PlayerChromeOverlay(
         channel = currentChannel,
         nowProgramme = nowProgramme,
         infoCardPrefs = infoCardPrefs,
+        infoBar = infoBar,
+        optionsMenuRequest = optionsMenuRequest,
         timeshiftState = if (tsState.buffering) tsState else null,
         timeshiftPositionWallMs = tsPositionWallMs,
         // Live TV with pause/rewind OFF: the transport comes from Live Rewind,
@@ -2626,6 +2779,9 @@ private fun LiveRewindChromeSection(
                 }
                 else -> exoHolder.setPaused(!exoHolder.isPaused())
             }
+            // The ticker only refreshes this while a Live Rewind buffer rolls;
+            // without one the play / pause icon must follow the press itself.
+            tsPaused = exoHolder.isPaused()
         },
         onRewindSeekWall = { target ->
             // Read the buffer window FRESH from the writer at action
@@ -3048,3 +3204,6 @@ interface PlayerScreenEntryPoint {
     fun companionDiscovery(): com.aeriotv.android.core.cast.companion.CompanionDiscovery
     fun companionHost(): com.aeriotv.android.core.cast.companion.CompanionHostController
 }
+
+/** Channel cards in the info bar's OK row (TV). */
+private const val INFO_BAR_UPCOMING = 30

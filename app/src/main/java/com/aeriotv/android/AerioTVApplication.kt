@@ -205,6 +205,21 @@ class AerioTVApplication : Application(), Configuration.Provider, SingletonImage
                     com.aeriotv.android.core.ui.ClockFormat.fromPref(it)
             }
         }
+        // ArrTV look by default: applied once on every install, new or
+        // updated, so all ArrTV users start from the same look. Anything
+        // changed afterwards stays; a kill before the flag is written just
+        // applies it again next launch.
+        if (com.aeriotv.android.BuildConfig.ARRTV_LOOK_BY_DEFAULT) {
+            appScope.launch {
+                runCatching {
+                    if (!appPreferences.arrTvLookAppliedOnce()) {
+                        appPreferences.applyArrTvLook()
+                        appPreferences.setArrTvLookApplied()
+                        android.util.Log.i("ArrTvLook", "ArrTV look applied by default")
+                    }
+                }
+            }
+        }
         // Skip Intervals: keep the process-wide pair on the synced prefs so
         // player composables, the media session, and the remote sheets read
         // the current values synchronously.

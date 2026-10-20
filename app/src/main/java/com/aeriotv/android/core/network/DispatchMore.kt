@@ -78,6 +78,11 @@ object DispatchMore {
         /** Just the guide records this login's channels use (v272), instead of every guide
          *  record of every source on the server from /api/epg/epgdata/. */
         val guideLinksPath: String? = null,
+        /** One mark per guide of this login's channels (v275): a changed guides stamp then
+         *  means only the guides whose mark moved, not the whole 24 h grid. */
+        val guideMarksPath: String? = null,
+        /** The grid takes `epg_ids` (v275): the programmes of some guides only. */
+        val gridEpgIds: Boolean = false,
     )
 
     // The formats the server accepts; anything else it ignores.

@@ -578,6 +578,43 @@ class PlaylistViewModel @Inject constructor(
     }
 
     /**
+     * Dispatch More v275: fetch and write only the guides whose marks moved since the guide
+     * cache was saved, over the span the cache holds (a day at least, a week at most). False when
+     * the server cannot say which, or nothing is on screen to patch: the caller then downloads the
+     * whole guide as before.
+     */
+    private suspend fun applyGuideDelta(playlist: PlaylistEntity, reason: String): Boolean {
+        val delta = runCatching { repository.guideDelta(playlist) }
+            .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
+            .getOrNull() ?: return false
+        if (delta.epgIds.isEmpty()) {
+            Log.i(TAG, "guide delta ($reason): no guide of these channels changed")
+            repository.rememberMarks(playlist.id, delta.marks)
+            return true
+        }
+        if (_state.value.epgByChannel !is com.aeriotv.android.core.guide.GuideCatalog) return false
+        val now = System.currentTimeMillis()
+        val cachedEnd = runCatching { repository.cachedEpgSpan(playlist.id)?.second }.getOrNull() ?: 0L
+        val from = now - 3_600_000L
+        val to = cachedEnd.coerceIn(now + 86_400_000L, now + 7 * 86_400_000L)
+        com.aeriotv.android.core.guide.GuideWorkGate.awaitCalm("guide delta")
+        val programmes = try {
+            withContext(Dispatchers.IO) { repository.fetchGuideProgrammes(playlist, delta.epgIds, from, to) }
+        } catch (c: kotlinx.coroutines.CancellationException) {
+            throw c
+        } catch (t: Throwable) {
+            Log.w(TAG, "guide delta ($reason) failed: ${t::class.simpleName}: ${t.message}")
+            return false
+        }
+        Log.i(TAG, "guide delta ($reason): ${delta.epgIds.size} of ${delta.marks.marks.size} guides changed, ${programmes.size} programmes fetched")
+        applyGuideWindow(
+            playlist,
+            PlaylistRepository.CacheUpdate.GuideWindow(playlist.id, programmes, from, to, changedGuides = true, marks = delta.marks),
+        )
+        return true
+    }
+
+    /**
      * Dispatcharr live updates: a server EPG refresh delivered a fresh window.
      * Compare it per channel with the guide on screen, write only the changed
      * channels to the cache and swap only those into the guide
@@ -603,7 +640,7 @@ class PlaylistViewModel @Inject constructor(
         // on every check without ever being applied.
         val compareFrom = maxOf(update.fromMs, catalog.windowStartMs, System.currentTimeMillis())
         val compareTo = minOf(update.toMs, catalog.windowEndMs)
-        if (compareTo <= compareFrom) {
+        if (compareTo <= compareFrom && !update.changedGuides) {
             Log.i(TAG, "guide window: no overlap with the guide on screen, ignored")
             return
         }
@@ -616,18 +653,31 @@ class PlaylistViewModel @Inject constructor(
             // and rewrote the whole guide for nothing (956 of 1426 channels,
             // 212 s on the Shield). Filler carries nothing to update.
             val filler = channels.filterTo(HashSet()) { it.isFillerKeyed() }.mapTo(HashSet()) { it.guideChannelId().value }
-            bridged to catalog.changedChannels(channels, bridged, compareFrom, compareTo).filterNotTo(HashSet()) { it in filler }
+            // The server said which guides changed: every channel on them is rewritten
+            val candidates = if (update.changedGuides) {
+                com.aeriotv.android.core.guide.GuideMatchMaps.build(channels)
+                    .channelsForGridKeys(update.programmes.mapTo(HashSet()) { it.channelId })
+            } else {
+                catalog.changedChannels(channels, bridged, compareFrom, compareTo)
+            }
+            bridged to candidates.filterNotTo(HashSet()) { it in filler }
         }
         val compareMs = android.os.SystemClock.elapsedRealtime() - startedAt
         if (changed.isEmpty()) {
             Log.i(TAG, "guide window: ${fresh.size} programmes, no channel changed (compare ${compareMs}ms)")
+            update.marks?.let { repository.rememberMarks(playlist.id, it) }
             return
         }
         // A large share changed (the TV was off, a big server refresh): one bulk
         // save and one rebuild, not hundreds of per-channel reads. On a
         // Chromecast HD 680 changed channels took 95 s to patch -- 57 s of it
         // reading their rows back one channel at a time from a swapping device.
-        if (changed.size * LARGE_WINDOW_CHANGE_DIVISOR > channels.size) {
+        // Also while the launch still widens the guide from its first view: a patch of that
+        // view would be replaced by the widening build, which may have read the cache before
+        // these rows were in it; a rebuild asked for now runs after it and reads them.
+        if (changed.size * LARGE_WINDOW_CHANGE_DIVISOR > channels.size ||
+            (update.changedGuides && _state.value.guideWidening)
+        ) {
             val byIdAll = channels.associateBy { it.guideChannelId().value }
             val gridKeysAll = changed.flatMapTo(HashSet()) { id ->
                 byIdAll[id]?.let { com.aeriotv.android.core.guide.GuideMatchMaps.rawKeysOf(it, withNumber = false) }.orEmpty()
@@ -645,12 +695,13 @@ class PlaylistViewModel @Inject constructor(
                 "guide window: ${changed.size} of ${channels.size} channels changed, saved in one go " +
                     "(${rows.size} of ${fresh.size} rows, ${android.os.SystemClock.elapsedRealtime() - startedAt}ms); rebuilding",
             )
+            update.marks?.let { repository.rememberMarks(playlist.id, it) }
             rebuildGuideCatalog(playlist, "guide-window")
             return
         }
         // Authoritative per channel: replaces only the span these rows cover,
         // only for the channels they carry.
-        catalog.lastExplanations.forEach { Log.i(TAG, "guide window diff: $it") }
+        if (!update.changedGuides) catalog.lastExplanations.forEach { Log.i(TAG, "guide window diff: $it") }
         // Stale copies stored under raw grid keys (the stock day-chunk sweep)
         // would keep winning over the new rows (dedup keeps the earlier row),
         // so they go first. Grid keys are shared one-to-many: every channel on
@@ -666,6 +717,7 @@ class PlaylistViewModel @Inject constructor(
         // one changedChannels compared against (GuideCatalog.asStored).
         val writtenRows = com.aeriotv.android.core.guide.GuideCatalog.inStoreOrder(fresh.filter { it.channelId in rewritten })
         repository.saveEpgToCache(playlist.id, writtenRows)
+        update.marks?.let { repository.rememberMarks(playlist.id, it) }
         val saveMs = android.os.SystemClock.elapsedRealtime() - startedAt - compareMs
         val affected = channels.filter { it.guideChannelId().value in rewritten }
         val rows = repository.loadCachedEpgForChannels(
@@ -1674,13 +1726,21 @@ class PlaylistViewModel @Inject constructor(
             ) {
                 Log.i(TAG, "loadEpgIfConfigured: start-up check says the guide is unchanged, skipping network")
                 _state.update { it.copy(isEpgLoading = false) }
+                syncVerdict?.let { v -> viewModelScope.launch { runCatching { repository.ensureMarks(playlist, v) } } }
+                return null
+            }
+            // Dispatch More v275: a changed guide is fetched for the guides that changed only
+            if (guides == com.aeriotv.android.core.data.sync.SyncChange.CHANGED &&
+                hasCache && ageMs != null && ageMs < EPG_SYNC_TRUST_MS && applyGuideDelta(playlist, "launch")
+            ) {
+                _state.update { it.copy(isEpgLoading = false) }
                 return null
             }
             val fresh = guides != com.aeriotv.android.core.data.sync.SyncChange.CHANGED &&
                 ageMs != null && ageMs < EPG_CACHE_TTL_MS
             if (fresh) {
                 if (guides == com.aeriotv.android.core.data.sync.SyncChange.UNKNOWN) {
-                    syncVerdict?.let { repository.adoptGuidesStamp(playlist.id, it) }
+                    syncVerdict?.let { repository.adoptGuidesStamp(playlist, it) }
                 }
                 Log.i(TAG, "loadEpgIfConfigured: cache fresh, skipping network")
                 _state.update { it.copy(isEpgLoading = false) }

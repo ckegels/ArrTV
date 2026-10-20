@@ -160,6 +160,12 @@ private const val EPG_DELETE_PAUSE_MS = 50L
  *  the stamp a download saves) ask within seconds of each other. */
 private const val SYNC_REUSE_MS = 60_000L
 
+// Past this many changed guides, or a third of them, one plain grid call is cheaper than the
+// list of ids (a full re-import moves every mark)
+private const val MAX_DELTA_GUIDES = 400
+private const val DELTA_SHARE_DIVISOR = 3
+private const val NO_GUIDE_ID = -1
+
 /** Small per-device file for guide maintenance times (the daily catch-up reach prune). */
 private const val EPG_MAINTENANCE_PREFS = "epg_maintenance"
 
@@ -1070,8 +1076,10 @@ class PlaylistRepository @Inject constructor(
         syncStamps.saveLineup(playlistId, verdict.answer)
 
     /** The same for the guide. */
-    fun adoptGuidesStamp(playlistId: String, verdict: com.aeriotv.android.core.data.sync.SyncVerdict) =
-        syncStamps.saveGuides(playlistId, verdict.answer)
+    suspend fun adoptGuidesStamp(playlist: PlaylistEntity, verdict: com.aeriotv.android.core.data.sync.SyncVerdict) {
+        syncStamps.saveGuides(playlist.id, verdict.answer)
+        rememberMarksFor(playlist, verdict.answer.guides)
+    }
 
     /**
      * A guide download for [playlist] succeeded: save the guides stamp that was current when it
@@ -1080,6 +1088,99 @@ class PlaylistRepository @Inject constructor(
     suspend fun rememberGuides(playlist: PlaylistEntity, before: com.aeriotv.android.core.data.sync.SyncVerdict?) {
         val answer = before?.answer ?: recentSync(playlist) ?: return
         syncStamps.saveGuides(playlist.id, answer)
+        rememberMarksFor(playlist, answer.guides)
+    }
+
+    /**
+     * Saves the per-guide marks (Dispatch More v275) with the guides stamp just saved, when they
+     * stand for that same stamp: a guide that changed during the download then still differs at
+     * the next check instead of being covered up. Without them the next change means the whole
+     * grid again, as before v275.
+     */
+    private suspend fun rememberMarksFor(playlist: PlaylistEntity, stamp: String) {
+        val marks = fetchGuideMarks(playlist) ?: return
+        if (marks.guides == stamp) syncStamps.saveMarks(playlist.id, marks)
+        else Log.i("PlaylistRepo", "guide marks: the guide changed during the download; not saved")
+    }
+
+    /**
+     * The guide is unchanged and current: make sure its marks are saved with it, so the next
+     * change fetches only the guides it touched (a cache saved before v275 has none).
+     */
+    suspend fun ensureMarks(playlist: PlaylistEntity, verdict: com.aeriotv.android.core.data.sync.SyncVerdict) {
+        if (syncStamps.savedMarks(playlist.id) == null) rememberMarksFor(playlist, verdict.answer.guides)
+    }
+
+    private suspend fun fetchGuideMarks(playlist: PlaylistEntity): com.aeriotv.android.core.network.DispatchMoreGuideMarks? {
+        val type = playlist.resolvedSourceType()
+        if (type != SourceType.DispatcharrApiKey && type != SourceType.DispatcharrUserPass) return null
+        val base = effectiveBaseUrl(playlist)
+        val server = com.aeriotv.android.core.network.DispatchMore.serverFor(base) ?: return null
+        val path = server.guideMarksPath?.takeIf { server.gridEpgIds } ?: return null
+        return runCatching {
+            dispatcharrAuth.withApiKeyRetry(playlist.id) { key -> dispatcharrClient.fetchGuideMarks(base, key, path) }
+        }.onFailure { if (it is CancellationException) throw it }.getOrNull()
+    }
+
+    /**
+     * The guide record each Dispatcharr channel uses, from the last channel download
+     * ([NO_GUIDE_ID]: none). A channel that joins (Show Groups) or moves to another guide then
+     * needs only that guide's programmes, not the whole 24 h grid.
+     */
+    private val guideIdOfChannel = ConcurrentHashMap<String, Int>()
+
+    /** The guide records of these channels, or null when one of them was never downloaded here. */
+    fun guideIdsOf(channelIds: Collection<String>): Set<Int>? {
+        val ids = HashSet<Int>()
+        for (id in channelIds) {
+            val guide = guideIdOfChannel[id] ?: return null
+            if (guide != NO_GUIDE_ID) ids += guide
+        }
+        return ids
+    }
+
+    /** What a changed guide needs (Dispatch More v275): the programmes of [epgIds]; then [marks] are current. */
+    data class GuideDelta(
+        val epgIds: Set<Int>,
+        val marks: com.aeriotv.android.core.network.DispatchMoreGuideMarks,
+    )
+
+    /**
+     * Which of this login's guides changed since the guide cache was saved, by Dispatch More's
+     * per-guide marks. A source refresh on the server or a Show Groups change moved the guides
+     * stamp and arrTV downloaded the whole 24 h grid again (41k programmes, 16 MB on the user's
+     * server, several times an hour) for a handful of guides. Null when that cannot be said or is
+     * not worth it: a server before v275, no marks saved with the cache, no answer, or so many
+     * changed guides (a full re-import) that one plain grid call is cheaper. An empty set: no
+     * guide of these channels changed.
+     */
+    suspend fun guideDelta(playlist: PlaylistEntity): GuideDelta? {
+        val saved = syncStamps.savedMarks(playlist.id) ?: return null
+        val now = fetchGuideMarks(playlist) ?: return null
+        if (now.guides == saved.guides) return GuideDelta(emptySet(), now)
+        val changed = com.aeriotv.android.core.data.sync.SyncStamps.changedGuides(saved.marks, now.marks)
+        if (changed.size > MAX_DELTA_GUIDES || changed.size * DELTA_SHARE_DIVISOR > now.marks.size) {
+            Log.i("PlaylistRepo", "guide marks: ${changed.size} of ${now.marks.size} guides changed; the whole grid is cheaper")
+            return null
+        }
+        return GuideDelta(changed, now)
+    }
+
+    /** The guide cache now holds what [marks] stand for. */
+    fun rememberMarks(playlistId: String, marks: com.aeriotv.android.core.network.DispatchMoreGuideMarks) =
+        syncStamps.saveMarks(playlistId, marks)
+
+    /** Dispatcharr's grid for [epgIds] only (Dispatch More v275), raw keys as the grid sends them. */
+    suspend fun fetchGuideProgrammes(
+        playlist: PlaylistEntity,
+        epgIds: Set<Int>,
+        fromMillis: Long,
+        toMillis: Long,
+    ): List<EPGProgramme> {
+        val base = effectiveBaseUrl(playlist)
+        return dispatcharrAuth.withApiKeyRetry(playlist.id) { key ->
+            dispatcharrClient.getEpgGrid(base, key, fromMillis, toMillis, epgIds).toProgrammes()
+        }
     }
 
     /**
@@ -1254,6 +1355,11 @@ class PlaylistRepository @Inject constructor(
             val programmes: List<EPGProgramme>,
             val fromMs: Long,
             val toMs: Long,
+            /** The rows are the guides whose marks moved (Dispatch More v275, [guideDelta]):
+             *  every channel they reach is rewritten, nothing is compared. */
+            val changedGuides: Boolean = false,
+            /** Saved once the rows are in the cache: it then holds what these marks stand for. */
+            val marks: com.aeriotv.android.core.network.DispatchMoreGuideMarks? = null,
         ) : CacheUpdate
     }
 
@@ -3582,6 +3688,10 @@ class PlaylistRepository @Inject constructor(
                     "accountFilter=${accountAllowedIds?.size?.toString() ?: "off"} -> ${afterAccount.size}, " +
                     "manualFilter=${manualAllowedIds?.size?.toString() ?: "off"} -> ${channels.size}",
             )
+            for (ch in channels) {
+                val uuid = ch.uuid?.takeIf { it.isNotBlank() } ?: continue
+                guideIdOfChannel["disp:$uuid"] = ch.effectiveEpgDataId ?: ch.epgDataId ?: NO_GUIDE_ID
+            }
             channels
                 .filter { !it.uuid.isNullOrBlank() }
                 .sortedWith(compareBy(

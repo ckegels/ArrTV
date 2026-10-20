@@ -1,6 +1,8 @@
 package com.aeriotv.android.core.data.sync
 
+import com.aeriotv.android.core.network.DispatchMoreGuideMarks
 import com.aeriotv.android.core.network.DispatchMoreSync
+import kotlinx.serialization.json.Json
 
 /** What the start-up check found for one part of a playlist's cache. */
 enum class SyncChange {
@@ -53,11 +55,33 @@ class SyncStamps(private val store: Store) {
         store.put(guidesKey(playlistId), answer.guides)
 
     /** The cached guide was thrown away: the next check must not call it current. */
-    fun forgetGuides(playlistId: String) = store.put(guidesKey(playlistId), null)
+    fun forgetGuides(playlistId: String) {
+        store.put(guidesKey(playlistId), null)
+        store.put(marksKey(playlistId), null)
+    }
 
     fun forget(playlistId: String) {
         store.put(lineupKey(playlistId), null)
-        store.put(guidesKey(playlistId), null)
+        forgetGuides(playlistId)
+    }
+
+    /**
+     * Dispatch More v275: the guide cache holds what these per-guide marks stand for. Saves
+     * their stamp as the guides stamp too, so the two always describe the same guide.
+     */
+    fun saveMarks(playlistId: String, marks: DispatchMoreGuideMarks) {
+        store.put(marksKey(playlistId), json.encodeToString(DispatchMoreGuideMarks.serializer(), marks))
+        store.put(guidesKey(playlistId), marks.guides)
+    }
+
+    /**
+     * The marks saved with the guide cache; null when there are none or they stand for another
+     * guide than the saved stamp (the stamp was saved since without marks).
+     */
+    fun savedMarks(playlistId: String): DispatchMoreGuideMarks? {
+        val raw = store.get(marksKey(playlistId)) ?: return null
+        val marks = runCatching { json.decodeFromString(DispatchMoreGuideMarks.serializer(), raw) }.getOrNull()
+        return marks?.takeIf { it.guides.isNotEmpty() && it.guides == store.get(guidesKey(playlistId)) }
     }
 
     private fun compare(saved: String?, now: String): SyncChange = when {
@@ -70,4 +94,17 @@ class SyncStamps(private val store: Store) {
     private fun lineupStamp(answer: DispatchMoreSync) = answer.lineup + "/" + answer.guideLinks
     private fun lineupKey(playlistId: String) = "$playlistId.lineup"
     private fun guidesKey(playlistId: String) = "$playlistId.guides"
+    private fun marksKey(playlistId: String) = "$playlistId.marks"
+
+    companion object {
+        private val json = Json { ignoreUnknownKeys = true }
+
+        /**
+         * The guides to fetch again: those whose mark moved, and those the cache has no mark for
+         * (a channel joined on a guide no other channel used). A guide no channel uses any more
+         * needs nothing.
+         */
+        fun changedGuides(saved: Map<String, String>, now: Map<String, String>): Set<Int> =
+            now.entries.filter { (id, mark) -> saved[id] != mark }.mapNotNullTo(HashSet()) { it.key.toIntOrNull() }
+    }
 }

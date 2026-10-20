@@ -354,7 +354,10 @@ class DispatcharrLiveUpdates @Inject constructor(
         }
         val diff = ChannelListDiff.between(before, channels)
         val beforeKeys = before.associate { it.id to it.tvgID }
-        val rekeyed = channels.count { ch -> beforeKeys[ch.id]?.let { it != ch.tvgID } == true }
+        val rekeyedIds = channels.filter { ch -> beforeKeys[ch.id]?.let { it != ch.tvgID } == true }.map { it.id }
+        val rekeyed = rekeyedIds.size
+        // Their guides, so the window asks for those only (null: not known, the whole window)
+        val newGuides = repository.guideIdsOf(channels.filter { it.id !in beforeKeys }.map { it.id } + rekeyedIds)
         Log.i(TAG, "channel check ($reason): $diff" + if (rekeyed > 0) ", $rekeyed on another guide" else "")
         if (diff.hasChanges) {
             repository.announceCacheUpdate(PlaylistRepository.CacheUpdate.Channels(playlistId, channels))
@@ -365,8 +368,8 @@ class DispatcharrLiveUpdates @Inject constructor(
         // changed on the server showed its old programmes -- or none -- until
         // the next full sweep.)
         when {
-            diff.added > 0 -> announceGuideWindow(playlistId, "new channels")
-            rekeyed > 0 -> announceGuideWindow(playlistId, "$rekeyed channels on another guide")
+            diff.added > 0 -> announceGuideWindow(playlistId, "new channels", newGuides)
+            rekeyed > 0 -> announceGuideWindow(playlistId, "$rekeyed channels on another guide", newGuides)
             withGuide -> announceGuideWindow(playlistId, "guide changed on the server")
         }
     }
@@ -376,24 +379,47 @@ class DispatcharrLiveUpdates @Inject constructor(
      * it to the open app, which writes and repaints only the channels whose
      * schedule changed. Days further ahead are left to the stock sweep, which
      * with live updates on runs while nothing is being watched.
+     *
+     * Dispatch More v275: only the guides whose marks moved, plus [alsoGuides] (those of
+     * channels that joined or moved to another guide; null: not known, then the whole window).
+     * A source refresh fetched the whole 24 h grid, 41k programmes and 16 MB on the user's
+     * server, several times an hour, mostly for guides none of these channels use.
      */
-    private suspend fun announceGuideWindow(playlistId: String, reason: String) {
+    private suspend fun announceGuideWindow(playlistId: String, reason: String, alsoGuides: Set<Int>? = emptySet()) {
         val playlist = repository.activePlaylist()?.takeIf { it.id == playlistId } ?: return
+        val delta = if (alsoGuides != null) repository.guideDelta(playlist) else null
+        val wanted = delta?.let { it.epgIds + alsoGuides.orEmpty() }
+        if (delta != null && wanted.isNullOrEmpty()) {
+            Log.i(TAG, "guide window ($reason): no guide of these channels changed")
+            repository.rememberMarks(playlistId, delta.marks)
+            return
+        }
         val now = System.currentTimeMillis()
         val from = now - HOUR_MS
         val to = now + DAY_MS
         com.aeriotv.android.core.guide.GuideWorkGate.awaitCalm("live guide window ($reason)")
         val programmes = try {
-            withContext(Dispatchers.IO) { repository.fetchLiveGridProgrammes(playlist, from, to) }
+            withContext(Dispatchers.IO) {
+                if (wanted != null) repository.fetchGuideProgrammes(playlist, wanted, from, to)
+                else repository.fetchLiveGridProgrammes(playlist, from, to)
+            }
         } catch (c: CancellationException) {
             throw c
         } catch (t: Throwable) {
             Log.w(TAG, "guide window ($reason) failed: ${t::class.simpleName}: ${t.message}")
             return
         }
-        Log.i(TAG, "guide window ($reason): ${programmes.size} programmes fetched")
-        if (programmes.isEmpty()) return
-        repository.announceCacheUpdate(PlaylistRepository.CacheUpdate.GuideWindow(playlistId, programmes, from, to))
+        Log.i(
+            TAG,
+            "guide window ($reason): ${programmes.size} programmes fetched" +
+                if (wanted != null) " for ${wanted.size} guides" else "",
+        )
+        if (programmes.isEmpty() && wanted == null) return
+        repository.announceCacheUpdate(
+            PlaylistRepository.CacheUpdate.GuideWindow(
+                playlistId, programmes, from, to, changedGuides = wanted != null, marks = delta?.marks,
+            ),
+        )
     }
 
     /** The first socket connect of this app run has happened (see Connected). */

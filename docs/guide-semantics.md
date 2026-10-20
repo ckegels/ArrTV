@@ -93,6 +93,16 @@ Both age AND identity:
   the age rules above, and a cache they find fresh adopts the server's stamp.
   The background refresh never runs within 10 minutes of the app starting or
   while a picture plays.
+- Per-guide marks (ANDROID, Dispatch More v275, `/api/core/app-guide-marks/`):
+  one mark per guide of the login's channels is saved with the guides stamp
+  (only when it stands for that same stamp). A changed stamp then fetches only
+  the guides whose mark moved or that are new (`/api/epg/grid/?epg_ids=`, now
+  -1 h to the cached span's end, a day at least, a week at most) and rewrites
+  every channel those rows reach, without comparing; at launch while the cache
+  is under 12 h old, on a source refresh and on the socket's reconnect. A
+  channel that joins (Show Groups) or moves to another guide asks for its own
+  guide too. More than 400 changed guides, or a third of them, or no marks:
+  the whole grid as before. The background job still downloads the whole guide.
 - Pacing (ANDROID): full guide rebuilds run one at a time; requests made while
   one runs are served by one more (CoalescingRunner). Full rebuilds, the guide
   download, category enrichment, the live guide window and each look-back

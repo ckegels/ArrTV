@@ -559,6 +559,9 @@ class DispatcharrClient @Inject constructor() {
                         ?.takeIf { it.startsWith("/") },
                     guideLinksPath = (root["guide_links_url"] as? JsonPrimitive)?.contentOrNull
                         ?.takeIf { it.startsWith("/") },
+                    guideMarksPath = (root["guide_marks_url"] as? JsonPrimitive)?.contentOrNull
+                        ?.takeIf { it.startsWith("/") },
+                    gridEpgIds = (root["grid_epg_ids"] as? JsonPrimitive)?.booleanOrNull == true,
                 ),
             )
         }.getOrNull()
@@ -1105,6 +1108,30 @@ class DispatcharrClient @Inject constructor() {
         }
 
     /**
+     * Dispatch More v275: one mark per guide of this login's channels, and the guides stamp they
+     * make up. Null when the server said nothing usable: the caller then fetches the whole grid.
+     */
+    @OptIn(ExperimentalSerializationApi::class)
+    suspend fun fetchGuideMarks(baseUrl: String, apiKey: String, path: String): DispatchMoreGuideMarks? =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val url = baseUrl.trimEnd('/') + path
+                client.prepareGet(url) {
+                    applyAuth(apiKey)
+                    timeout { requestTimeoutMillis = 20_000; socketTimeoutMillis = 20_000 }
+                }.execute { response ->
+                    unauthorizedCheck(response, url)
+                    if (!response.status.isSuccess()) return@execute null
+                    json.decodeFromStream<DispatchMoreGuideMarks>(response.bodyAsChannel().toInputStream())
+                        .takeIf { it.guides.isNotEmpty() }
+                }
+            }.onFailure {
+                if (it is kotlinx.coroutines.CancellationException) throw it
+                android.util.Log.w("DispatcharrClient", "guide marks failed: $it")
+            }.getOrNull()
+        }
+
+    /**
      * GET /api/epg/sources/ - the EPG sources configured on the Dispatcharr
      * server (list permission is IsStandardUser, so any API key works). Used
      * for catch-up depth: Dispatcharr's own grid only retains a couple of
@@ -1232,20 +1259,24 @@ class DispatcharrClient @Inject constructor() {
         apiKey: String,
         startMillis: Long? = null,
         endMillis: Long? = null,
+        /** Only these guide records (Dispatch More v275, capabilities `grid_epg_ids`); null: all. */
+        epgIds: Collection<Int>? = null,
     ): List<DispatcharrEpgEntry> =
-        withContext(Dispatchers.IO) { getEpgGridImpl(baseUrl, apiKey, startMillis, endMillis) }
+        withContext(Dispatchers.IO) { getEpgGridImpl(baseUrl, apiKey, startMillis, endMillis, epgIds) }
 
     private suspend fun getEpgGridImpl(
         baseUrl: String,
         apiKey: String,
         startMillis: Long?,
         endMillis: Long?,
+        epgIds: Collection<Int>?,
     ): List<DispatcharrEpgEntry> {
         // Dispatcharr 0.30 (PR #1643): `start` / `end` select an absolute ISO
         // 8601 window; older servers ignore them and answer -1h..+24h.
         val query = buildList {
             startMillis?.let { add("start=" + java.time.Instant.ofEpochMilli(it).toString()) }
             endMillis?.let { add("end=" + java.time.Instant.ofEpochMilli(it).toString()) }
+            epgIds?.let { ids -> add("epg_ids=" + ids.sorted().joinToString(",")) }
         }.joinToString("&")
         val url = "${baseUrl.trimEnd('/')}/api/epg/grid/" + if (query.isEmpty()) "" else "?$query"
         // Streamed into the rows: the 24 h grid of a big lineup is tens of MB of JSON, and
@@ -3219,6 +3250,13 @@ data class DispatchMoreSync(
     val guideLinks: String = "",
     val guides: String = "",
     val programmes: Int = 0,
+)
+
+/** Dispatch More v275 GET /api/core/app-guide-marks/: {guide record id: mark}, "0" = no programmes. */
+@Serializable
+data class DispatchMoreGuideMarks(
+    val guides: String = "",
+    val marks: Map<String, String> = emptyMap(),
 )
 
 @Serializable

@@ -43,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -670,7 +671,8 @@ fun TvGroupPicker(
                     )
                 }
                 LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
+                    // Clipped: a focused row's ring and scale drew over the heading above
+                    modifier = Modifier.fillMaxWidth().weight(1f, fill = false).clipToBounds(),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {

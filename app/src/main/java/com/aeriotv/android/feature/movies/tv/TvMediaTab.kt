@@ -272,7 +272,7 @@ internal fun TvMediaTab(
             )
         },
         emptyContent = {
-            if (isLoading || (!isSearching && libraryPending) || (isSearching && isSearchBusy)) CircularProgressIndicator()
+            if (isLoading || (!isSearching && libraryPending) || (isSearching && isSearchBusy)) com.aeriotv.android.ui.tv.TvGatedSpinner()
             else Text(if (isSearching) stringResource(R.string.media_no_results) else stringResource(kind.emptyTitleRes), color = MaterialTheme.colorScheme.onSurfaceVariant)
         },
         isLoading = isLoading,

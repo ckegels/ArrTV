@@ -246,8 +246,49 @@ fun GuideGrid(
     }
     // Trace (AerioFocus): which branch decided the key; set inside the handler.
     var traceBy = "none"
+    // GH #128 (from AerioTV cc2c37c7): a key held in fullscreen (Left = back to the
+    // guide, or Back) keeps auto-repeating after the guide opens; those repeats must not
+    // pan the timeline back in time. Any Left / Right / Back repeat whose first press the
+    // grid never saw is swallowed, with its key-up, so the guide stays on now and the
+    // playing channel. A long Left that starts in the guide (back in time) is untouched.
+    // Plain sets: never read in composition.
+    val keysDownSeen = remember { HashSet<Key>() }
+    val keysSwallowing = remember { HashSet<Key>() }
+    // Right at the end of the Guide Days did nothing and said nothing (Shield 2026-10-20)
+    var endNoticeAtMs by remember { mutableStateOf(0L) }
+    val stepRightOrSayEnd: () -> Unit = {
+        if (!state.stepRight()) {
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (now - endNoticeAtMs > 3_000L) {
+                endNoticeAtMs = now
+                android.widget.Toast.makeText(
+                    context, context.getString(com.aeriotv.android.R.string.livetv_guide_end_notice), android.widget.Toast.LENGTH_SHORT,
+                ).show()
+            }
+        }
+    }
     val keyHandlerInner: (KeyEvent) -> Boolean = handler@{ event ->
         traceBy = "unhandled"
+        if (event.key == Key.DirectionLeft || event.key == Key.DirectionRight || event.key == Key.Back) {
+            val rc = (event.nativeKeyEvent as? AndroidKeyEvent)?.repeatCount ?: 0
+            when (event.type) {
+                KeyEventType.KeyDown -> {
+                    if (rc == 0) { keysDownSeen.add(event.key); keysSwallowing.remove(event.key) }
+                    else if (event.key !in keysDownSeen) {
+                        if (keysSwallowing.add(event.key)) {
+                            android.util.Log.i("GuideGrid", "[PRESS] swallowed repeat after guide open (${guideTraceKeyName(event) ?: event.key})")
+                        }
+                        traceBy = "swallowed-repeat"
+                        return@handler true
+                    }
+                }
+                KeyEventType.KeyUp -> {
+                    keysDownSeen.remove(event.key)
+                    if (keysSwallowing.remove(event.key)) { traceBy = "swallowed-repeat-up"; return@handler true }
+                }
+                else -> Unit
+            }
+        }
         if (clockSelected) {
             traceBy = "clock"
             val native = event.nativeKeyEvent as? AndroidKeyEvent
@@ -339,14 +380,14 @@ fun GuideGrid(
                         if (rightDownSeen && !rightHoldLatched) {
                             val action = remoteAction(RemoteSlot.RIGHT_SHORT)
                             when {
-                                action == GuideRemoteAction.NAVIGATE -> state.stepRight()
+                                action == GuideRemoteAction.NAVIGATE -> stepRightOrSayEnd()
                                 // Program actions fire on every press.
                                 action.columnIndependent -> runAction(action)
                                 // Edge-gated: a remapped Right fires only on the row's last program.
                                 else -> {
                                     val last = state.atLastCell()
                                     android.util.Log.d("GuideGrid", "right gate: action=$action row=${state.focusRow} cellStart=${state.focusCellStartMs} lastCell=$last -> ${if (last) "fire" else "step"}")
-                                    if (last) runAction(action) else state.stepRight()
+                                    if (last) runAction(action) else stepRightOrSayEnd()
                                 }
                             }
                         }
@@ -460,17 +501,26 @@ fun GuideGrid(
 
     // Timeline easing (tvOS parity): the draw offset follows the target
     // viewport with a 300 ms ease-out after a pan or jump; a drag snaps.
-    val viewportAnim = remember { androidx.compose.animation.core.Animatable(state.viewportStartMs.toFloat()) }
+    //
+    // Eased as a 0..1 FRACTION between two exact Long instants (from AerioTV
+    // 17d051b4). An Animatable holding the epoch-ms viewport as a Float steps in
+    // 131072 ms at today's timestamps: a snap stored the ROUNDED value, so
+    // drawViewportStartMs never equalled viewportStartMs again, the text cache
+    // never saw a settled viewport, and cells measured while clipped at the strip
+    // edge kept their few-character layouts ("Spo...") for good.
     androidx.compose.runtime.LaunchedEffect(state.viewportStartMs) {
-        val target = state.viewportStartMs.toFloat()
+        val to = state.viewportStartMs
         if (!state.viewportChangeAnimated) {
-            viewportAnim.snapTo(target); state.drawViewportStartMs = target.toLong(); return@LaunchedEffect
+            state.drawViewportStartMs = to; return@LaunchedEffect
         }
-        viewportAnim.animateTo(
-            target,
-            animationSpec = androidx.compose.animation.core.tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-        ) { state.drawViewportStartMs = value.toLong() }
-        state.drawViewportStartMs = state.viewportStartMs
+        val from = state.drawViewportStartMs
+        if (from != to) {
+            androidx.compose.animation.core.Animatable(0f).animateTo(
+                1f,
+                animationSpec = androidx.compose.animation.core.tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            ) { state.drawViewportStartMs = from + ((to - from) * value.toDouble()).toLong() }
+        }
+        state.drawViewportStartMs = to
     }
     androidx.compose.runtime.CompositionLocalProvider(LocalLogoCache provides logoCache) {
     Box(modifier = modifier) {
@@ -781,6 +831,13 @@ private fun GridRow(
     val shortFmt = remember(clockMode) { ClockFormat.guideShort(clockMode) }
     val catchupPainter = androidx.compose.ui.graphics.vector.rememberVectorPainter(androidx.compose.material.icons.Icons.Outlined.History)
     val starPainter = androidx.compose.ui.graphics.vector.rememberVectorPainter(androidx.compose.material.icons.Icons.Filled.Star)
+    // A VectorPainter caches ONE raster at the size of its latest draw. The
+    // program strip draws its replay badge at about 0.7 of the title height
+    // and the rail band draws the clock at the 8 dp glyph size; sharing one
+    // painter left the rail clock drawing the strip-sized raster clipped to
+    // its 8 dp box, so only the top-right of the clock showed (Logan
+    // 2026-10-02, Streamer). Each size gets its own painter.
+    val stripCatchupPainter = androidx.compose.ui.graphics.vector.rememberVectorPainter(androidx.compose.material.icons.Icons.Outlined.History)
     val fmt = remember(clockMode) { ClockFormat.guideLabel(clockMode) }
     // tvOS: a 1 pt hairline gap between cells and rows, nothing wider.
     val seam = 1f
@@ -1223,6 +1280,15 @@ private fun GridRow(
             val ve = vs + (stripW / pxPerMs).toLong()
             val focusStart = focusedCellStart
             val focusedHere = gridFocused && focusStart != Long.MIN_VALUE
+            // Settled = the eased draw start has reached the logical viewport.
+            val viewportSettled = state.drawViewportStartMs == state.viewportStartMs
+            // Drop cached layouts for programs well outside the drawn window
+            // so the per-row map stays bounded while the user pans.
+            if (textCache.size > CELL_TEXT_CACHE_SOFT_CAP) {
+                val keepFrom = vs - CELL_TEXT_EVICT_MARGIN_MS
+                val keepTo = ve + CELL_TEXT_EVICT_MARGIN_MS
+                textCache.values.removeAll { it.startMs != Long.MIN_VALUE && (it.startMs < keepFrom || it.startMs >= keepTo) }
+            }
             val cells = state.rows.cells(row)
             // The focused cell's span, so the modern now-line can pass behind it.
             var focusedX0 = Float.NaN
@@ -1280,8 +1346,26 @@ private fun GridRow(
                     // Threshold follows the Text Size so the phone row (98dp x
                     // Text Size) keeps its two lines at every stop.
                     val descLines = if (size.height >= 90.dp.toPx() * appTextScale * subRowGrowth) 2 else 1
-                    val key = ((cell.startMillis * 31 + textW) * 4 + descLines) * 2 + (if (compact) 1 else 0)
-                    val text = textCache.getOrPut(key) {
+                    // The width is NOT in the key (from AerioTV 351f4365): a cell clipped at the
+                    // strip edge changes width on every frame of the 0.3 s pan ease, which
+                    // re-measured it per frame and grew the map without bound. One entry per cell
+                    // holds the width it was measured at; while the pan eases the existing layout
+                    // is drawn (clipped by the cell rect), and once the viewport settles a width
+                    // change re-measures, so the resting guide looks exactly as before. Badges,
+                    // the layout and the text size are in the cache's own remember() key.
+                    val key = (cell.startMillis * 4 + descLines) * 2 + (if (compact) 1 else 0)
+                    val cachedText = textCache[key]
+                    // Clipped = the cell runs past either strip edge, so textW is only its
+                    // visible slice. A layout measured clipped is never final: it is reused
+                    // mid-pan only while the cell is still clipped, measured again the moment
+                    // the cell is fully on screen, and in any case once the viewport settles
+                    // at a different width (from AerioTV 17d051b4).
+                    val clippedNow = cell.startMillis < vs || cell.endMillis > ve
+                    val reuse = cachedText != null && (
+                        cachedText.measuredW == textW ||
+                            (!viewportSettled && !(cachedText.measuredClipped && !clippedNow))
+                        )
+                    val text = if (reuse) cachedText!! else run {
                         fun measure(t: String, st: TextStyle, maxH: Float, ellipsis: Boolean = true, lines: Int = 1) = textMeasurer.measure(
                             text = t, style = st, maxLines = lines,
                             overflow = if (ellipsis) TextOverflow.Ellipsis else TextOverflow.Clip,
@@ -1320,7 +1404,7 @@ private fun GridRow(
                                 .map { measure(it.label, badgeStyle, 12.sp.toPx(), ellipsis = false) to it.color } else emptyList()
                             CellText(title, time, desc, sub, badges)
                         }
-                    }
+                    }.also { if (it !== cachedText) { it.measuredW = textW; it.measuredClipped = clippedNow; it.startMs = cell.startMillis; textCache[key] = it } }
                     val recording = !cell.isPlaceholder && recordingWindows.any { win ->
                         cell.startMillis < win.last && cell.endMillis > win.first
                     }
@@ -1337,7 +1421,7 @@ private fun GridRow(
                         if (replayable) {
                             val iconPx = (text.title.size.height * 0.7f)
                             translate(left = x, top = y + (text.title.size.height - iconPx) / 2f) {
-                                with(catchupPainter) { draw(Size(iconPx, iconPx), colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(colors.primary)) }
+                                with(stripCatchupPainter) { draw(Size(iconPx, iconPx), colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(colors.primary)) }
                             }
                             titleX += iconPx + 4.dp.toPx()
                         }
@@ -1484,6 +1568,8 @@ private const val MIN_CELL_PX = 6f
 /** Compact modern layout (TiviMate): gap between programme cells and their corner radius. */
 private val MODERN_CELL_GAP = 4.dp
 private val MODERN_CELL_CORNER = 4.dp
+private const val CELL_TEXT_CACHE_SOFT_CAP = 48
+private const val CELL_TEXT_EVICT_MARGIN_MS = 12 * 3_600_000L
 private const val RAIL_NAME_KEY = Long.MIN_VALUE + 2
 private const val RAIL_UNDER_NUMBER_KEY = Long.MIN_VALUE + 3
 private const val RAIL_MODERN_NAME_KEY = Long.MIN_VALUE + 4
@@ -1558,4 +1644,11 @@ private class CellText(
     val desc: TextLayoutResult? = null,
     val sub: TextLayoutResult? = null,
     val badges: List<Pair<TextLayoutResult, Color>> = emptyList(),
-)
+) {
+    /** Text column width (px) the program layouts were measured for. */
+    var measuredW: Int = -1
+    /** True when [measuredW] was a clipped slice at a strip edge. */
+    var measuredClipped: Boolean = false
+    /** Program start, for window eviction; MIN_VALUE for rail entries. */
+    var startMs: Long = Long.MIN_VALUE
+}

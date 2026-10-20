@@ -4,6 +4,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
 import com.aeriotv.android.R
 import com.aeriotv.android.ui.theme.textAccent
+import kotlinx.coroutines.launch
 import com.aeriotv.android.core.data.db.entity.dispatcharrCanViewDvr
 import com.aeriotv.android.core.data.db.entity.dispatcharrCanViewVod
 import com.aeriotv.android.core.data.db.entity.dispatcharrCanViewSeries
@@ -654,11 +655,30 @@ fun MainScaffold(
     // so the leaving content's nodes vanish with focus already parked there
     // and no fallback flashes the Live TV pill (Logan: "less than a quarter
     // of a second on Live TV before settling on Favorites").
-    val focusPill = remember { mutableStateOf<((AppTab) -> Unit)?>(null) }
+    val focusPill = remember { mutableStateOf<((AppTab) -> Boolean)?>(null) }
+    val backFocusScope = androidx.compose.runtime.rememberCoroutineScope()
     androidx.activity.compose.BackHandler(enabled = selectedTab != homeTab) {
-        focusPill.value?.invoke(homeTab)
+        val leaving = selectedTab
+        val took = focusPill.value?.invoke(homeTab)
         selectedTab = homeTab
         initialTabApplied = true
+        if (took != null) {
+            com.aeriotv.android.ui.tv.TvFocusTrace.guide("back-to-home from=$leaving to=$homeTab pillFocus=$took")
+            // Back from the Settings rail (Streamer 2026-10-04): the request
+            // above did not land while the rail held focus, and once the
+            // Settings slot hid, focus fell back onto the Settings pill while
+            // Live TV showed as selected (two pills looked active). Ask again
+            // after the switch has composed, so the focused pill and the
+            // selected pill always agree, as they already did for DVR.
+            backFocusScope.launch {
+                androidx.compose.runtime.withFrameNanos { }
+                androidx.compose.runtime.withFrameNanos { }
+                if (selectedTab == homeTab) {
+                    val again = focusPill.value?.invoke(homeTab)
+                    com.aeriotv.android.ui.tv.TvFocusTrace.guide("back-to-home settle to=$homeTab pillFocus=$again")
+                }
+            }
+        }
     }
 
     // Background-activity flag. ORs the content-fetch flags so the activity
@@ -827,7 +847,7 @@ fun MainScaffold(
             (tabs + AppTab.Search).associateWith { FocusRequester() }
         }
         androidx.compose.runtime.SideEffect {
-            focusPill.value = { tab -> runCatching { pillRequesters[tab]?.requestFocus() } }
+            focusPill.value = { tab -> runCatching { pillRequesters[tab]?.requestFocus() ?: false }.getOrDefault(false) }
         }
         // The same requesters, as a "focus MY tab's pill" call for TV page
         // content (Back out of a page lands on the bar, not on Live TV).
@@ -1009,7 +1029,12 @@ fun MainScaffold(
                         retainedCount = retainedList.size,
                         onRetainedClick = { showRetainedDialog = true },
                         onRefresh = { viewModel.refreshPlaylist() },
+                        // Spins only while the bar can be seen: collapsed under
+                        // a scrolled media page it holds a still glyph (perf
+                        // 2026-10-03, the spinner ran the frame clock for the
+                        // whole On Demand refill).
                         refreshing = anyBackgroundWork,
+                        refreshAnimates = barTarget == 1f,
                         tabs = tabs,
                         selected = selectedTab,
                         onSelect = { selectedTab = it; initialTabApplied = true },
@@ -1854,7 +1879,9 @@ private fun MainTabContent(
                 )
             }
             AppTab.Favorites -> {
-    FavoritesTabContent(onChannelClick = onChannelClick)
+    // TV Favorites guide: OK on an aired cell plays catch-up (from AerioTV cc2c37c7;
+    // there was no route here, so nothing played)
+    FavoritesTabContent(onChannelClick = onChannelClick, onPlayCatchup = onPlayCatchup)
             }
             AppTab.DVR -> {
                 // Media center on every form factor (TV joined 2026-09-10).
@@ -1974,6 +2001,7 @@ private fun TvTopTabBar(
     onWatchTogether: (() -> Unit)? = null,
     /** Watch together stands out (the start card is up, or someone is joined). */
     watchTogetherHighlighted: Boolean = false,
+    refreshAnimates: Boolean = true,
     /** Reports the leftmost pixel the bar actually occupies (the action
      *  circles when shown, otherwise the centered capsule) so the top-left
      *  gesture hints can size themselves to the real gutter instead of a
@@ -2069,14 +2097,44 @@ private fun TvTopTabBar(
     // focus, which lands after composition - a plain one-frame LaunchedEffect
     // lost that race (Streamer 2026-08-06) - so key the one-shot pull on the
     // window-focus edge and run it a frame later.
-    var initialPillFocusPulled by remember { mutableStateOf(false) }
+    //
+    // rememberSaveable, not remember: the full-screen player is its own nav
+    // route, so the MAIN destination (and this bar) leaves composition while
+    // it plays. With plain remember the flag came back false on return, the
+    // pull fired a second time ~300 ms after the guide had refocused the
+    // playing channel's cell, and Back from playback landed on the Live TV
+    // pill (Streamer 2026-10-03, stack traced to this requestFocus). The
+    // saveable state lives with the nav entry, so the pull stays one-shot
+    // per Activity, which is what the cold-start case needs.
+    var initialPillFocusPulled by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    // The cold-start pull's tab and time, until the landing tab is applied.
+    var coldPull by remember { mutableStateOf<Pair<AppTab, Long>?>(null) }
     val windowFocused = androidx.compose.ui.platform.LocalWindowInfo.current.isWindowFocused
     LaunchedEffect(windowFocused) {
         if (windowFocused && !initialPillFocusPulled) {
             initialPillFocusPulled = true
             androidx.compose.runtime.withFrameNanos { }
             runCatching { pillRequesters[selected]?.requestFocus() }
+            coldPull = selected to android.os.SystemClock.uptimeMillis()
+            com.aeriotv.android.ui.tv.TvFocusTrace.guide("cold-start pull tab=$selected")
+            com.aeriotv.android.ui.tv.TvColdStartFocus.pending = false
+        } else if (initialPillFocusPulled) {
+            com.aeriotv.android.ui.tv.TvColdStartFocus.pending = false
         }
+    }
+    // The saved Default Landing Tab is applied a beat AFTER the pull (the
+    // preference loads async), so on a DVR / Movies / TV Shows landing the
+    // pull focused the Live TV pill while the landing tab was shown
+    // (Streamer 2026-10-04). Follow the landing tab once, only while focus
+    // still sits on the pulled pill untouched and within a few seconds.
+    LaunchedEffect(selected) {
+        val (pulledTab, pulledAt) = coldPull ?: return@LaunchedEffect
+        if (selected == pulledTab) return@LaunchedEffect
+        coldPull = null
+        if (!navHasFocus || focusedTab != pulledTab) return@LaunchedEffect
+        if (android.os.SystemClock.uptimeMillis() - pulledAt > 5_000L) return@LaunchedEffect
+        runCatching { pillRequesters[selected]?.requestFocus() }
+        com.aeriotv.android.ui.tv.TvFocusTrace.guide("cold-start pull follows landing tab=$selected")
     }
     // Custom layout so the PILL CAPSULE is centered on the SCREEN (Logan
     // 2026-08-06: adding the circles to a shared centered row shoved the
@@ -2114,7 +2172,9 @@ private fun TvTopTabBar(
                         onExit = {
                             if (requestedFocusDirection == androidx.compose.ui.focus.FocusDirection.Down) {
                                 val target = tabEntryFocus?.value
-                                if (target != null && runCatching { target.requestFocus() }.getOrDefault(false)) {
+                                val took = target != null && runCatching { target.requestFocus() }.getOrDefault(false)
+                                com.aeriotv.android.ui.tv.TvFocusTrace.guide("tab-exit down target=${target != null} took=$took")
+                                if (took) {
                                     // The default geometric move would run
                                     // after this and land elsewhere.
                                     cancelFocusChange()
@@ -2181,6 +2241,7 @@ private fun TvTopTabBar(
                         contentDescription = stringResource(R.string.main_refresh_channels_guide),
                         onClick = onRefresh,
                         spinning = refreshing,
+                        spinAnimates = refreshAnimates,
                     )
                     if (retainedCount > 0) {
                         TvBarCircleButton(
@@ -2237,6 +2298,7 @@ private fun TvBarCircleButton(
     modifier: Modifier = Modifier,
     selected: Boolean = false,
     spinning: Boolean = false,
+    spinAnimates: Boolean = true,
 ) {
     // TV chrome canon (ui/tv/TvChrome.kt, tvOS TVNavCircleButtonStyle):
     // quiet translucent circle at rest, white platter with a dark glyph
@@ -2249,6 +2311,7 @@ private fun TvBarCircleButton(
         modifier = modifier,
         selected = selected,
         spinning = spinning,
+        spinAnimates = spinAnimates,
         size = com.aeriotv.android.ui.tv.TvChrome.circleSize,
     )
 }
@@ -2841,14 +2904,41 @@ val LocalTabIsActive = androidx.compose.runtime.compositionLocalOf { true }
  *  so it draws nothing, and canFocus/invisibleToUser below still keep it out
  *  of focus search and accessibility. */
 private fun Modifier.keepAliveHidden(): Modifier = this
-    .layout { measurable, constraints ->
+    .then(KeepAliveHiddenElement)
+    .focusProperties { canFocus = false }
+    .semantics { invisibleToUser() }
+
+/* HOLD THE SLOT (perf 2026-10-03). Measuring the hidden tab at full size on
+ * EVERY pass meant any change inside it (the TMDB art pass bumps every ~2 s)
+ * re-measured its whole poster grid while nobody could see it, 115 to 160 ms
+ * a time. The node now measures at the full constraints once (and again only
+ * if those constraints change, e.g. rotation), which is all the 2026-09-11
+ * fix needs: the content's last layout is the real size, so showing it never
+ * starts from a 0-width frame. Later invalidations stay pending and are
+ * measured in the frame the tab is shown, before it is placed. */
+private object KeepAliveHiddenElement : androidx.compose.ui.node.ModifierNodeElement<KeepAliveHiddenNode>() {
+    override fun create() = KeepAliveHiddenNode()
+    override fun update(node: KeepAliveHiddenNode) = Unit
+    override fun hashCode(): Int = 0x6b41
+    override fun equals(other: Any?): Boolean = other === this
+}
+
+private class KeepAliveHiddenNode : Modifier.Node(), androidx.compose.ui.node.LayoutModifierNode {
+    private var measuredFor: androidx.compose.ui.unit.Constraints? = null
+
+    override fun androidx.compose.ui.layout.MeasureScope.measure(
+        measurable: androidx.compose.ui.layout.Measurable,
+        constraints: androidx.compose.ui.unit.Constraints,
+    ): androidx.compose.ui.layout.MeasureResult {
         // Same constraints the ACTIVE slot's fillMaxSize() resolves to.
         val full = constraints.copy(
             minWidth = constraints.maxWidth.takeIf { it != androidx.compose.ui.unit.Constraints.Infinity } ?: constraints.minWidth,
             minHeight = constraints.maxHeight.takeIf { it != androidx.compose.ui.unit.Constraints.Infinity } ?: constraints.minHeight,
         )
-        measurable.measure(full)
-        layout(0, 0) { /* deliberately not placed */ }
+        if (measuredFor != full) {
+            measurable.measure(full)
+            measuredFor = full
+        }
+        return layout(0, 0) { /* deliberately not placed */ }
     }
-    .focusProperties { canFocus = false }
-    .semantics { invisibleToUser() }
+}

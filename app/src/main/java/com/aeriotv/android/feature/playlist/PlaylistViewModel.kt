@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
@@ -233,12 +234,19 @@ class PlaylistViewModel @Inject constructor(
          * making quick app revisits zero-network.
          */
         private const val EPG_CACHE_TTL_MS = 30L * 60L * 1000L
+        /** How long the start-up check's "guide unchanged" spares a download: past this the
+         *  cache may no longer reach far enough ahead, whatever the server says. */
+        private const val EPG_SYNC_TRUST_MS = 12L * 60L * 60L * 1000L
 
         /** Launch quick paint: the cached rows read before the first guide
-         *  frame (the pre-9be8071 quick pass window). The full window follows
-         *  in the background. */
-        private const val QUICK_PAINT_BACK_MS = 2L * 60L * 60L * 1000L
-        private const val QUICK_PAINT_AHEAD_MS = 8L * 60L * 60L * 1000L
+         *  frame, for every channel. The full window follows in the background
+         *  (one rebuild at a time, at a calm moment). One hour back and two
+         *  ahead is what a guide shows at launch: 2 h back / 8 h ahead read
+         *  ~41,000 rows on the user's 1,540 channels (Chromecast HD, 2026-10-20)
+         *  next to the first channel's start. Later hours say "Loading…" until
+         *  the full window is in. */
+        private const val QUICK_PAINT_BACK_MS = 1L * 60L * 60L * 1000L
+        private const val QUICK_PAINT_AHEAD_MS = 2L * 60L * 60L * 1000L
 
         /** Generation of the on-disk EPG cache this build trusts. BUMP THIS
          *  whenever a shipped defect could have written a corrupt cache: the
@@ -400,7 +408,20 @@ class PlaylistViewModel @Inject constructor(
         }
     }
 
+    /** Playlist whose catalog rebuild was skipped for want of channels (rebuildGuideCatalog). */
+    @Volatile private var pendingCatalogRebuild: String? = null
+
     init {
+        // A guide rebuild that came before the channels runs once they are there
+        viewModelScope.launch {
+            _state.map { it.channels.isNotEmpty() }.distinctUntilChanged().collect { has ->
+                if (!has) return@collect
+                val pending = pendingCatalogRebuild ?: return@collect
+                val playlist = _state.value.playlist?.takeIf { it.id == pending } ?: return@collect
+                pendingCatalogRebuild = null
+                rebuildGuideCatalog(playlist, "deferred")
+            }
+        }
         // A silent re-login replaced a rejected api_key: the player's stream
         // headers are built from this copy, so it must carry the new key or
         // every retry is refused (401) until the app restarts.
@@ -557,6 +578,40 @@ class PlaylistViewModel @Inject constructor(
     }
 
     /**
+     * Dispatch More v275: fetch and write only the guides whose marks moved since the guide
+     * cache was saved, over the whole forward Guide Days (PlaylistRepository.guideDeltaRange). False when
+     * the server cannot say which, or nothing is on screen to patch: the caller then downloads the
+     * whole guide as before.
+     */
+    private suspend fun applyGuideDelta(playlist: PlaylistEntity, reason: String): Boolean {
+        val delta = runCatching { repository.guideDelta(playlist) }
+            .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
+            .getOrNull() ?: return false
+        if (delta.epgIds.isEmpty()) {
+            Log.i(TAG, "guide delta ($reason): no guide of these channels changed")
+            repository.rememberMarks(playlist.id, delta.marks)
+            return true
+        }
+        if (_state.value.epgByChannel !is com.aeriotv.android.core.guide.GuideCatalog) return false
+        val (from, to) = repository.guideDeltaRange(playlist, System.currentTimeMillis())
+        com.aeriotv.android.core.guide.GuideWorkGate.awaitCalm("guide delta")
+        val programmes = try {
+            withContext(Dispatchers.IO) { repository.fetchGuideProgrammes(playlist, delta.epgIds, from, to) }
+        } catch (c: kotlinx.coroutines.CancellationException) {
+            throw c
+        } catch (t: Throwable) {
+            Log.w(TAG, "guide delta ($reason) failed: ${t::class.simpleName}: ${t.message}")
+            return false
+        }
+        Log.i(TAG, "guide delta ($reason): ${delta.epgIds.size} of ${delta.marks.marks.size} guides changed, ${programmes.size} programmes fetched")
+        applyGuideWindow(
+            playlist,
+            PlaylistRepository.CacheUpdate.GuideWindow(playlist.id, programmes, from, to, changedGuides = true, marks = delta.marks),
+        )
+        return true
+    }
+
+    /**
      * Dispatcharr live updates: a server EPG refresh delivered a fresh window.
      * Compare it per channel with the guide on screen, write only the changed
      * channels to the cache and swap only those into the guide
@@ -582,7 +637,7 @@ class PlaylistViewModel @Inject constructor(
         // on every check without ever being applied.
         val compareFrom = maxOf(update.fromMs, catalog.windowStartMs, System.currentTimeMillis())
         val compareTo = minOf(update.toMs, catalog.windowEndMs)
-        if (compareTo <= compareFrom) {
+        if (compareTo <= compareFrom && !update.changedGuides) {
             Log.i(TAG, "guide window: no overlap with the guide on screen, ignored")
             return
         }
@@ -595,18 +650,31 @@ class PlaylistViewModel @Inject constructor(
             // and rewrote the whole guide for nothing (956 of 1426 channels,
             // 212 s on the Shield). Filler carries nothing to update.
             val filler = channels.filterTo(HashSet()) { it.isFillerKeyed() }.mapTo(HashSet()) { it.guideChannelId().value }
-            bridged to catalog.changedChannels(channels, bridged, compareFrom, compareTo).filterNotTo(HashSet()) { it in filler }
+            // The server said which guides changed: every channel on them is rewritten
+            val candidates = if (update.changedGuides) {
+                com.aeriotv.android.core.guide.GuideMatchMaps.build(channels)
+                    .channelsForGridKeys(update.programmes.mapTo(HashSet()) { it.channelId })
+            } else {
+                catalog.changedChannels(channels, bridged, compareFrom, compareTo)
+            }
+            bridged to candidates.filterNotTo(HashSet()) { it in filler }
         }
         val compareMs = android.os.SystemClock.elapsedRealtime() - startedAt
         if (changed.isEmpty()) {
             Log.i(TAG, "guide window: ${fresh.size} programmes, no channel changed (compare ${compareMs}ms)")
+            update.marks?.let { repository.rememberMarks(playlist.id, it) }
             return
         }
         // A large share changed (the TV was off, a big server refresh): one bulk
         // save and one rebuild, not hundreds of per-channel reads. On a
         // Chromecast HD 680 changed channels took 95 s to patch -- 57 s of it
         // reading their rows back one channel at a time from a swapping device.
-        if (changed.size * LARGE_WINDOW_CHANGE_DIVISOR > channels.size) {
+        // Also while the launch still widens the guide from its first view: a patch of that
+        // view would be replaced by the widening build, which may have read the cache before
+        // these rows were in it; a rebuild asked for now runs after it and reads them.
+        if (changed.size * LARGE_WINDOW_CHANGE_DIVISOR > channels.size ||
+            (update.changedGuides && _state.value.guideWidening)
+        ) {
             val byIdAll = channels.associateBy { it.guideChannelId().value }
             val gridKeysAll = changed.flatMapTo(HashSet()) { id ->
                 byIdAll[id]?.let { com.aeriotv.android.core.guide.GuideMatchMaps.rawKeysOf(it, withNumber = false) }.orEmpty()
@@ -624,12 +692,13 @@ class PlaylistViewModel @Inject constructor(
                 "guide window: ${changed.size} of ${channels.size} channels changed, saved in one go " +
                     "(${rows.size} of ${fresh.size} rows, ${android.os.SystemClock.elapsedRealtime() - startedAt}ms); rebuilding",
             )
+            update.marks?.let { repository.rememberMarks(playlist.id, it) }
             rebuildGuideCatalog(playlist, "guide-window")
             return
         }
         // Authoritative per channel: replaces only the span these rows cover,
         // only for the channels they carry.
-        catalog.lastExplanations.forEach { Log.i(TAG, "guide window diff: $it") }
+        if (!update.changedGuides) catalog.lastExplanations.forEach { Log.i(TAG, "guide window diff: $it") }
         // Stale copies stored under raw grid keys (the stock day-chunk sweep)
         // would keep winning over the new rows (dedup keeps the earlier row),
         // so they go first. Grid keys are shared one-to-many: every channel on
@@ -645,6 +714,7 @@ class PlaylistViewModel @Inject constructor(
         // one changedChannels compared against (GuideCatalog.asStored).
         val writtenRows = com.aeriotv.android.core.guide.GuideCatalog.inStoreOrder(fresh.filter { it.channelId in rewritten })
         repository.saveEpgToCache(playlist.id, writtenRows)
+        update.marks?.let { repository.rememberMarks(playlist.id, it) }
         val saveMs = android.os.SystemClock.elapsedRealtime() - startedAt - compareMs
         val affected = channels.filter { it.guideChannelId().value in rewritten }
         val rows = repository.loadCachedEpgForChannels(
@@ -708,6 +778,10 @@ class PlaylistViewModel @Inject constructor(
     /** Set when a trim shed the in-memory guide; [refreshEpgIfStale] (the
      *  return-to-foreground hook) rebuilds it from the Room cache. */
     @Volatile private var guideShedByTrim = false
+
+    /** A full rebuild was asked for while the app was in the background; [refreshEpgIfStale]
+     *  runs it on return. */
+    @Volatile private var guideRebuildOwed = false
 
     private fun observeMemoryPressure() {
         viewModelScope.launch {
@@ -804,12 +878,29 @@ class PlaylistViewModel @Inject constructor(
             // Freshness gate: within the TTL window, the cached rail is
             // good enough and we skip the channel network round-trip entirely
             // (the EPG cache has its own 30-min TTL).
-            val newest = runCatching { repository.newestChannelFetch(saved.id) }.getOrNull()
-            val freshChannels = hasChannelCache && newest != null &&
-                (System.currentTimeMillis() - newest) < CHANNEL_CACHE_TTL_MS
-            if (freshChannels) {
-                Log.i(TAG, "bootstrap: channel cache fresh, skipping network refresh")
-                return@launch
+            // Dispatch More v272: the server says whether the lineup changed since this cache
+            // was downloaded, so an unchanged lineup costs one small request however old the
+            // cache is, and a changed one is fetched at once instead of up to a day later.
+            val verdict = if (hasChannelCache) repository.startupCheck(saved) else null
+            when (verdict?.lineup) {
+                com.aeriotv.android.core.data.sync.SyncChange.SAME -> {
+                    Log.i(TAG, "bootstrap: start-up check says the lineup is unchanged, skipping network refresh")
+                    return@launch
+                }
+                com.aeriotv.android.core.data.sync.SyncChange.CHANGED ->
+                    Log.i(TAG, "bootstrap: start-up check says the lineup changed")
+                else -> {
+                    val newest = runCatching { repository.newestChannelFetch(saved.id) }.getOrNull()
+                    val freshChannels = hasChannelCache && newest != null &&
+                        (System.currentTimeMillis() - newest) < CHANNEL_CACHE_TTL_MS
+                    if (freshChannels) {
+                        // First check against this cache: the time rule vouches for it, so
+                        // its stamp is the one the next launch compares with
+                        verdict?.let { repository.adoptLineupStamp(saved.id, it) }
+                        Log.i(TAG, "bootstrap: channel cache fresh, skipping network refresh")
+                        return@launch
+                    }
+                }
             }
 
             Log.i(TAG, "bootstrap: refreshing channels (hadCache=$hasChannelCache)")
@@ -1174,8 +1265,7 @@ class PlaylistViewModel @Inject constructor(
         guideForwardJob = viewModelScope.launch {
           // While the wider guide is read, empty cells say so ("Loading…", not "No info"):
           // reading a further day back takes 20 s on a Shield (168,000 rows, 2026-10-01)
-          _state.update { it.copy(guideWidening = true) }
-          try {
+          whileGuideFills {
             // Logan 2026-09-11: the playlist's Guide Days setting governs the
             // default forward edge (both directions), not the old Settings >
             // Network "Guide Window" preference.
@@ -1189,9 +1279,19 @@ class PlaylistViewModel @Inject constructor(
                 guideForwardFetchedThroughMs = throughMs
             }
             rebuildGuideCatalog(playlist, "jump")
-          } finally {
-            _state.update { it.copy(guideWidening = false) }
           }
+        }
+    }
+
+    /** How many guide fills are running; the cells say "Loading…" while any is. */
+    private val guideFills = java.util.concurrent.atomic.AtomicInteger()
+
+    private suspend fun <T> whileGuideFills(block: suspend () -> T): T {
+        if (guideFills.incrementAndGet() == 1) _state.update { it.copy(guideWidening = true) }
+        try {
+            return block()
+        } finally {
+            if (guideFills.decrementAndGet() == 0) _state.update { it.copy(guideWidening = false) }
         }
     }
 
@@ -1294,13 +1394,55 @@ class PlaylistViewModel @Inject constructor(
         Log.i(TAG, "group first: $group, ${inGroup.size} channels, ${rows.size} programmes (read ${readMs}ms)")
     }
 
+    /**
+     * Full rebuilds one at a time: a request while one runs waits for ONE more, which serves
+     * every request made meanwhile (CoalescingRunner). Two full rebuilds of 56,000 rows used to
+     * run side by side for 24-28 s each on a Chromecast HD, both holding the whole window, with
+     * the heap at its limit (2026-10-20). A paint of rows already read ([preloadedRows]: the
+     * quick paints) goes straight through: small, and it must not wait behind a long rebuild.
+     */
+    // lazy: startup work launched from init can ask before construction reaches this line
+    private val catalogRebuilds by lazy {
+        com.aeriotv.android.core.util.CoalescingRunner<PlaylistEntity>(viewModelScope) { reasons, playlist ->
+            val reason = reasons.distinct().joinToString("+")
+            // Not next to a channel start or with the heap nearly full (GuideWorkGate);
+            // requests arriving while it waits are folded into this same rebuild
+            com.aeriotv.android.core.guide.GuideWorkGate.awaitCalm("guide rebuild ($reason)")
+            rebuildGuideCatalogNow(playlist, reason, null)
+        }
+    }
+
     private suspend fun rebuildGuideCatalog(
         playlist: PlaylistEntity,
         reason: String,
         preloadedRows: List<EPGProgramme>? = null,
     ) {
+        if (preloadedRows != null) rebuildGuideCatalogNow(playlist, reason, preloadedRows)
+        else catalogRebuilds.request(reason, playlist)
+    }
+
+    private suspend fun rebuildGuideCatalogNow(
+        playlist: PlaylistEntity,
+        reason: String,
+        preloadedRows: List<EPGProgramme>?,
+    ) {
+        // Nothing on screen to rebuild for: built in the background, the guide took 127k rows
+        // and 7.5 s of a Shield's memory and CPU just as the system asked the app to shed it
+        // (2026-10-20, onTrimMemory 80 during a guide-update rebuild). Run on return.
+        if (!com.aeriotv.android.core.data.repository.EpgSweepGate.appInForeground) {
+            guideRebuildOwed = true
+            Log.i(TAG, "guide catalog rebuild ($reason) deferred: app in the background, rebuilt on return")
+            return
+        }
         val channels = _state.value.channels
-        if (channels.isEmpty()) return
+        if (channels.isEmpty()) {
+            // Used to return silently (from AerioTV e21e9640): a cached paint that ran
+            // before the channels landed left the guide with no catalog -- filler rows --
+            // until a manual refresh. Run again once channels arrive.
+            pendingCatalogRebuild = playlist.id
+            Log.i(TAG, "guide catalog rebuild ($reason) deferred: no channels yet")
+            return
+        }
         val (fromMillis, toMillis) = guideWindow(playlist)
         val stableOrder = appPreferences.dispatcharrLiveUpdates.first()
         val t0 = android.os.SystemClock.elapsedRealtime()
@@ -1328,6 +1470,12 @@ class PlaylistViewModel @Inject constructor(
                 // Dispatcharr live updates compare windows against this guide.
                 stableOrder = stableOrder,
             )
+        }
+        if (guideShedByTrim) {
+            // The app went to the background and shed the guide while this ran: keep it shed
+            guideRebuildOwed = true
+            Log.i(TAG, "guide catalog rebuild ($reason) dropped: the guide was shed meanwhile, rebuilt on return")
+            return
         }
         val published = epgWriteMutex.withLock {
             // Built for a lineup that changed while it ran, when the guide on
@@ -1533,7 +1681,11 @@ class PlaylistViewModel @Inject constructor(
             _state.update { it.copy(isEpgLoading = false) }
             AppLaunchTrace.noteGuidePrograms(cached.size)
             publishCachedEpgSpan(playlist)
-            viewModelScope.launch { rebuildGuideCatalog(playlist, "cache") }
+            viewModelScope.launch {
+                // Past the quick window's two hours the cells say "Loading…", not "No info",
+                // until the full window is in
+                whileGuideFills { rebuildGuideCatalog(playlist, "cache") }
+            }
         }
         // Release the other sections' cached restores whether or not there WAS
         // a cache to paint: a fresh install has no guide rows, and On Demand
@@ -1575,11 +1727,36 @@ class PlaylistViewModel @Inject constructor(
                     "(written by a build with a known EPG cache defect); forcing one refetch",
             )
         }
+        var syncVerdict: com.aeriotv.android.core.data.sync.SyncVerdict? = null
         if (!forceRefresh && !staleEpoch && !identityStale) {
             val newest = runCatching { repository.newestEpgFetch(playlist.id) }.getOrNull()
-            val fresh = newest != null &&
-                (System.currentTimeMillis() - newest) < EPG_CACHE_TTL_MS
+            val ageMs = newest?.let { System.currentTimeMillis() - it }
+            // Dispatch More v272: an unchanged guide is not downloaded again at every launch
+            // past the 30-minute mark. Trusted only while the cache is under half a day old:
+            // the same server data says nothing about whether this cache reaches today.
+            syncVerdict = repository.startupCheck(playlist)
+            val guides = syncVerdict?.guides
+            if (guides == com.aeriotv.android.core.data.sync.SyncChange.SAME &&
+                ageMs != null && ageMs < EPG_SYNC_TRUST_MS
+            ) {
+                Log.i(TAG, "loadEpgIfConfigured: start-up check says the guide is unchanged, skipping network")
+                _state.update { it.copy(isEpgLoading = false) }
+                syncVerdict?.let { v -> viewModelScope.launch { runCatching { repository.ensureMarks(playlist, v) } } }
+                return null
+            }
+            // Dispatch More v275: a changed guide is fetched for the guides that changed only
+            if (guides == com.aeriotv.android.core.data.sync.SyncChange.CHANGED &&
+                hasCache && ageMs != null && ageMs < EPG_SYNC_TRUST_MS && applyGuideDelta(playlist, "launch")
+            ) {
+                _state.update { it.copy(isEpgLoading = false) }
+                return null
+            }
+            val fresh = guides != com.aeriotv.android.core.data.sync.SyncChange.CHANGED &&
+                ageMs != null && ageMs < EPG_CACHE_TTL_MS
             if (fresh) {
+                if (guides == com.aeriotv.android.core.data.sync.SyncChange.UNKNOWN) {
+                    syncVerdict?.let { repository.adoptGuidesStamp(playlist, it) }
+                }
                 Log.i(TAG, "loadEpgIfConfigured: cache fresh, skipping network")
                 _state.update { it.copy(isEpgLoading = false) }
                 return null
@@ -1606,6 +1783,8 @@ class PlaylistViewModel @Inject constructor(
         // -- the same speedup the windowed cache load (P1 #5) gives the
         // downstream pipeline, but applied to fresh network fetches too.
         val knownKeys = buildChannelEpgKeyBridge(_state.value.channels).keys
+        // The download waits for a calm moment (GuideWorkGate); the cached guide is on screen
+        com.aeriotv.android.core.guide.GuideWorkGate.awaitCalm("guide download")
         return repository.loadEpg(playlist, knownKeys).fold(
             onSuccess = { rawProgrammes ->
                 // Channels may have arrived between the cache-paint above
@@ -1688,6 +1867,9 @@ class PlaylistViewModel @Inject constructor(
                         runCatching {
                             appPreferences.setEpgCacheEpochFor(playlist.id, EPG_CACHE_EPOCH)
                         }
+                        // The guide this download started from is the one the next check
+                        // compares with (a change meanwhile still differs then)
+                        runCatching { repository.rememberGuides(playlist, syncVerdict) }
                     }
                     .onFailure { Log.w(TAG, "saveEpgToCache failed", it) }
                 // iOS parity: fire-and-forget category enrichment for
@@ -1699,6 +1881,7 @@ class PlaylistViewModel @Inject constructor(
                 // viewModelScope (not a child of this suspend call) so the
                 // enrichment never blocks refreshEpg's completion signal.
                 viewModelScope.launch {
+                    com.aeriotv.android.core.guide.GuideWorkGate.awaitCalm("category enrichment")
                     val enriched = runCatching {
                         repository.enrichNowPlayingCategories(playlist, programmes)
                     }.onFailure { Log.w(TAG, "category enrichment failed", it) }
@@ -1707,19 +1890,21 @@ class PlaylistViewModel @Inject constructor(
                     // something; short-circuits the recompose when the source
                     // already had categories baked in (XMLTV path).
                     if (enriched !== programmes) {
-                        runCatching { repository.saveEpgToCache(playlist.id, enriched) }
-                            .onFailure { Log.w(TAG, "persisting enriched categories failed", it) }
-                        rebuildGuideCatalog(playlist, "enrich")
-                        // Keep the cache enriched too so tints survive a relaunch
-                        // -- but write ONLY the rows enrichment actually
-                        // touched. E-6: this used to hand the whole feed back
-                        // to saveEpgToCache, re-writing ~139k rows and four
-                        // indexes each, plus a second retention sweep, to
-                        // change a category string on a few hundred airing
-                        // programmes. enrichNowPlayingCategories returns a
-                        // parallel list whose untouched entries are the SAME
-                        // instances, so identity picks out the changes for
-                        // free.
+                        // Write ONLY the rows enrichment actually touched, then
+                        // rebuild from the cache. E-6: handing the whole feed
+                        // back to saveEpgToCache re-wrote every row (52k on the
+                        // user's server) and its indexes, plus a second
+                        // retention sweep, to change a category string on a
+                        // couple of thousand airing programmes. c84457ae (the
+                        // catalog-only rebuild) brought that full save back in
+                        // front of the rebuild; on a Chromecast HD it ran next
+                        // to playback and the picture dropped frames (2026-10-19).
+                        // The unique (playlist, channel, start) index makes
+                        // insertAll's REPLACE an in-place update, so the rebuild
+                        // reads exactly what the full save would have left.
+                        // enrichNowPlayingCategories returns a parallel list whose
+                        // untouched entries are the SAME instances, so identity
+                        // picks out the changes for free.
                         val changedRows = withContext(Dispatchers.Default) {
                             if (enriched.size == programmes.size) {
                                 enriched.filterIndexed { i, p -> p !== programmes[i] }
@@ -1729,6 +1914,7 @@ class PlaylistViewModel @Inject constructor(
                         }
                         runCatching { repository.updateEpgRowsInCache(playlist.id, changedRows) }
                             .onFailure { Log.w(TAG, "enriched cache update failed", it) }
+                        rebuildGuideCatalog(playlist, "enrich")
                         Log.i(
                             TAG,
                             "EPG enriched: categories backfilled for now-playing programmes " +
@@ -2081,8 +2267,13 @@ class PlaylistViewModel @Inject constructor(
         viewModelScope.launch {
             // A background trim shed the in-memory guide: repaint it from the
             // cache before anything else (the staleness gate below may skip).
+            if (guideRebuildOwed && !guideShedByTrim) {
+                guideRebuildOwed = false
+                _state.value.playlist?.let { rebuildGuideCatalog(it, "owed") }
+            }
             if (guideShedByTrim) {
                 guideShedByTrim = false
+                guideRebuildOwed = false
                 _state.value.playlist?.let { playlist ->
                     // Same two-step paint as launch: the quick window first
                     // (~4 s on a Shield), then the full window (~18 s).
@@ -2105,6 +2296,19 @@ class PlaylistViewModel @Inject constructor(
             val newest = repository.newestEpgFetch(active.id) ?: return@launch
             val ageMs = System.currentTimeMillis() - newest
             if (ageMs <= maxAgeMillis) return@launch
+            // Dispatch More v272: back in the app is no reason to download a guide the server
+            // has not changed (it was, every time after 30 minutes away).
+            val verdict = repository.startupCheck(active)
+            if (verdict?.guides == com.aeriotv.android.core.data.sync.SyncChange.SAME && ageMs < EPG_SYNC_TRUST_MS) {
+                Log.i(TAG, "refreshEpgIfStale: guide is ${ageMs / 60000}min old, but the start-up check says unchanged")
+                return@launch
+            }
+            // Dispatch More v275: only the guides that changed
+            if (verdict?.guides == com.aeriotv.android.core.data.sync.SyncChange.CHANGED && ageMs < EPG_SYNC_TRUST_MS &&
+                applyGuideDelta(active, "foreground")
+            ) {
+                return@launch
+            }
             Log.i(TAG, "refreshEpgIfStale: guide is ${ageMs / 60000}min old, refreshing on foreground")
             loadEpgIfConfigured(active, forceRefresh = true)
         }

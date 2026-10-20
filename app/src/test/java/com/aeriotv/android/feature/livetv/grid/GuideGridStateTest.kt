@@ -217,4 +217,80 @@ class GuideGridStateTest {
         assertEquals("B", s.focusedCell()!!.title)
         assertTrue(s.atLastCell())
     }
+
+    @Test
+    fun aGuideKeptAcrossThePlayerComesBackAsAFreshOneWouldButKeepsItsRows() {
+        val s = state()
+        val r = rows(espn, fox, programmes = listOf(p(espn, "A", 5 * h, 7 * h), p(fox, "B", 0, 12 * h)))
+        s.installRows(r)
+        s.alignToHalfHour = true
+        s.moveRows(1)
+        s.resetForEntry(8 * h - 15 * m)
+        // The rows stay, so the first frame back is not an empty grid
+        assertTrue(s.rows === r)
+        assertEquals(-1, s.focusRow)
+        assertEquals(8 * h - 15 * m, s.viewportStartMs)
+        assertEquals(8 * h - 15 * m, s.drawViewportStartMs)
+        // ...and the TiviMate layout's half-hour line-up is set again, as for a fresh one
+        assertFalse(s.alignToHalfHour)
+        // The install lands on row zero as a first install does
+        s.installRows(r)
+        assertEquals(0, s.focusRow)
+    }
+
+    @Test
+    fun anIdleGuideMovesFocusOffAProgrammeThatJustEnded() {
+        val s = state(now = 6 * h + 10 * m)
+        s.installRows(rows(espn, fox, programmes = listOf(p(espn, "Early", 5 * h, 6 * h), p(espn, "Now", 6 * h, 8 * h), p(fox, "B", 0, 12 * h))))
+        s.focusRowAt(0, 5 * h)
+        assertEquals("Early", s.focusedCell()!!.title)
+        // It ended since the last tick (6:00 lies between the ticks): focus moves to what airs now
+        val moved = s.boundaryRetarget(6 * h + 10 * m, previousTickMs = 5 * h + 59 * m)
+        assertEquals("Early" to "Now", moved!!.first.title to moved.second.title)
+        assertEquals("Now", s.focusedCell()!!.title)
+    }
+
+    @Test
+    fun butAProgrammeTheUserChoseLongAfterItEndedStaysFocused() {
+        // Browsing the past (ArrTV's guide history): it ended well before the last tick
+        val s = state(now = 6 * h + 10 * m)
+        s.installRows(rows(espn, fox, programmes = listOf(p(espn, "Early", 5 * h, 6 * h), p(espn, "Now", 6 * h, 8 * h), p(fox, "B", 0, 12 * h))))
+        s.focusRowAt(0, 5 * h)
+        assertEquals(null, s.boundaryRetarget(6 * h + 10 * m, previousTickMs = 6 * h + 9 * m))
+        assertEquals("Early", s.focusedCell()!!.title)
+    }
+
+    @Test
+    fun aRebuildOfTheRowsKeepsTheProgrammeTheFocusIsOn() {
+        val s = state(now = 6 * h + 10 * m)
+        s.installRows(rows(espn, fox, programmes = listOf(p(espn, "Early", 5 * h, 6 * h), p(espn, "Now", 6 * h, 8 * h), p(fox, "B", 0, 12 * h))))
+        s.focusRowAt(0, 5 * h)
+        // The same programme on the same channel after new guide data came in: still focused
+        s.installRows(rows(espn, fox, programmes = listOf(p(espn, "Early", 5 * h, 6 * h), p(espn, "Now", 6 * h, 8 * h), p(fox, "B", 0, 12 * h))))
+        assertEquals("Early", s.focusedCell()!!.title)
+        // ...and when it is gone, focus lands at the anchor as before
+        s.installRows(rows(espn, fox, programmes = listOf(p(espn, "Now", 6 * h, 8 * h), p(fox, "B", 0, 12 * h))))
+        assertEquals("Now", s.focusedCell()!!.title)
+    }
+
+    @Test
+    fun aNoInfoFillerIsNotKeptWhenTheGuideComesIn() {
+        val s = state(now = 6 * h + 10 * m)
+        // Cold start: nothing yet, the row is one filler from the window's start
+        s.installRows(rows(espn, fox, programmes = emptyList()))
+        assertTrue(s.focusedCell()!!.isPlaceholder)
+        // The guide comes in with a gap at the start: a filler again from the window's start,
+        // which must not keep the focus a day back -- it lands on what airs now
+        s.installRows(rows(espn, fox, programmes = listOf(p(espn, "Now", 5 * h, 8 * h), p(fox, "B", 0, 12 * h))))
+        assertEquals("Now", s.focusedCell()!!.title)
+    }
+
+    @Test
+    fun aProgrammeThatChangedItsEndIsNotTheSameProgramme() {
+        val s = state(now = 6 * h + 10 * m)
+        s.installRows(rows(espn, programmes = listOf(p(espn, "Early", 5 * h, 6 * h), p(espn, "Now", 6 * h, 8 * h))))
+        s.focusRowAt(0, 5 * h)
+        s.installRows(rows(espn, programmes = listOf(p(espn, "Longer", 5 * h, 7 * h), p(espn, "Later", 7 * h, 8 * h))))
+        assertEquals("Longer", s.focusedCell()!!.title)
+    }
 }

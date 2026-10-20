@@ -171,6 +171,12 @@ class DispatcharrClient @Inject constructor() {
      * network or HTTP failure.
      */
     suspend fun login(baseUrl: String, username: String, password: String): JwtPair {
+        // A 429 earlier in the throttle window: do not spend another attempt
+        // (each one re-arms nothing but still counts against the user's IP).
+        DispatcharrLoginGate.serverParkedSeconds(baseUrl).takeIf { it > 0 }?.let { left ->
+            android.util.Log.i("DispatcharrAuthBroker", "[AUTH] login throttled by the server; next attempt in ${left}s")
+            throw DispatcharrError.LoginThrottled(left)
+        }
         val response: HttpResponse = try {
             client.post("${baseUrl.trimEnd('/')}/api/accounts/token/") {
                 contentType(ContentType.Application.Json)
@@ -194,19 +200,29 @@ class DispatcharrClient @Inject constructor() {
             // close on the heels of the first (verify + warmup) trips it,
             // and the generic transport copy sent users chasing URL and
             // credential problems that did not exist (Discord 2026-08-16,
-            // iOS twin fixed the same day). Self-clearing: say WAIT.
-            throw DispatcharrError.Transport(
-                AppText.get(R.string.core_dispatcharr_login_rate_limited),
-            )
+            // iOS twin fixed the same day). Self-clearing: say WAIT, and
+            // park every login to this server until Retry-After.
+            val secs = DispatcharrLoginGate.parseRetryAfter(response.headers["Retry-After"])
+                ?: DispatcharrLoginGate.DEFAULT_RETRY_AFTER_S
+            DispatcharrLoginGate.parkServer(baseUrl, secs)
+            throw DispatcharrError.LoginThrottled(secs)
         }
         if (!response.status.isSuccess()) {
             throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_login_http_error, code))
         }
         return try {
             response.body()
-        } catch (e: SerializationException) {
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Ktor 3 wraps decode failures in JsonConvertException, and a
+            // non-Dispatcharr URL answering 200 HTML throws
+            // NoTransformationFoundException; neither is a
+            // SerializationException, so catch broadly and name the step.
             throw DispatcharrError.UnexpectedResponse(
-                AppText.get(R.string.core_dispatcharr_login_unexpected),
+                // The step stays named in the app's language; the missing field (from AerioTV
+                // 6dde44ec) is the server's own word for it
+                AppText.get(R.string.core_dispatcharr_login_unexpected) + missingFieldSuffix(e),
             )
         }
     }
@@ -241,14 +257,22 @@ class DispatcharrClient @Inject constructor() {
                 AppText.get(R.string.core_dispatcharr_refresh_expired),
             )
         }
+        if (code == 429) {
+            val secs = DispatcharrLoginGate.parseRetryAfter(response.headers["Retry-After"])
+                ?: DispatcharrLoginGate.DEFAULT_RETRY_AFTER_S
+            DispatcharrLoginGate.parkServer(baseUrl, secs)
+            throw DispatcharrError.LoginThrottled(secs)
+        }
         if (!response.status.isSuccess()) {
             throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_refresh_http_error, code))
         }
         val body: RefreshResponse = try {
             response.body()
-        } catch (e: SerializationException) {
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
             throw DispatcharrError.UnexpectedResponse(
-                AppText.get(R.string.core_dispatcharr_refresh_unexpected),
+                AppText.get(R.string.core_dispatcharr_refresh_unexpected) + missingFieldSuffix(e),
             )
         }
         return body.access
@@ -277,9 +301,11 @@ class DispatcharrClient @Inject constructor() {
         }
         val me: MeResponse = try {
             response.body()
-        } catch (e: SerializationException) {
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
             throw DispatcharrError.UnexpectedResponse(
-                AppText.get(R.string.core_dispatcharr_profile_unexpected),
+                AppText.get(R.string.core_dispatcharr_profile_unexpected) + missingFieldSuffix(e),
             )
         }
         // An account without an api_key is a fixable server-side state, not
@@ -529,6 +555,14 @@ class DispatcharrClient @Inject constructor() {
                     linkDevices = (root["link_devices"] as? JsonPrimitive)?.booleanOrNull == true,
                     linkPath = (root["link_url"] as? JsonPrimitive)?.contentOrNull
                         ?.takeIf { it.startsWith("/") } ?: DispatchMore.DEFAULT_LINK_PATH,
+                    syncPath = (root["sync_url"] as? JsonPrimitive)?.contentOrNull
+                        ?.takeIf { it.startsWith("/") },
+                    guideLinksPath = (root["guide_links_url"] as? JsonPrimitive)?.contentOrNull
+                        ?.takeIf { it.startsWith("/") },
+                    guideMarksPath = (root["guide_marks_url"] as? JsonPrimitive)?.contentOrNull
+                        ?.takeIf { it.startsWith("/") },
+                    gridEpgIds = (root["grid_epg_ids"] as? JsonPrimitive)?.booleanOrNull == true,
+                    gridCategories = (root["grid_categories"] as? JsonPrimitive)?.booleanOrNull == true,
                 ),
             )
         }.getOrNull()
@@ -1042,6 +1076,63 @@ class DispatcharrClient @Inject constructor() {
         fetchListOrResults("${baseUrl.trimEnd('/')}/api/epg/epgdata/", apiKey)
 
     /**
+     * Dispatch More v272: only the guide records this login's channels use, in the shape of
+     * /api/epg/epgdata/ rows. ~1.5k rows on the user's server instead of every guide record of
+     * every source (fork/arrTV-integration.md §1a).
+     */
+    suspend fun listGuideLinks(baseUrl: String, apiKey: String, path: String): List<DispatcharrEpgData> =
+        withContext(Dispatchers.IO) { fetchListOrResults(baseUrl.trimEnd('/') + path, apiKey) }
+
+    /**
+     * Dispatch More v272 start-up check: stamps of the lineup, its guide links and the guides.
+     * Null when the server said nothing usable (no connection, an error): the caller then keeps
+     * its time-based checks rather than downloading everything or nothing.
+     */
+    @OptIn(ExperimentalSerializationApi::class)
+    suspend fun fetchSync(baseUrl: String, apiKey: String, path: String): DispatchMoreSync? =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val url = baseUrl.trimEnd('/') + path
+                client.prepareGet(url) {
+                    applyAuth(apiKey)
+                    timeout { requestTimeoutMillis = 20_000; socketTimeoutMillis = 20_000 }
+                }.execute { response ->
+                    unauthorizedCheck(response, url)
+                    if (!response.status.isSuccess()) return@execute null
+                    json.decodeFromStream<DispatchMoreSync>(response.bodyAsChannel().toInputStream())
+                        .takeIf { it.sync >= 1 && it.lineup.isNotEmpty() }
+                }
+            }.onFailure {
+                if (it is kotlinx.coroutines.CancellationException) throw it
+                android.util.Log.w("DispatcharrClient", "start-up check failed: $it")
+            }.getOrNull()
+        }
+
+    /**
+     * Dispatch More v275: one mark per guide of this login's channels, and the guides stamp they
+     * make up. Null when the server said nothing usable: the caller then fetches the whole grid.
+     */
+    @OptIn(ExperimentalSerializationApi::class)
+    suspend fun fetchGuideMarks(baseUrl: String, apiKey: String, path: String): DispatchMoreGuideMarks? =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val url = baseUrl.trimEnd('/') + path
+                client.prepareGet(url) {
+                    applyAuth(apiKey)
+                    timeout { requestTimeoutMillis = 20_000; socketTimeoutMillis = 20_000 }
+                }.execute { response ->
+                    unauthorizedCheck(response, url)
+                    if (!response.status.isSuccess()) return@execute null
+                    json.decodeFromStream<DispatchMoreGuideMarks>(response.bodyAsChannel().toInputStream())
+                        .takeIf { it.guides.isNotEmpty() }
+                }
+            }.onFailure {
+                if (it is kotlinx.coroutines.CancellationException) throw it
+                android.util.Log.w("DispatcharrClient", "guide marks failed: $it")
+            }.getOrNull()
+        }
+
+    /**
      * GET /api/epg/sources/ - the EPG sources configured on the Dispatcharr
      * server (list permission is IsStandardUser, so any API key works). Used
      * for catch-up depth: Dispatcharr's own grid only retains a couple of
@@ -1169,29 +1260,38 @@ class DispatcharrClient @Inject constructor() {
         apiKey: String,
         startMillis: Long? = null,
         endMillis: Long? = null,
+        /** Only these guide records (Dispatch More v275, capabilities `grid_epg_ids`); null: all. */
+        epgIds: Collection<Int>? = null,
     ): List<DispatcharrEpgEntry> =
-        withContext(Dispatchers.IO) { getEpgGridImpl(baseUrl, apiKey, startMillis, endMillis) }
+        withContext(Dispatchers.IO) { getEpgGridImpl(baseUrl, apiKey, startMillis, endMillis, epgIds) }
 
     private suspend fun getEpgGridImpl(
         baseUrl: String,
         apiKey: String,
         startMillis: Long?,
         endMillis: Long?,
+        epgIds: Collection<Int>?,
     ): List<DispatcharrEpgEntry> {
         // Dispatcharr 0.30 (PR #1643): `start` / `end` select an absolute ISO
         // 8601 window; older servers ignore them and answer -1h..+24h.
         val query = buildList {
             startMillis?.let { add("start=" + java.time.Instant.ofEpochMilli(it).toString()) }
             endMillis?.let { add("end=" + java.time.Instant.ofEpochMilli(it).toString()) }
+            epgIds?.let { ids -> add("epg_ids=" + ids.sorted().joinToString(",")) }
+            // Dispatch More v275: the categories in the grid itself (see enrichNowPlayingCategories)
+            if (DispatchMore.serverFor(baseUrl)?.gridCategories == true) add("categories=1")
         }.joinToString("&")
         val url = "${baseUrl.trimEnd('/')}/api/epg/grid/" + if (query.isEmpty()) "" else "?$query"
-        val response: HttpResponse = client.get(url) { applyAuth(apiKey) }
-        unauthorizedCheck(response, url)
-        if (!response.status.isSuccess()) {
-            throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_epg_grid_failed, response.status.value, response.status.description))
+        // Streamed into the rows: the 24 h grid of a big lineup is tens of MB of JSON, and
+        // holding it whole next to the decoded rows doubled the launch's memory peak.
+        return client.prepareGet(url) { applyAuth(apiKey) }.execute { response ->
+            unauthorizedCheck(response, url)
+            if (!response.status.isSuccess()) {
+                throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_epg_grid_failed, response.status.value, response.status.description))
+            }
+            @OptIn(ExperimentalSerializationApi::class)
+            json.decodeFromStream<EpgGridResponse>(response.bodyAsChannel().toInputStream()).data
         }
-        val wrapper: EpgGridResponse = response.body()
-        return wrapper.data
     }
 
     /**
@@ -1345,33 +1445,32 @@ class DispatcharrClient @Inject constructor() {
         var reportedCount = -1
         var nextUrl: String? = url
         var pagesLeft = MAX_LIST_PAGES
+        val rowSerializer = serializer<T>()
         while (nextUrl != null && pagesLeft > 0) {
             pagesLeft -= 1
             val pageUrl: String = nextUrl
-            val response: HttpResponse = client.get(pageUrl) { applyAuth(apiKey) }
-            unauthorizedCheck(response, pageUrl)
-            if (!response.status.isSuccess()) {
-                throw DispatcharrError.Transport(AppText.get(R.string.core_http_error_from_url, response.status.value, response.status.description, pageUrl))
+            // Decoded straight from the stream into the rows' own types: reading the body as
+            // a JsonElement tree first held every field of every row as maps of boxed values.
+            // For /api/epg/epgdata/ (every guide record on the server, to keep three fields)
+            // that tree filled a Chromecast HD's whole 256 MB heap and once ran out of memory
+            // (2026-10-20, arr.115).
+            val page = client.prepareGet(pageUrl) { applyAuth(apiKey) }.execute { response ->
+                unauthorizedCheck(response, pageUrl)
+                if (!response.status.isSuccess()) {
+                    throw DispatcharrError.Transport(AppText.get(R.string.core_http_error_from_url, response.status.value, response.status.description, pageUrl))
+                }
+                decodeListPage(response.bodyAsChannel().toInputStream(), rowSerializer, pageUrl)
             }
-            val raw: JsonElement = response.body()
-            nextUrl = when {
-                raw is JsonArray -> {
-                    raw.forEach { out.add(json.decodeFromJsonElement(serializer<T>(), it)) }
-                    null
+            out.addAll(page.results)
+            nextUrl = if (page.envelope) {
+                reportedCount = page.count ?: reportedCount
+                page.next?.takeIf { cursor ->
+                    val cursorHost = runCatching { java.net.URI(cursor).host }.getOrNull()
+                    cursorHost != null && trustedHost != null &&
+                        cursorHost.equals(trustedHost, ignoreCase = true)
                 }
-                raw is JsonObject && raw["results"] is JsonArray -> {
-                    raw["results"]!!.jsonArray.forEach {
-                        out.add(json.decodeFromJsonElement(serializer<T>(), it))
-                    }
-                    reportedCount = (raw["count"] as? JsonPrimitive)?.intOrNull ?: reportedCount
-                    (raw["next"] as? JsonPrimitive)?.takeIf { it !is JsonNull }?.content
-                        ?.takeIf { cursor ->
-                            val cursorHost = runCatching { java.net.URI(cursor).host }.getOrNull()
-                            cursorHost != null && trustedHost != null &&
-                                cursorHost.equals(trustedHost, ignoreCase = true)
-                        }
-                }
-                else -> throw DispatcharrError.UnexpectedResponse(AppText.get(R.string.core_dispatcharr_unexpected_shape_from, pageUrl, raw::class.simpleName.orEmpty()))
+            } else {
+                null
             }
         }
         if (nextUrl != null) {
@@ -1388,6 +1487,39 @@ class DispatcharrClient @Inject constructor() {
             )
         }
         return out
+    }
+
+    /** One page of a list endpoint: a bare array (stock Dispatcharr), or a DRF envelope. */
+    class ListPage<T>(val results: List<T>, val envelope: Boolean, val next: String?, val count: Int?)
+
+    @Serializable
+    private class ListEnvelope<T>(val results: List<T> = emptyList(), val next: String? = null, val count: Int? = null)
+
+    /** Streams [input] (an array or a `{"results": [...], "next", "count"}` envelope) into rows. */
+    @OptIn(ExperimentalSerializationApi::class)
+    internal fun <T> decodeListPage(
+        input: java.io.InputStream,
+        rowSerializer: kotlinx.serialization.KSerializer<T>,
+        url: String,
+    ): ListPage<T> {
+        val pushback = java.io.PushbackInputStream(input, 1)
+        var first: Int
+        do { first = pushback.read() } while (first == ' '.code || first == '\n'.code || first == '\r'.code || first == '\t'.code)
+        if (first < 0) return ListPage(emptyList(), envelope = false, next = null, count = null)
+        pushback.unread(first)
+        return when (first) {
+            '['.code -> ListPage(
+                json.decodeToSequence(pushback, rowSerializer, DecodeSequenceMode.ARRAY_WRAPPED).toList(),
+                envelope = false, next = null, count = null,
+            )
+            '{'.code -> {
+                val page = json.decodeFromStream(ListEnvelope.serializer(rowSerializer), pushback)
+                ListPage(page.results, envelope = true, next = page.next?.takeIf { it.isNotBlank() }, count = page.count)
+            }
+            else -> throw DispatcharrError.UnexpectedResponse(
+                AppText.get(R.string.core_dispatcharr_unexpected_shape_from, url, first.toChar().toString()),
+            )
+        }
     }
 
     /**
@@ -3079,6 +3211,9 @@ data class DispatcharrEpgData(
      *  which upstream feed a given tvg-id legitimately belongs to. */
     @SerialName("epg_source")
     val epgSourceId: Int? = null,
+    /** The source's type, in Dispatch More's guide links only (v272): no /api/epg/sources/ then. */
+    @SerialName("source_type")
+    val sourceType: String? = null,
 )
 
 /**
@@ -3109,6 +3244,25 @@ data class DispatcharrEpgSource(
      */
     @SerialName("updated_at")
     val updatedAt: String? = null,
+)
+
+/** Dispatch More's start-up check (GET /api/core/app-sync/, v272). */
+@Serializable
+data class DispatchMoreSync(
+    val sync: Int = 0,
+    val channels: Int = 0,
+    val lineup: String = "",
+    @SerialName("guide_links")
+    val guideLinks: String = "",
+    val guides: String = "",
+    val programmes: Int = 0,
+)
+
+/** Dispatch More v275 GET /api/core/app-guide-marks/: {guide record id: mark}, "0" = no programmes. */
+@Serializable
+data class DispatchMoreGuideMarks(
+    val guides: String = "",
+    val marks: Map<String, String> = emptyMap(),
 )
 
 @Serializable
@@ -3266,8 +3420,13 @@ data class DispatcharrVODEpisode(
     @SerialName("imdb_id")
     val imdbId: String? = null,
     @SerialName("custom_properties")
+    @Serializable(with = VODCustomPropsLenientSerializer::class)
     val customProperties: VODCustomProps? = null,
     val streams: List<DispatcharrVODStreamOption> = emptyList(),
+    /** Episode still as series provider-info sends it (top level, already a
+     *  proxied URL); the episodes listing carries it in custom_properties. */
+    @SerialName("movie_image")
+    val movieImage: String? = null,
 ) {
     val displayName: String get() = title.ifBlank { name.orEmpty() }
     /** Runtime in SECONDS; see [resolveDurationSeconds]. */
@@ -3285,6 +3444,7 @@ data class DispatcharrVODEpisode(
         get() = customProperties?.stringField("movie_image")
             ?: customProperties?.stringField("cover")
             ?: customProperties?.stringField("image")
+            ?: movieImage?.takeIf { it.isNotBlank() }
 
     /** Per-episode director from custom_properties.crew (TMDB-derived). */
     val crew: String?
@@ -3345,8 +3505,21 @@ data class DispatcharrVODProviderInfo(
     @SerialName("movie_image")
     val movieImage: String? = null,
     @SerialName("custom_properties")
+    @Serializable(with = VODCustomPropsLenientSerializer::class)
     val customProperties: VODCustomProps? = null,
+    /** Series provider-info only: every episode this provider carries, keyed
+     *  by season number (Dispatcharr `include_episodes`, on by default; see
+     *  apps/vod/api_views.py series provider_info). Decoded into the slim
+     *  episode model from the stream. Used when /api/vod/episodes/ comes back
+     *  empty (PR 92 parity). */
+    @Serializable(with = EpisodesBySeasonLenientSerializer::class)
+    val episodes: Map<String, List<DispatcharrVODEpisode>>? = null,
 ) {
+    /** [episodes] flattened in season / episode order, or empty. */
+    val embeddedEpisodes: List<DispatcharrVODEpisode>
+        get() = episodes.orEmpty().values.flatten()
+            .sortedWith(compareBy({ it.seasonNumber ?: 0 }, { it.episodeNumber ?: 0 }))
+
     /** Runtime in SECONDS; see [resolveDurationSeconds]. */
     val durationSeconds: Int? get() = resolveDurationSeconds(durationSecs, duration)
 
@@ -3488,6 +3661,7 @@ data class DispatcharrVODSeries(
      *  category here (`category_id`), not at the top level, so the object is
      *  kept raw and read lazily via [vodCategoryId]. */
     @SerialName("custom_properties")
+    @Serializable(with = JsonObjectOrStringSerializer::class)
     val customPropertiesRaw: JsonObject? = null,
 ) {
     val displayName: String get() = name.ifBlank { title.orEmpty() }
@@ -3530,6 +3704,7 @@ data class DispatcharrVODMovie(
     val categoryName: String? = null,
     /** Raw `custom_properties` blob; see DispatcharrVODSeries.customPropertiesRaw. */
     @SerialName("custom_properties")
+    @Serializable(with = JsonObjectOrStringSerializer::class)
     val customPropertiesRaw: JsonObject? = null,
 ) {
     val displayName: String get() = title.ifBlank { name.orEmpty() }
@@ -3792,7 +3967,32 @@ data class DispatcharrEpgEntry(
      *  slim grid normally strips it (only the detail endpoint has it), so this
      *  is a free upgrade, not something to rely on. */
     val icon: String? = null,
+    /** Free-form programme properties (from AerioTV d4b0518a, #132). Dispatcharr's dummy-EPG
+     *  programmes (apps/output/dummy_epg.py) carry their poster here as `icon` (and
+     *  possibly `images`) instead of a top-level icon. */
+    @SerialName("custom_properties")
+    val customProperties: JsonObject? = null,
 ) {
+    /** Programme artwork: top-level icon, else custom_properties.icon, else the first
+     *  usable custom_properties.images entry (a string or {url}). */
+    val artworkUrl: String?
+        get() {
+            icon?.takeIf { it.isNotBlank() }?.let { return it }
+            val props = customProperties ?: return null
+            (props["icon"] as? JsonPrimitive)?.takeIf { it.isString }?.content
+                ?.takeIf { it.isNotBlank() }?.let { return it }
+            val images = props["images"] as? JsonArray ?: return null
+            for (el in images) {
+                val url = when (el) {
+                    is JsonPrimitive -> el.takeIf { it.isString }?.content
+                    is JsonObject -> (el["url"] as? JsonPrimitive)?.takeIf { it.isString }?.content
+                    else -> null
+                }
+                if (!url.isNullOrBlank()) return url
+            }
+            return null
+        }
+
     /** Best-effort coercion of the heterogeneous `id` field to Int. */
     val programIdInt: Int?
         get() = (id as? JsonPrimitive)?.intOrNull
@@ -3904,4 +4104,64 @@ data class RewindWindow(
     @kotlinx.serialization.SerialName("head_wall_ms") val headWallMs: Long = 0,
     val playlist: String = "",
 )
+
+/** Field name from a kotlinx.serialization "missing field" failure, searched
+ *  through the cause chain (Ktor wraps it), or null. */
+internal fun missingFieldName(t: Throwable): String? {
+    var cur: Throwable? = t
+    var depth = 0
+    while (cur != null && depth < 6) {
+        cur.message?.let { msg ->
+            Regex("""[Ff]ields? \[?'?"?([A-Za-z0-9_]+)""").find(msg)
+                ?.takeIf { msg.contains("missing", ignoreCase = true) }
+                ?.let { return it.groupValues[1] }
+        }
+        cur = cur.cause
+        depth++
+    }
+    return null
+}
+
+internal fun missingFieldSuffix(t: Throwable): String =
+    missingFieldName(t)?.let { " (missing '$it')" } ?: ""
+
+
+/**
+ * PR 92 parity: Dispatcharr sometimes sends `custom_properties` as the object
+ * serialized into a JSON STRING (the raw-SQL listings do for some rows). A
+ * plain object decode threw and dropped the whole row or page. Strings are
+ * parsed back into the object; anything unparseable becomes an empty object.
+ */
+internal object JsonObjectOrStringSerializer :
+    kotlinx.serialization.json.JsonTransformingSerializer<JsonObject>(JsonObject.serializer()) {
+    override fun transformDeserialize(element: JsonElement): JsonElement = objectOrParsedString(element)
+}
+
+internal object VODCustomPropsLenientSerializer :
+    kotlinx.serialization.json.JsonTransformingSerializer<VODCustomProps>(VODCustomProps.serializer()) {
+    override fun transformDeserialize(element: JsonElement): JsonElement = objectOrParsedString(element)
+}
+
+private fun objectOrParsedString(element: JsonElement): JsonElement {
+    if (element is JsonObject) return element
+    val text = (element as? JsonPrimitive)?.takeIf { it.isString }?.content
+    val parsed = text?.let { runCatching { kotlinx.serialization.json.Json.parseToJsonElement(it) }.getOrNull() }
+    return parsed as? JsonObject ?: JsonObject(emptyMap())
+}
+
+/** `episodes` as `{"<season>": [...]}`; any other shape (an empty list from
+ *  an older build) decodes as an empty map instead of failing provider-info. */
+internal object EpisodesBySeasonLenientSerializer :
+    kotlinx.serialization.json.JsonTransformingSerializer<Map<String, List<DispatcharrVODEpisode>>>(
+        kotlinx.serialization.builtins.MapSerializer(
+            kotlinx.serialization.serializer<String>(),
+            kotlinx.serialization.builtins.ListSerializer(DispatcharrVODEpisode.serializer()),
+        ),
+    ) {
+    override fun transformDeserialize(element: JsonElement): JsonElement =
+        if (element is JsonObject) {
+            JsonObject(element.filterValues { it is kotlinx.serialization.json.JsonArray })
+        } else JsonObject(emptyMap())
+}
+
 

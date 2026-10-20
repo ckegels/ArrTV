@@ -140,8 +140,13 @@ class PlaybackTracer {
      * press->firstFrame is measured end to end, exactly like tvOS.
      */
     fun markPress(name: String?) {
-        pressAtMs = now()
-        channelName = name?.takeIf { it.isNotBlank() } ?: "?"
+        val at = now()
+        val named = name?.takeIf { it.isNotBlank() } ?: "?"
+        // The key handler stamps the press and the player's channel switch stamps it again a
+        // few ms later: keep the first (the real press), log it once
+        if (named == channelName && pressAtMs != 0L && at - pressAtMs < SAME_PRESS_MS) return
+        pressAtMs = at
+        channelName = named
         Log.i(TAG, "[TUNE] press ch=$channelName")
     }
 
@@ -161,6 +166,7 @@ class PlaybackTracer {
     fun hasFirstByte(): Boolean = firstByteAtMs != 0L
 
     fun markTuneStart(name: String?, kind: String) {
+        PlaybackActivityTracker.tuneStarted()
         val n = now()
         // A press older than this was not what caused this prime (a watchdog
         // reload, a follow-poller re-prime); start the clock here instead.
@@ -334,6 +340,7 @@ class PlaybackTracer {
 
     /** One summary line per tune, same shape as the tvOS one. */
     fun onFirstFrame() {
+        PlaybackActivityTracker.firstFrame()
         if (summaryLogged || summaryPending) return
         firstFrameAtMs = now()
         if (readyAtMs == 0L) {
@@ -788,6 +795,7 @@ class PlaybackTracer {
     companion object {
         private const val TAG = "AerioTrace"
         private const val PRESS_MAX_AGE_MS = 15_000L
+        private const val SAME_PRESS_MS = 1_000L
         private const val SUMMARY_DEFER_MS = 2_000L
         private const val PERF_INTERVAL_MS = 15_000L
         private const val FEED_WINDOW_MS = 30_000L

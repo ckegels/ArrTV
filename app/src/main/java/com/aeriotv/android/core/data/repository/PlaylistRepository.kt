@@ -156,6 +156,19 @@ private const val RETENTION_SWEEP_COOLDOWN_MS = 5L * 60L * 1000L
 private const val EPG_DELETE_BATCH = 2_000
 private const val EPG_DELETE_PAUSE_MS = 50L
 
+/** A start-up check answer is reused this long: one launch's channel and guide decisions (and
+ *  the stamp a download saves) ask within seconds of each other. */
+private const val SYNC_REUSE_MS = 60_000L
+
+// Past this many changed guides, or a third of them, one plain grid call is cheaper than the
+// list of ids (a full re-import moves every mark)
+private const val MAX_DELTA_GUIDES = 400
+private const val DELTA_SHARE_DIVISOR = 3
+private const val NO_GUIDE_ID = -1
+
+/** A capability probe that succeeded this recently answers for the next one (probeCapabilities). */
+private const val PROBE_REUSE_MS = 60_000L
+
 /** Small per-device file for guide maintenance times (the daily catch-up reach prune). */
 private const val EPG_MAINTENANCE_PREFS = "epg_maintenance"
 
@@ -361,6 +374,16 @@ class PlaylistRepository @Inject constructor(
             Log.i(TAG_CAPS, "credentials changed for ${playlistId.take(8)}; dropping the old account's cached identity")
             dropCachedIdentity(priorRow!!)
         }
+        // A new host, scheme or port on either route (from AerioTV 4f3c0c1c): drop what was
+        // learned against the old host BEFORE the new JWT pair lands, so this save's
+        // fetches start clean. The re-probe of permissions follows at the end of the save.
+        if (priorRow != null && hostChanged(
+                priorRow.urlString, normalisedBase,
+                priorRow.lanUrlString, request.lanUrl,
+            )
+        ) {
+            invalidateForHostChange(priorRow, normalisedBase, request.lanUrl)
+        }
 
         // For Dispatcharr User/Pass, do the JWT exchange up front and resolve to an api_key
         // so the rest of the flow looks identical to API-key mode. iOS does this too
@@ -542,6 +565,13 @@ class PlaylistRepository @Inject constructor(
         // the very next request routes correctly instead of waiting for a
         // network change.
         entity.lanUrlString?.takeIf { it.isNotBlank() }?.let { lanReachability.refresh(it) }
+        // The start-up check's lineup stamp for what was just downloaded. Dispatch More is known
+        // only from the probe above, after the download, so no stamp was saved and the live
+        // socket's first check downloaded the whole lineup again a minute after sign-in (Shield,
+        // 2026-10-20). Asked seconds after the download: a change in between is a socket event,
+        // which downloads the lineup whatever the stamp says.
+        runCatching { recentSync(entity)?.let { syncStamps.saveLineup(playlistId, it) } }
+            .onFailure { if (it is CancellationException) throw it }
         entity to channels
     }
 
@@ -576,6 +606,60 @@ class PlaylistRepository @Inject constructor(
      * the self-heal in [probeCapabilitiesUncoalesced] for a row whose
      * stored key turned out to belong to somebody else.
      */
+    /** "scheme://host:port", lowercased, default port filled in; "" when blank or unparseable. */
+    private fun hostKey(raw: String?): String {
+        var v = raw?.trim().orEmpty()
+        if (v.isEmpty()) return ""
+        if (!v.startsWith("http://", true) && !v.startsWith("https://", true)) v = "http://$v"
+        val uri = runCatching { java.net.URI(v) }.getOrNull() ?: return ""
+        val host = uri.host?.lowercase()?.takeIf { it.isNotBlank() } ?: return ""
+        val scheme = (uri.scheme ?: "http").lowercase()
+        val port = if (uri.port > 0) uri.port else if (scheme == "https") 443 else 80
+        return "$scheme://$host:$port"
+    }
+
+    /** True when either route of the playlist now points at another host, scheme, or port. */
+    private fun hostChanged(oldBase: String?, newBase: String?, oldLan: String?, newLan: String?): Boolean =
+        hostKey(oldBase) != hostKey(newBase) || hostKey(oldLan) != hostKey(newLan)
+
+    /**
+     * Forget everything learned against a playlist's OLD host after an edit moved it to
+     * another one (from AerioTV 4f3c0c1c: a playlist moved from its LAN address to a public
+     * one behind an SSO proxy only worked after Refresh Permissions, even across a
+     * relaunch). The playlist id is untouched, so favorites, recents and DVR stay attached.
+     *
+     * Cleared: the JWT pair (ArrTV keeps it across restarts since arr.113, so a stale one
+     * would outlive a relaunch too), the 403-derived capability corrections, retained live
+     * rewind connections to the old host, the memoized catch-up credentials, the persisted
+     * auth header shape. (ArrTV's permission probe has no throttle to reset.)
+     */
+    private suspend fun invalidateForHostChange(prior: PlaylistEntity, newBase: String, newLan: String?) {
+        val cleared = mutableListOf<String>()
+        dispatcharrTokenStore.clear(prior.id)
+        cleared += "JWT pair"
+        CapabilityCorrections.clear(prior.id)
+        cleared += "capability corrections"
+        timeshiftController.stopAllRetained()
+        cleared += "retained rewind connections"
+        catchupResolver.invalidateCredentialMemos()
+        cleared += "catch-up credentials"
+        val current = dao.byId(prior.id)
+        if (current != null && current.dispatcharrAuthMode.isNotBlank()) {
+            cleared += "auth header mode '${current.dispatcharrAuthMode}'"
+            runCatching { dao.update(current.copy(dispatcharrAuthMode = "")) }
+                .onFailure { Log.w(TAG_CAPS, "host-change auth mode reset failed", it) }
+        } else {
+            cleared += "auth header mode (default)"
+        }
+        val oldLan = hostKey(prior.lanUrlString).takeIf { it.isNotEmpty() }?.let { " (local $it)" } ?: ""
+        val newLanKey = hostKey(newLan).takeIf { it.isNotEmpty() }?.let { " (local $it)" } ?: ""
+        Log.i(
+            TAG_CAPS,
+            "[PLAYLIST] host changed ${hostKey(prior.urlString)}$oldLan -> ${hostKey(newBase)}$newLanKey: " +
+                "cleared ${cleared.joinToString(", ")} playlist=${prior.id.take(8)}",
+        )
+    }
+
     private suspend fun dropCachedIdentity(priorRow: PlaylistEntity) {
         // The JWT pair was minted for the OLD account. In User/Pass mode a
         // re-login replaces it, but only on success; in API Key mode nothing
@@ -622,11 +706,24 @@ class PlaylistRepository @Inject constructor(
         // same second; without this the server saw two identical probes and the
         // log printed two "probe OK" lines. Late callers join the running pass
         // instead of starting a second one.
+        // And one a minute: a launch probed at the warm-up, again in refresh() seconds later and
+        // again from a gated surface -- users/me, capabilities and system settings each time
+        // (2026-10-20 debug log: users/me six times in one start). A pass that succeeded under a
+        // minute ago with the same key answers for a forced one too; a new key always probes.
+        // The key and the addresses: an edited playlist probes again (it registers its routes)
+        val key = dao.byId(playlistId)?.let { "${it.apiKey}|${it.urlString}|${it.lanUrlString}" }
+        recentProbes[playlistId]?.let { (at, probedKey) ->
+            if (probedKey == key && android.os.SystemClock.elapsedRealtime() - at < PROBE_REUSE_MS) return true
+        }
         val pending = CompletableDeferred<Boolean>()
         val running = inFlightCapabilityProbes.putIfAbsent(playlistId, pending)
         if (running != null) return running.await()
         return try {
             val result = probeCapabilitiesUncoalesced(playlistId, force)
+            if (result) {
+                recentProbes[playlistId] = android.os.SystemClock.elapsedRealtime() to
+                    dao.byId(playlistId)?.let { "${it.apiKey}|${it.urlString}|${it.lanUrlString}" }
+            }
             pending.complete(result)
             result
         } catch (t: Throwable) {
@@ -637,6 +734,9 @@ class PlaylistRepository @Inject constructor(
             inFlightCapabilityProbes.remove(playlistId, pending)
         }
     }
+
+    /** The last successful probe per playlist: when, and with which key and addresses. */
+    private val recentProbes = ConcurrentHashMap<String, Pair<Long, String?>>()
 
     private suspend fun probeCapabilitiesUncoalesced(playlistId: String, force: Boolean): Boolean {
         val playlist = dao.byId(playlistId) ?: return false
@@ -876,6 +976,9 @@ class PlaylistRepository @Inject constructor(
     suspend fun refresh(playlist: PlaylistEntity): Result<List<M3UChannel>> = runCatching {
         val sourceType = playlist.resolvedSourceType()
         val base = effectiveBaseUrl(playlist)
+        // The start-up check's stamp as it was BEFORE this download: saved once the lineup
+        // is in, so a change landing meanwhile still differs at the next check.
+        var stampBefore = recentSync(playlist)
         // Dispatcharr branches go through the AuthBroker so a rotated api_key
         // gets silently rebootstrapped instead of surfacing a 401. M3U / Xtream
         // fall straight through to fetchChannelsFor.
@@ -908,6 +1011,8 @@ class PlaylistRepository @Inject constructor(
             runCatching { probeCapabilities(playlist.id, force = true) }.getOrDefault(false)
         } else false
         val fresh = if (probed) dao.byId(playlist.id) ?: playlist else playlist
+        // A server first known as Dispatch More from the probe just now (a first refresh)
+        if (stampBefore == null && probed) stampBefore = recentSync(playlist)
         val liveVersion = if (probed) {
             playlist.apiKey?.takeIf { it.isNotBlank() }
                 ?.let { dispatcharrClient.fetchServerVersion(base, it) }
@@ -951,7 +1056,197 @@ class PlaylistRepository @Inject constructor(
             android.util.Log.w("PlaylistRepository", "saveChannelsToCache failed (refresh)", t)
         }
         publishActiveCredentials(refreshed)
+        stampBefore?.let { syncStamps.saveLineup(playlist.id, it) }
         channels
+    }
+
+    private val syncStamps = com.aeriotv.android.core.data.sync.SyncStamps(
+        object : com.aeriotv.android.core.data.sync.SyncStamps.Store {
+            private val prefs = context.getSharedPreferences("playlist_sync", Context.MODE_PRIVATE)
+            override fun get(key: String): String? = prefs.getString(key, null)
+            override fun put(key: String, value: String?) {
+                prefs.edit().apply { if (value == null) remove(key) else putString(key, value) }.apply()
+            }
+        },
+    )
+
+    /** The last start-up check per playlist and when it was asked. */
+    private val lastSync = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, com.aeriotv.android.core.network.DispatchMoreSync>>()
+
+    /**
+     * Dispatch More's start-up check (v272, fork/arrTV-integration.md §1a): whether the lineup
+     * and the guides changed since this cache was downloaded. Null when it cannot say (not a
+     * Dispatcharr playlist, a server without the check, no answer): callers then keep their
+     * time-based rules. One request; answers younger than [SYNC_REUSE_MS] are reused, since the
+     * channel and guide decisions of one launch ask within seconds of each other.
+     */
+    suspend fun startupCheck(playlist: PlaylistEntity): com.aeriotv.android.core.data.sync.SyncVerdict? {
+        val answer = recentSync(playlist) ?: return null
+        return syncStamps.verdict(playlist.id, answer)
+    }
+
+    private suspend fun recentSync(playlist: PlaylistEntity): com.aeriotv.android.core.network.DispatchMoreSync? {
+        val type = playlist.resolvedSourceType()
+        if (type != SourceType.DispatcharrApiKey && type != SourceType.DispatcharrUserPass) return null
+        val now = android.os.SystemClock.elapsedRealtime()
+        lastSync[playlist.id]?.let { (at, answer) -> if (now - at < SYNC_REUSE_MS) return answer }
+        val base = effectiveBaseUrl(playlist)
+        val path = com.aeriotv.android.core.network.DispatchMore.serverFor(base)?.syncPath ?: return null
+        val answer = runCatching {
+            dispatcharrAuth.withApiKeyRetry(playlist.id) { key -> dispatcharrClient.fetchSync(base, key, path) }
+        }.onFailure { if (it is CancellationException) throw it }.getOrNull() ?: return null
+        lastSync[playlist.id] = now to answer
+        return answer
+    }
+
+    /** The check found the lineup cache fresh by the old time rule: call it current from now on. */
+    fun adoptLineupStamp(playlistId: String, verdict: com.aeriotv.android.core.data.sync.SyncVerdict) =
+        syncStamps.saveLineup(playlistId, verdict.answer)
+
+    /** The same for the guide. */
+    suspend fun adoptGuidesStamp(playlist: PlaylistEntity, verdict: com.aeriotv.android.core.data.sync.SyncVerdict) {
+        syncStamps.saveGuides(playlist.id, verdict.answer)
+        rememberMarksFor(playlist, verdict.answer.guides)
+    }
+
+    /**
+     * A guide download for [playlist] succeeded: save the guides stamp that was current when it
+     * started ([before], from [startupCheck]), or ask now when there was none.
+     */
+    suspend fun rememberGuides(playlist: PlaylistEntity, before: com.aeriotv.android.core.data.sync.SyncVerdict?) {
+        val answer = before?.answer ?: recentSync(playlist) ?: return
+        syncStamps.saveGuides(playlist.id, answer)
+        rememberMarksFor(playlist, answer.guides)
+    }
+
+    /**
+     * Saves the per-guide marks (Dispatch More v275) with the guides stamp just saved, when they
+     * stand for that same stamp: a guide that changed during the download then still differs at
+     * the next check instead of being covered up. Without them the next change means the whole
+     * grid again, as before v275.
+     */
+    private suspend fun rememberMarksFor(playlist: PlaylistEntity, stamp: String) {
+        val marks = fetchGuideMarks(playlist) ?: return
+        if (marks.guides == stamp) syncStamps.saveMarks(playlist.id, marks)
+        else Log.i("PlaylistRepo", "guide marks: the guide changed during the download; not saved")
+    }
+
+    /**
+     * The guide is unchanged and current: make sure its marks are saved with it, so the next
+     * change fetches only the guides it touched (a cache saved before v275 has none).
+     */
+    suspend fun ensureMarks(playlist: PlaylistEntity, verdict: com.aeriotv.android.core.data.sync.SyncVerdict) {
+        if (syncStamps.savedMarks(playlist.id) == null) rememberMarksFor(playlist, verdict.answer.guides)
+    }
+
+    private suspend fun fetchGuideMarks(playlist: PlaylistEntity): com.aeriotv.android.core.network.DispatchMoreGuideMarks? {
+        val type = playlist.resolvedSourceType()
+        if (type != SourceType.DispatcharrApiKey && type != SourceType.DispatcharrUserPass) return null
+        val base = effectiveBaseUrl(playlist)
+        val server = com.aeriotv.android.core.network.DispatchMore.serverFor(base) ?: return null
+        val path = server.guideMarksPath?.takeIf { server.gridEpgIds } ?: return null
+        return runCatching {
+            dispatcharrAuth.withApiKeyRetry(playlist.id) { key -> dispatcharrClient.fetchGuideMarks(base, key, path) }
+        }.onFailure { if (it is CancellationException) throw it }.getOrNull()
+    }
+
+    /**
+     * The guide record each Dispatcharr channel uses, from the last channel download
+     * ([NO_GUIDE_ID]: none). A channel that joins (Show Groups) or moves to another guide then
+     * needs only that guide's programmes, not the whole 24 h grid.
+     */
+    private val guideIdOfChannel = ConcurrentHashMap<String, Int>()
+
+    /** The guide records of these channels, or null when one of them was never downloaded here. */
+    fun guideIdsOf(channelIds: Collection<String>): Set<Int>? {
+        val ids = HashSet<Int>()
+        for (id in channelIds) {
+            val guide = guideIdOfChannel[id] ?: return null
+            if (guide != NO_GUIDE_ID) ids += guide
+        }
+        return ids
+    }
+
+    /** What a changed guide needs (Dispatch More v275): the programmes of [epgIds]; then [marks] are current. */
+    data class GuideDelta(
+        val epgIds: Set<Int>,
+        val marks: com.aeriotv.android.core.network.DispatchMoreGuideMarks,
+    )
+
+    /**
+     * Which of this login's guides changed since the guide cache was saved, by Dispatch More's
+     * per-guide marks. A source refresh on the server or a Show Groups change moved the guides
+     * stamp and arrTV downloaded the whole 24 h grid again (41k programmes, 16 MB on the user's
+     * server, several times an hour) for a handful of guides. Null when that cannot be said or is
+     * not worth it: a server before v275, no marks saved with the cache, no answer, or so many
+     * changed guides (a full re-import) that one plain grid call is cheaper. An empty set: no
+     * guide of these channels changed.
+     */
+    suspend fun guideDelta(playlist: PlaylistEntity): GuideDelta? {
+        val saved = syncStamps.savedMarks(playlist.id) ?: return null
+        val now = fetchGuideMarks(playlist) ?: return null
+        if (now.guides == saved.guides) return GuideDelta(emptySet(), now)
+        val changed = com.aeriotv.android.core.data.sync.SyncStamps.changedGuides(saved.marks, now.marks)
+        if (changed.size > MAX_DELTA_GUIDES || changed.size * DELTA_SHARE_DIVISOR > now.marks.size) {
+            Log.i("PlaylistRepo", "guide marks: ${changed.size} of ${now.marks.size} guides changed; the whole grid is cheaper")
+            return null
+        }
+        return GuideDelta(changed, now)
+    }
+
+    /**
+     * What a marks-based fetch covers: from an hour ago (the past already aired and is kept as
+     * the catch-up archive) to the end of the Guide Days the sweep walks. The marks then vouch
+     * for every day the guide holds, so the sweep can trust them too.
+     */
+    fun guideDeltaRange(playlist: PlaylistEntity, now: Long): Pair<Long, Long> {
+        val guideDays = resolveGuideDays(playlist.epgRetentionDays) ?: GUIDE_DAYS_ALL_MAX_BACK
+        return (now - 3_600_000L) to (dayFloorMs(now) + (guideDays + 1) * 86_400_000L)
+    }
+
+    /**
+     * Writes the programmes of changed guides ([rows], raw keys as the grid sends them) to the
+     * cache with nothing on screen to patch (the background job): every channel they reach is
+     * rewritten from them, its stale raw-keyed copies removed first, as the open guide's bulk
+     * path does (PlaylistViewModel.applyGuideWindow). Returns the channels rewritten.
+     */
+    suspend fun writeGuideDelta(
+        playlistId: String,
+        channels: List<M3UChannel>,
+        rows: List<EPGProgramme>,
+        toMillis: Long,
+    ): Int {
+        val maps = com.aeriotv.android.core.guide.GuideMatchMaps.build(channels)
+        val rewritten = maps.channelsForGridKeys(rows.mapTo(HashSet()) { it.channelId })
+        if (rewritten.isEmpty()) return 0
+        val byId = channels.associateBy { it.guideChannelId().value }
+        val gridKeys = rewritten.flatMapTo(HashSet()) { id ->
+            byId[id]?.let { com.aeriotv.android.core.guide.GuideMatchMaps.rawKeysOf(it, withNumber = false) }.orEmpty()
+        }
+        deleteRawKeyedEpg(playlistId, gridKeys, System.currentTimeMillis(), toMillis)
+        val bridged = withContext(layeringDispatcher) {
+            com.aeriotv.android.core.data.bridgeChannelIds(rows, channels)
+                .filter { it.channelId in rewritten && it.endMillis - it.startMillis >= 30_000L }
+        }
+        saveEpgToCache(playlistId, com.aeriotv.android.core.guide.GuideCatalog.inStoreOrder(bridged))
+        return rewritten.size
+    }
+
+    /** The guide cache now holds what [marks] stand for. */
+    fun rememberMarks(playlistId: String, marks: com.aeriotv.android.core.network.DispatchMoreGuideMarks) =
+        syncStamps.saveMarks(playlistId, marks)
+
+    /** Dispatcharr's grid for [epgIds] only (Dispatch More v275), raw keys as the grid sends them. */
+    suspend fun fetchGuideProgrammes(
+        playlist: PlaylistEntity,
+        epgIds: Set<Int>,
+        fromMillis: Long,
+        toMillis: Long,
+    ): List<EPGProgramme> {
+        val base = effectiveBaseUrl(playlist)
+        return dispatcharrAuth.withApiKeyRetry(playlist.id) { key ->
+            dispatcharrClient.getEpgGrid(base, key, fromMillis, toMillis, epgIds).toProgrammes()
+        }
     }
 
     /**
@@ -977,6 +1272,10 @@ class PlaylistRepository @Inject constructor(
         val isDispatcharr = sourceType == SourceType.DispatcharrApiKey ||
             sourceType == SourceType.DispatcharrUserPass
         if (!isDispatcharr || programmes.isEmpty()) return programmes
+        // Dispatch More v275 puts the categories in the grid: a blank one is the guide's own
+        if (com.aeriotv.android.core.network.DispatchMore.serverFor(effectiveBaseUrl(playlist))?.gridCategories == true) {
+            return programmes
+        }
 
         val now = System.currentTimeMillis()
         // Group nominees: channels whose currently-airing program has a real
@@ -1126,6 +1425,11 @@ class PlaylistRepository @Inject constructor(
             val programmes: List<EPGProgramme>,
             val fromMs: Long,
             val toMs: Long,
+            /** The rows are the guides whose marks moved (Dispatch More v275, [guideDelta]):
+             *  every channel they reach is rewritten, nothing is compared. */
+            val changedGuides: Boolean = false,
+            /** Saved once the rows are in the cache: it then holds what these marks stand for. */
+            val marks: com.aeriotv.android.core.network.DispatchMoreGuideMarks? = null,
         ) : CacheUpdate
     }
 
@@ -1564,6 +1868,31 @@ class PlaylistRepository @Inject constructor(
                 if (!isDispatcharr || playlist.apiKey.isNullOrBlank()) return@launch
                 if (!playlist.dispatcharrVersionAtLeast("0.30.0")) return@launch
                 val base = effectiveBaseUrl(playlist)
+                // Dispatch More v275: the marks say which of this login's guides changed. Any
+                // of the server's 43 sources refreshing moved the fingerprint below, and every
+                // day of every guide came down again -- also right after a first download.
+                val delta = guideDelta(playlist)
+                if (delta != null) {
+                    if (delta.epgIds.isEmpty()) {
+                        Log.i("PlaylistRepo", "[EPG] guide marks unchanged, background sweep skipped")
+                        rememberMarks(playlistId, delta.marks)
+                    } else {
+                        awaitSweepWindow()
+                        val (from, to) = guideDeltaRange(playlist, System.currentTimeMillis())
+                        val rows = runCatching { fetchGuideProgrammes(playlist, delta.epgIds, from, to) }.getOrElse {
+                            if (it is CancellationException) throw it
+                            Log.w("PlaylistRepo", "[EPG] background sweep of ${delta.epgIds.size} guides failed: $it")
+                            return@launch
+                        }
+                        Log.i("PlaylistRepo", "[EPG] background sweep: ${delta.epgIds.size} guides changed, ${rows.size} programmes")
+                        // The open guide writes them (it removes the stale copies first); the
+                        // marks are saved once it has
+                        announceCacheUpdate(CacheUpdate.GuideWindow(playlistId, rows, from, to, changedGuides = true, marks = delta.marks))
+                    }
+                    runCatching { pruneEpgBeyondCatchupReach(playlistId) }
+                        .onFailure { Log.w("PlaylistRepo", "[EPG] sweep catch-up reach prune failed", it) }
+                    return@launch
+                }
                 // The GATE: no server-side re-ingest, no sweep at all.
                 val fingerprint = changedEpgSourcesFingerprint(playlist, base) ?: return@launch
                 val now = System.currentTimeMillis()
@@ -1829,10 +2158,14 @@ class PlaylistRepository @Inject constructor(
                 // needs /api/epg/epgdata/ as well as /api/epg/sources/ now (to
                 // learn which feed each tvg-id came from), and neither belongs
                 // in front of the guide paint.
+                // Dispatch More v272: the guide records of this login's channels only -- the
+                // same tvg-id -> source pairs, without every guide record on the server.
+                val guideLinksPath = com.aeriotv.android.core.network.DispatchMore.serverFor(base)?.guideLinksPath
                 val layers = runCatching {
                     dispatcharrAuth.withApiKeyRetry(playlistId) { key ->
                         dispatcharrEpgLayers(
-                            epgData = dispatcharrClient.listEpgData(base, key),
+                            epgData = if (guideLinksPath != null) dispatcharrClient.listGuideLinks(base, key, guideLinksPath)
+                            else dispatcharrClient.listEpgData(base, key),
                             sources = dispatcharrClient.listEpgSources(base, key),
                             knownChannelKeys = knownChannelKeys,
                             customXmltvUrl = customXmltvUrl,
@@ -1847,13 +2180,19 @@ class PlaylistRepository @Inject constructor(
                 val phaseDeadline = System.currentTimeMillis() + UPSTREAM_EPG_TOTAL_BUDGET_MS
                 var collected = 0
                 var downloadMs = 0L
+                var gateMs = 0L
                 for (layer in layers) {
+                    // Each source waits for a calm moment (GuideWorkGate), and that wait, like
+                    // the download, does not count against the phase budget below
+                    val gateFrom = System.currentTimeMillis()
+                    com.aeriotv.android.core.guide.GuideWorkGate.awaitCalm("look-back source")
+                    gateMs += System.currentTimeMillis() - gateFrom
                     // Phase budget gates STARTING another source only, and it
                     // must not count download time either: one 224MB feed at
                     // ~3MB/s is 75s of the 3-minute phase before a byte is
                     // parsed. Extend the phase by each source's download time
                     // so the cap still bounds parse work, not the user's link.
-                    if (System.currentTimeMillis() >= phaseDeadline + downloadMs) {
+                    if (System.currentTimeMillis() >= phaseDeadline + downloadMs + gateMs) {
                         Log.w("PlaylistRepo", "upstream layering: phase budget spent; stopping")
                         break
                     }
@@ -1887,7 +2226,7 @@ class PlaylistRepository @Inject constructor(
                             downloadMs += System.currentTimeMillis() - fetchStartMs
                             sourceDeadline = minOf(
                                 System.currentTimeMillis() + UPSTREAM_EPG_PER_SOURCE_MS,
-                                phaseDeadline + downloadMs,
+                                phaseDeadline + downloadMs + gateMs,
                             )
                             XMLTVParser.parseFile(
                                 file,
@@ -2455,6 +2794,8 @@ class PlaylistRepository @Inject constructor(
     }
 
     suspend fun purgeEpgCache(playlistId: String) {
+        // An emptied cache is not the guide the saved stamp vouched for
+        syncStamps.forgetGuides(playlistId)
         // In batches (EpgProgrammeDao.deleteBatchForPlaylist): one statement
         // for a whole source blocked every other write for minutes.
         while (epgProgrammeDao.deleteBatchForPlaylist(playlistId, EPG_DELETE_BATCH_ROWS) >= EPG_DELETE_BATCH_ROWS) {
@@ -3410,15 +3751,24 @@ class PlaylistRepository @Inject constructor(
             // A failure here silently re-keys channels to the legacy guide key
             // (see [dispatcharrGuideKey]), which changes the EPG identity hash
             // and purges the cached guide on the next load, so log it.
+            // Dispatch More v272 answers for this login's channels only; elsewhere every guide
+            // record of every source comes down (hundreds of thousands on a big server).
+            val guideLinksPath = com.aeriotv.android.core.network.DispatchMore.serverFor(base)?.guideLinksPath
             val epgDataById: Map<Int, DispatcharrEpgData>? = runCatching {
-                dispatcharrClient.listEpgData(base, key).associateBy { it.id }
+                (if (guideLinksPath != null) dispatcharrClient.listGuideLinks(base, key, guideLinksPath)
+                else dispatcharrClient.listEpgData(base, key)).associateBy { it.id }
             }.onFailure {
                 if (it is CancellationException) throw it
                 Log.w("PlaylistRepo", "Dispatcharr epgdata lookup failed; guide keys fall back to legacy: $it")
             }.getOrNull()
             // GH #53: which SOURCE an EPGData row came from decides whether its
             // tvg_id is a real broadcast identity at all. See [dispatcharrGuideKey].
-            val epgSourceTypeById: Map<Int, String?>? = runCatching {
+            // The guide links carry each source's type (Dispatch More v272): no second request
+            val linkedTypes = epgDataById?.values
+                ?.takeIf { guideLinksPath != null && it.isNotEmpty() && it.all { d -> d.epgSourceId == null || d.sourceType != null } }
+                ?.filter { it.epgSourceId != null }
+                ?.associate { it.epgSourceId!! to it.sourceType }
+            val epgSourceTypeById: Map<Int, String?>? = linkedTypes ?: runCatching {
                 dispatcharrClient.listEpgSources(base, key).associate { it.id to it.sourceType }
             }.onFailure {
                 if (it is CancellationException) throw it
@@ -3438,6 +3788,10 @@ class PlaylistRepository @Inject constructor(
                     "accountFilter=${accountAllowedIds?.size?.toString() ?: "off"} -> ${afterAccount.size}, " +
                     "manualFilter=${manualAllowedIds?.size?.toString() ?: "off"} -> ${channels.size}",
             )
+            for (ch in channels) {
+                val uuid = ch.uuid?.takeIf { it.isNotBlank() } ?: continue
+                guideIdOfChannel["disp:$uuid"] = ch.effectiveEpgDataId ?: ch.epgDataId ?: NO_GUIDE_ID
+            }
             channels
                 .filter { !it.uuid.isNullOrBlank() }
                 .sortedWith(compareBy(
@@ -3763,7 +4117,8 @@ private fun List<DispatcharrEpgEntry>.toProgrammes(): List<EPGProgramme> =
             isRepeat = entry.isPreviouslyShown,
             // Newer grids sometimes carry the programme icon; when they do the
             // banner / Program Info get real art with no detail fetch at all.
-            iconUrl = entry.icon?.takeIf { it.isNotBlank() },
+            // A dummy-EPG programme's poster comes from custom_properties (#132)
+            iconUrl = entry.artworkUrl,
         )
     }
 

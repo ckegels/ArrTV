@@ -149,14 +149,14 @@ class DispatcharrLiveUpdates @Inject constructor(
         // A guide change is owed a guide window even when the lineup comes back
         // unchanged ("guide read": the channel already had the new key)
         var guideOwed = false
-        fun scheduleChannelCheck(reason: String, afterMs: Long, guide: Boolean = false) {
+        fun scheduleChannelCheck(reason: String, afterMs: Long, guide: Boolean = false, askFirst: Boolean = false) {
             if (guide) guideOwed = true
             channelJob?.cancel()
             channelJob = launch {
                 delay(afterMs)
                 val withGuide = guideOwed
                 guideOwed = false
-                checkChannels(playlist.id, reason, withGuide)
+                checkChannels(playlist.id, reason, withGuide, askFirst)
             }
         }
 
@@ -232,7 +232,7 @@ class DispatcharrLiveUpdates @Inject constructor(
         launch {
             while (true) {
                 delay(CHANNEL_CHECK_INTERVAL_MS)
-                if (channelJob?.isActive != true) scheduleChannelCheck("periodic", 0)
+                if (channelJob?.isActive != true) scheduleChannelCheck("periodic", 0, askFirst = true)
             }
         }
 
@@ -241,7 +241,7 @@ class DispatcharrLiveUpdates @Inject constructor(
                 // Also after every reconnect: catch up on anything missed while
                 // disconnected. Both checks are cheap when nothing changed.
                 DispatcharrLiveEvent.Connected -> {
-                    scheduleChannelCheck("connected", CONNECT_SETTLE_MS)
+                    scheduleChannelCheck("connected", CONNECT_SETTLE_MS, askFirst = true)
                     // Not on the first connect of this app run: the launch loads
                     // the guide itself, and both at once wrote the same day twice
                     // (a Chromecast HD after a restart: 95 s of guide window next
@@ -333,9 +333,18 @@ class DispatcharrLiveUpdates @Inject constructor(
      * under their new key yet, so a window check follows; [withGuide] asks for
      * one whatever the lineup says (the server said a guide changed or was read).
      */
-    private suspend fun checkChannels(playlistId: String, reason: String, withGuide: Boolean = false) {
+    private suspend fun checkChannels(playlistId: String, reason: String, withGuide: Boolean = false, askFirst: Boolean = false) {
         awaitNoMultiview()
         val playlist = repository.activePlaylist()?.takeIf { it.id == playlistId } ?: return
+        // On a connect and every 10 minutes nothing said anything changed: ask the server's
+        // start-up check (Dispatch More v272) before downloading the lineup and its guide
+        // records. That download ran at every launch and every 10 minutes while watching.
+        if (askFirst && !withGuide &&
+            repository.startupCheck(playlist)?.lineup == com.aeriotv.android.core.data.sync.SyncChange.SAME
+        ) {
+            Log.i(TAG, "channel check ($reason): start-up check says the lineup is unchanged")
+            return
+        }
         val before = repository.loadCachedChannels(playlistId)
         val result = withContext(Dispatchers.IO) { repository.refresh(playlist) }
         val channels = result.getOrElse {
@@ -345,7 +354,10 @@ class DispatcharrLiveUpdates @Inject constructor(
         }
         val diff = ChannelListDiff.between(before, channels)
         val beforeKeys = before.associate { it.id to it.tvgID }
-        val rekeyed = channels.count { ch -> beforeKeys[ch.id]?.let { it != ch.tvgID } == true }
+        val rekeyedIds = channels.filter { ch -> beforeKeys[ch.id]?.let { it != ch.tvgID } == true }.map { it.id }
+        val rekeyed = rekeyedIds.size
+        // Their guides, so the window asks for those only (null: not known, the whole window)
+        val newGuides = repository.guideIdsOf(channels.filter { it.id !in beforeKeys }.map { it.id } + rekeyedIds)
         Log.i(TAG, "channel check ($reason): $diff" + if (rekeyed > 0) ", $rekeyed on another guide" else "")
         if (diff.hasChanges) {
             repository.announceCacheUpdate(PlaylistRepository.CacheUpdate.Channels(playlistId, channels))
@@ -356,8 +368,8 @@ class DispatcharrLiveUpdates @Inject constructor(
         // changed on the server showed its old programmes -- or none -- until
         // the next full sweep.)
         when {
-            diff.added > 0 -> announceGuideWindow(playlistId, "new channels")
-            rekeyed > 0 -> announceGuideWindow(playlistId, "$rekeyed channels on another guide")
+            diff.added > 0 -> announceGuideWindow(playlistId, "new channels", newGuides)
+            rekeyed > 0 -> announceGuideWindow(playlistId, "$rekeyed channels on another guide", newGuides)
             withGuide -> announceGuideWindow(playlistId, "guide changed on the server")
         }
     }
@@ -367,23 +379,47 @@ class DispatcharrLiveUpdates @Inject constructor(
      * it to the open app, which writes and repaints only the channels whose
      * schedule changed. Days further ahead are left to the stock sweep, which
      * with live updates on runs while nothing is being watched.
+     *
+     * Dispatch More v275: only the guides whose marks moved, plus [alsoGuides] (those of
+     * channels that joined or moved to another guide; null: not known, then the whole window).
+     * A source refresh fetched the whole 24 h grid, 41k programmes and 16 MB on the user's
+     * server, several times an hour, mostly for guides none of these channels use.
      */
-    private suspend fun announceGuideWindow(playlistId: String, reason: String) {
+    private suspend fun announceGuideWindow(playlistId: String, reason: String, alsoGuides: Set<Int>? = emptySet()) {
         val playlist = repository.activePlaylist()?.takeIf { it.id == playlistId } ?: return
+        val delta = if (alsoGuides != null) repository.guideDelta(playlist) else null
+        val wanted = delta?.let { it.epgIds + alsoGuides.orEmpty() }
+        if (delta != null && wanted.isNullOrEmpty()) {
+            Log.i(TAG, "guide window ($reason): no guide of these channels changed")
+            repository.rememberMarks(playlistId, delta.marks)
+            return
+        }
         val now = System.currentTimeMillis()
-        val from = now - HOUR_MS
-        val to = now + DAY_MS
+        // The marks vouch for every day once saved, so a marks-based fetch covers them all
+        val (from, to) = if (wanted != null) repository.guideDeltaRange(playlist, now) else (now - HOUR_MS) to (now + DAY_MS)
+        com.aeriotv.android.core.guide.GuideWorkGate.awaitCalm("live guide window ($reason)")
         val programmes = try {
-            withContext(Dispatchers.IO) { repository.fetchLiveGridProgrammes(playlist, from, to) }
+            withContext(Dispatchers.IO) {
+                if (wanted != null) repository.fetchGuideProgrammes(playlist, wanted, from, to)
+                else repository.fetchLiveGridProgrammes(playlist, from, to)
+            }
         } catch (c: CancellationException) {
             throw c
         } catch (t: Throwable) {
             Log.w(TAG, "guide window ($reason) failed: ${t::class.simpleName}: ${t.message}")
             return
         }
-        Log.i(TAG, "guide window ($reason): ${programmes.size} programmes fetched")
-        if (programmes.isEmpty()) return
-        repository.announceCacheUpdate(PlaylistRepository.CacheUpdate.GuideWindow(playlistId, programmes, from, to))
+        Log.i(
+            TAG,
+            "guide window ($reason): ${programmes.size} programmes fetched" +
+                if (wanted != null) " for ${wanted.size} guides" else "",
+        )
+        if (programmes.isEmpty() && wanted == null) return
+        repository.announceCacheUpdate(
+            PlaylistRepository.CacheUpdate.GuideWindow(
+                playlistId, programmes, from, to, changedGuides = wanted != null, marks = delta?.marks,
+            ),
+        )
     }
 
     /** The first socket connect of this app run has happened (see Connected). */

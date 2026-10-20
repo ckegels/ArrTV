@@ -218,7 +218,8 @@ fun teletextTsExtractor(adjuster: TimestampAdjuster = TimestampAdjuster(0)): Ext
     0, // text transcoding on, as DefaultExtractorsFactory's default
     TeletextSubtitleParserFactory(),
     adjuster,
-    TeletextPayloadReaderFactory(),
+    // A corrupt AC-3 header resyncs instead of failing the load (SafeTsExtractor.kt)
+    com.aeriotv.android.core.playback.SafeAc3PayloadReaderFactory(TeletextPayloadReaderFactory()),
     TS_TIMESTAMP_SEARCH_BYTES,
 )
 
@@ -229,6 +230,6 @@ fun plainTsExtractor(adjuster: TimestampAdjuster): Extractor = TsExtractor(
     0,
     DefaultSubtitleParserFactory(),
     adjuster,
-    DefaultTsPayloadReaderFactory(0, ImmutableList.of()),
+    com.aeriotv.android.core.playback.SafeAc3PayloadReaderFactory(DefaultTsPayloadReaderFactory(0, ImmutableList.of())),
     TS_TIMESTAMP_SEARCH_BYTES,
 )

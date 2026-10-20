@@ -55,9 +55,10 @@ existing guide is left untouched.
 3. Category enrichment for now-airing programmes, asynchronously.
 4. Upstream XMLTV sources discovered on the server, last and asynchronously,
    each scoped to the channels the server sourced FROM that feed
-   (`/api/epg/epgdata/` `epg_source`); if that scoping cannot be fetched the
-   whole pass is skipped (unscoped layering is how cross-feed contamination
-   happened).
+   (`/api/epg/epgdata/` `epg_source`; on Dispatch More v272
+   `/api/core/app-guide-links/`, the same rows for this login's channels only);
+   if that scoping cannot be fetched the whole pass is skipped (unscoped
+   layering is how cross-feed contamination happened).
 
 Span ownership (ANDROID restatement of the same outcomes): the grid owns now and
 future for its channels and never rewrites history; the user's own XMLTV and a
@@ -82,6 +83,43 @@ Both age AND identity:
   programme keyed to a currently loaded channel id.
 - Warm refresh: 30 minutes, on the foreground edge and on a 5-minute loop that
   is gated on no player being active.
+- Start-up check (ANDROID, Dispatch More v272, `/api/core/app-sync/`): the
+  server's stamps of the lineup (with its guide links) and of the guides are
+  saved with the cache after each successful download and compared at launch,
+  on the foreground edge, on the live socket's connect and 10-minute lineup
+  checks, and in the background refresh. Same stamp: nothing is downloaded
+  (the guide only while the cache is under 12 h old); a changed stamp
+  downloads that part at once. No saved stamp, or a server without the check:
+  the age rules above, and a cache they find fresh adopts the server's stamp.
+  The background refresh never runs within 10 minutes of the app starting or
+  while a picture plays.
+- Per-guide marks (ANDROID, Dispatch More v275, `/api/core/app-guide-marks/`):
+  one mark per guide of the login's channels is saved with the guides stamp
+  (only when it stands for that same stamp). A changed stamp then fetches only
+  the guides whose mark moved or that are new (`/api/epg/grid/?epg_ids=`, now
+  -1 h to the cached span's end, a day at least, a week at most) and rewrites
+  every channel those rows reach, without comparing; at launch while the cache
+  is under 12 h old, on a source refresh and on the socket's reconnect. A
+  channel that joins (Show Groups) or moves to another guide asks for its own
+  guide too. More than 400 changed guides, or a third of them, or no marks:
+  the whole grid as before. Back in the app after 30 minutes, a changed guide
+  takes the same path; so does the background job (written straight to the
+  cache, stale raw-keyed copies removed first), and the quiet day-chunk sweep
+  asks the marks before the sources fingerprint: unchanged marks, no sweep.
+  Marks-based fetches cover now -1 h to the end of the forward Guide Days.
+- Categories (ANDROID, Dispatch More v275): the grid is asked with
+  `categories=1`, and the per-programme category requests are skipped.
+- End of the guide (ANDROID): Right on the last programme of the Guide Days
+  says so (a short notice, at most every 3 s).
+- Background (ANDROID): no full guide rebuild runs while the app is in the
+  background, and one that was running when the system shed the guide is not
+  installed; both run on return.
+- Pacing (ANDROID): full guide rebuilds run one at a time; requests made while
+  one runs are served by one more (CoalescingRunner). Full rebuilds, the guide
+  download, category enrichment, the live guide window and each look-back
+  source wait while a channel is starting (tune until 5 s after its first
+  frame, at most 20 s) or the Java heap is over 70 % full, never more than 60 s
+  in one go (GuideWorkGate); the look-back phase budget does not count that wait.
 ANDROID replaces the ratio heuristic ("fewer than 20 % of cached keys match")
 with a hash of the loaded canonical id set: different hash -> refetch; same
 hash -> paint from cache and refresh on the age rule.

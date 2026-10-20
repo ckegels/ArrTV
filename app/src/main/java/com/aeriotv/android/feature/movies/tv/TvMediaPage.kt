@@ -931,8 +931,16 @@ fun <T> TvMediaPage(
         visibleShelves.isNotEmpty() -> firstShelfCard
         else -> firstCell
     }
-    DisposableEffect(Unit) {
-        tabEntry.value = null
+    // Only while this page's tab is the ACTIVE one. DVR, Movies and TV Shows
+    // compose warm in the background about 3 s after a cold launch; an
+    // unconditional clear there wiped the Live TV guide's published entry, so
+    // Down from the Live TV pill fell to the geometric search and landed on
+    // the preview banner's description (Select = Program Info). Streamer
+    // trace 2026-10-04: guide set entry, media page cleared it 2.5 s later,
+    // tab-exit down target=false.
+    val pageTabActive = LocalTabIsActive.current
+    DisposableEffect(pageTabActive) {
+        if (pageTabActive) tabEntry.value = null
         onDispose { }
     }
 
@@ -1419,7 +1427,7 @@ fun <T> TvMediaPage(
                         modifier = Modifier.padding(top = 4.dp).height(with(androidx.compose.ui.platform.LocalDensity.current) { 16.sp.toDp() }),
                     ) {
                         if (isLoading && gridItems.isNotEmpty()) {
-                            CircularProgressIndicator(modifier = Modifier.size(10.dp), strokeWidth = 1.5.dp, color = MaterialTheme.colorScheme.tertiary)
+                            com.aeriotv.android.ui.tv.TvGatedSpinner(modifier = Modifier.size(10.dp), strokeWidth = 1.5.dp, color = MaterialTheme.colorScheme.tertiary)
                             Spacer(Modifier.width(6.dp))
                             Text(stringResource(R.string.media_updating), fontSize = 9.sp.subtext(), lineHeight = 11.sp.subtext(), maxLines = 1, color = MaterialTheme.colorScheme.tertiary)
                         }

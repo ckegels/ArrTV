@@ -1,5 +1,9 @@
 package com.aeriotv.android.core.remote
 
+import androidx.annotation.StringRes
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
+
 /**
  * Human copy for the on-screen gesture hint chips, derived from the
  * EFFECTIVE remote map so a remapped button never advertises a stale
@@ -18,15 +22,18 @@ data class RemoteHint(val key: String, val action: String)
 
 object RemoteControlHints {
 
+    private fun t(@StringRes id: Int): String = AppText.get(id)
+    private fun t(@StringRes id: Int, arg: String): String = AppText.get(id, arg)
+
     private fun playerPhrase(action: PlayerRemoteAction): String? = when (action) {
-        PlayerRemoteAction.SHOW_PROGRAM_INFO -> "program info"
-        PlayerRemoteAction.TOGGLE_CONTROLS -> "player controls"
-        PlayerRemoteAction.OPTIONS_MENU -> "options"
-        PlayerRemoteAction.CHANNEL_LIST -> "the channel list"
-        PlayerRemoteAction.RECENT_CHANNELS -> "recently watched channels"
-        PlayerRemoteAction.OPEN_SEARCH -> "search"
-        PlayerRemoteAction.LAST_CHANNEL -> "the previous channel"
-        PlayerRemoteAction.MINIMIZE_TO_GUIDE -> "the TV guide"
+        PlayerRemoteAction.SHOW_PROGRAM_INFO -> t(R.string.livetv_remote_phrase_program_info)
+        PlayerRemoteAction.TOGGLE_CONTROLS -> t(R.string.livetv_remote_phrase_player_controls)
+        PlayerRemoteAction.OPTIONS_MENU -> t(R.string.livetv_remote_phrase_options)
+        PlayerRemoteAction.CHANNEL_LIST -> t(R.string.livetv_remote_phrase_channel_list)
+        PlayerRemoteAction.RECENT_CHANNELS -> t(R.string.livetv_remote_phrase_recent_channels)
+        PlayerRemoteAction.OPEN_SEARCH -> t(R.string.livetv_remote_phrase_search)
+        PlayerRemoteAction.LAST_CHANNEL -> t(R.string.livetv_remote_phrase_previous_channel)
+        PlayerRemoteAction.MINIMIZE_TO_GUIDE -> t(R.string.livetv_remote_phrase_tv_guide)
         else -> null
     }
 
@@ -36,8 +43,8 @@ object RemoteControlHints {
         val short = playerPhrase(map.playerAction(RemoteSlot.OK_SHORT))
         val long = playerPhrase(map.playerAction(RemoteSlot.OK_LONG))
         val parts = buildList {
-            short?.let { add("Select: $it") }
-            long?.let { add("Hold Select: $it") }
+            short?.let { add(t(R.string.livetv_remote_select_is, it)) }
+            long?.let { add(t(R.string.livetv_remote_hold_select_is, it)) }
         }
         return parts.takeIf { it.isNotEmpty() }?.joinToString("  ·  ")
     }
@@ -57,33 +64,33 @@ object RemoteControlHints {
         val right = map.playerAction(RemoteSlot.RIGHT_SHORT)
         val parts = buildList {
             if (left == PlayerRemoteAction.CHANNEL_LIST) {
-                add("Left = channel list")
-                add("Left again = groups")
+                add(t(R.string.livetv_remote_left_channel_list))
+                add(t(R.string.livetv_remote_left_again_groups))
             } else {
-                playerPhrase(left)?.let { add("Left = $it") }
+                playerPhrase(left)?.let { add(t(R.string.livetv_remote_left_is, it)) }
             }
-            playerPhrase(right)?.let { add("Right = $it") }
+            playerPhrase(right)?.let { add(t(R.string.livetv_remote_right_is, it)) }
         }
         return parts.takeIf { it.isNotEmpty() }?.joinToString("  ·  ")
     }
 
     private fun guidePhrase(action: GuideRemoteAction): String? = when (action) {
-        GuideRemoteAction.TIMELINE_BACK -> "browse earlier programs"
-        GuideRemoteAction.TIMELINE_FORWARD -> "browse later programs"
-        GuideRemoteAction.FOCUS_GROUP_PILLS -> "jump to the group pills"
-        GuideRemoteAction.PAGE_UP -> "page channels up"
-        GuideRemoteAction.PAGE_DOWN -> "page channels down"
-        GuideRemoteAction.JUMP_TO_NOW -> "jump to now"
-        GuideRemoteAction.JUMP_TO_DAY -> "jump to a day and time"
-        GuideRemoteAction.JUMP_TO_TOP -> "jump to the top channel"
-        GuideRemoteAction.RESUME_PLAYER -> "return to the player"
+        GuideRemoteAction.TIMELINE_BACK -> t(R.string.livetv_remote_guide_earlier)
+        GuideRemoteAction.TIMELINE_FORWARD -> t(R.string.livetv_remote_guide_later)
+        GuideRemoteAction.FOCUS_GROUP_PILLS -> t(R.string.livetv_remote_guide_group_pills)
+        GuideRemoteAction.PAGE_UP -> t(R.string.livetv_remote_guide_page_up)
+        GuideRemoteAction.PAGE_DOWN -> t(R.string.livetv_remote_guide_page_down)
+        GuideRemoteAction.JUMP_TO_NOW -> t(R.string.livetv_remote_guide_now)
+        GuideRemoteAction.JUMP_TO_DAY -> t(R.string.livetv_remote_guide_day)
+        GuideRemoteAction.JUMP_TO_TOP -> t(R.string.livetv_remote_guide_top)
+        GuideRemoteAction.RESUME_PLAYER -> t(R.string.livetv_remote_guide_player)
         else -> null
     }
 
     /** The guide's hold-Left chip; null when the slot is unmapped. */
     fun guideHoldLeftHint(map: RemoteControlMap, sidebarGroups: Boolean = false): String? =
         guidePhrase(map.guideAction(RemoteSlot.LEFT_LONG, sidebarGroups))
-            ?.let { "Hold left on remote to $it." }
+            ?.let { t(R.string.livetv_remote_hold_left_to, it) }
 
     /**
      * Terse phrases for the corner hint chip. [guidePhrase] is written for
@@ -92,22 +99,22 @@ object RemoteControlHints {
      * its own two-or-three-word forms. Mirrors Apple's `guidePhraseShort`.
      */
     private fun guidePhraseShort(action: GuideRemoteAction): String? = when (action) {
-        GuideRemoteAction.TIMELINE_BACK -> "earlier"
-        GuideRemoteAction.TIMELINE_FORWARD -> "later"
-        GuideRemoteAction.FOCUS_GROUP_PILLS -> "group pills"
-        GuideRemoteAction.PAGE_UP -> "page up"
-        GuideRemoteAction.PAGE_DOWN -> "page down"
-        GuideRemoteAction.JUMP_TO_NOW -> "now"
-        GuideRemoteAction.JUMP_TO_DAY -> "jump to"
-        GuideRemoteAction.JUMP_TO_TOP -> "top channel"
-        GuideRemoteAction.RESUME_PLAYER -> "player"
+        GuideRemoteAction.TIMELINE_BACK -> t(R.string.livetv_remote_short_earlier)
+        GuideRemoteAction.TIMELINE_FORWARD -> t(R.string.livetv_remote_short_later)
+        GuideRemoteAction.FOCUS_GROUP_PILLS -> t(R.string.livetv_remote_short_group_pills)
+        GuideRemoteAction.PAGE_UP -> t(R.string.livetv_remote_short_page_up)
+        GuideRemoteAction.PAGE_DOWN -> t(R.string.livetv_remote_short_page_down)
+        GuideRemoteAction.JUMP_TO_NOW -> t(R.string.livetv_remote_short_now)
+        GuideRemoteAction.JUMP_TO_DAY -> t(R.string.livetv_remote_short_jump_to)
+        GuideRemoteAction.JUMP_TO_TOP -> t(R.string.livetv_remote_short_top)
+        GuideRemoteAction.RESUME_PLAYER -> t(R.string.livetv_remote_short_player)
         else -> null
     }
 
     /** Terse form for the compact combined guide nav chip: "Hold Left = X". */
     fun guideHoldLeftShort(map: RemoteControlMap, sidebarGroups: Boolean = false): String? =
         guidePhraseShort(map.guideAction(RemoteSlot.LEFT_LONG, sidebarGroups))
-            ?.let { "Hold Left = $it" }
+            ?.let { t(R.string.livetv_remote_hold_left_is, it) }
 
     // ---------------------------------------------------------------
     // The remote hint STRIP (Logan 2026-09-11). One line of "key action"
@@ -120,66 +127,66 @@ object RemoteControlHints {
     /** The button name as printed on the remote, for the strip's key column. */
     fun slotLabel(slot: RemoteSlot): String = when (slot) {
         RemoteSlot.OK_SHORT -> "OK"
-        RemoteSlot.OK_LONG -> "Hold OK"
-        RemoteSlot.UP_SHORT -> "Up"
-        RemoteSlot.UP_LONG -> "Hold Up"
-        RemoteSlot.DOWN_SHORT -> "Down"
-        RemoteSlot.DOWN_LONG -> "Hold Down"
-        RemoteSlot.LEFT_SHORT -> "Left"
-        RemoteSlot.LEFT_LONG -> "Hold Left"
-        RemoteSlot.RIGHT_SHORT -> "Right"
-        RemoteSlot.RIGHT_LONG -> "Hold Right"
-        RemoteSlot.PLAY_PAUSE -> "Play/Pause"
-        RemoteSlot.FFWD -> "Fast Forward"
-        RemoteSlot.REWIND -> "Rewind"
-        RemoteSlot.CHANNEL_UP -> "Channel Up"
-        RemoteSlot.CHANNEL_DOWN -> "Channel Down"
+        RemoteSlot.OK_LONG -> t(R.string.livetv_remote_key_hold_ok)
+        RemoteSlot.UP_SHORT -> t(R.string.livetv_remote_key_up)
+        RemoteSlot.UP_LONG -> t(R.string.livetv_remote_key_hold_up)
+        RemoteSlot.DOWN_SHORT -> t(R.string.livetv_remote_key_down)
+        RemoteSlot.DOWN_LONG -> t(R.string.livetv_remote_key_hold_down)
+        RemoteSlot.LEFT_SHORT -> t(R.string.livetv_remote_key_left)
+        RemoteSlot.LEFT_LONG -> t(R.string.livetv_remote_key_hold_left)
+        RemoteSlot.RIGHT_SHORT -> t(R.string.livetv_remote_key_right)
+        RemoteSlot.RIGHT_LONG -> t(R.string.livetv_remote_key_hold_right)
+        RemoteSlot.PLAY_PAUSE -> t(R.string.livetv_remote_key_play_pause)
+        RemoteSlot.FFWD -> t(R.string.livetv_remote_key_ffwd)
+        RemoteSlot.REWIND -> t(R.string.livetv_remote_key_rewind)
+        RemoteSlot.CHANNEL_UP -> t(R.string.livetv_remote_key_channel_up)
+        RemoteSlot.CHANNEL_DOWN -> t(R.string.livetv_remote_key_channel_down)
     }
 
     /** Strip wording for a guide action; null = nothing worth advertising. */
     private fun guideStripAction(action: GuideRemoteAction, sidebarGroups: Boolean): String? =
         when (action) {
-            GuideRemoteAction.FOCUS_GROUP_PILLS -> if (sidebarGroups) "Groups" else "Group pills"
-            GuideRemoteAction.TIMELINE_BACK -> "Earlier programs"
-            GuideRemoteAction.TIMELINE_FORWARD -> "Later programs"
-            GuideRemoteAction.PAGE_UP -> "Page up"
-            GuideRemoteAction.PAGE_DOWN -> "Page down"
-            GuideRemoteAction.JUMP_TO_NOW -> "Now"
-            GuideRemoteAction.JUMP_TO_DAY -> "Jump to day"
-            GuideRemoteAction.JUMP_TO_TOP -> "Top channel"
-            GuideRemoteAction.RESUME_PLAYER -> "Resume"
-            GuideRemoteAction.CLOSE_MINI_PLAYER -> "Close mini"
-            GuideRemoteAction.PROGRAM_INFO -> "Program info"
-            GuideRemoteAction.PROGRAM_MENU -> "Program menu"
-            GuideRemoteAction.RECORD -> "Record"
-            GuideRemoteAction.PLAY -> "Play"
-            GuideRemoteAction.OPEN_SEARCH -> "Search"
+            GuideRemoteAction.FOCUS_GROUP_PILLS -> if (sidebarGroups) t(R.string.livetv_remote_strip_groups) else t(R.string.livetv_remote_strip_group_pills)
+            GuideRemoteAction.TIMELINE_BACK -> t(R.string.livetv_remote_strip_earlier)
+            GuideRemoteAction.TIMELINE_FORWARD -> t(R.string.livetv_remote_strip_later)
+            GuideRemoteAction.PAGE_UP -> t(R.string.livetv_remote_strip_page_up)
+            GuideRemoteAction.PAGE_DOWN -> t(R.string.livetv_remote_strip_page_down)
+            GuideRemoteAction.JUMP_TO_NOW -> t(R.string.livetv_remote_strip_now)
+            GuideRemoteAction.JUMP_TO_DAY -> t(R.string.livetv_remote_strip_jump_to_day)
+            GuideRemoteAction.JUMP_TO_TOP -> t(R.string.livetv_remote_strip_top_channel)
+            GuideRemoteAction.RESUME_PLAYER -> t(R.string.livetv_remote_strip_resume)
+            GuideRemoteAction.CLOSE_MINI_PLAYER -> t(R.string.livetv_remote_strip_close_mini)
+            GuideRemoteAction.PROGRAM_INFO -> t(R.string.livetv_remote_strip_program_info)
+            GuideRemoteAction.PROGRAM_MENU -> t(R.string.livetv_remote_strip_program_menu)
+            GuideRemoteAction.RECORD -> t(R.string.livetv_remote_strip_record)
+            GuideRemoteAction.PLAY -> t(R.string.common_play)
+            GuideRemoteAction.OPEN_SEARCH -> t(R.string.common_search)
             GuideRemoteAction.NAVIGATE, GuideRemoteAction.NONE -> null
         }
 
     /** Strip wording for a player action; null = nothing worth advertising. */
     private fun playerStripAction(action: PlayerRemoteAction): String? = when (action) {
-        PlayerRemoteAction.TOGGLE_CONTROLS -> "Player controls"
-        PlayerRemoteAction.SHOW_PROGRAM_INFO -> "Program info"
-        PlayerRemoteAction.OPTIONS_MENU -> "Options"
-        PlayerRemoteAction.CHANNEL_LIST -> "Channel list"
-        PlayerRemoteAction.RECENT_CHANNELS -> "Recent channels"
-        PlayerRemoteAction.OPEN_SEARCH -> "Search"
-        PlayerRemoteAction.LAST_CHANNEL -> "Previous channel"
-        PlayerRemoteAction.MINIMIZE_TO_GUIDE -> "TV Guide"
-        PlayerRemoteAction.CHANNEL_UP -> "Channel up"
-        PlayerRemoteAction.CHANNEL_DOWN -> "Channel down"
-        PlayerRemoteAction.PLAY_PAUSE -> "Play or pause"
-        PlayerRemoteAction.SEEK_FORWARD -> "Seek forward"
-        PlayerRemoteAction.SEEK_BACKWARD -> "Seek back"
-        PlayerRemoteAction.RESTART_PROGRAM -> "Restart"
-        PlayerRemoteAction.JUMP_TO_LIVE -> "Jump to live"
-        PlayerRemoteAction.SUBTITLES -> "Subtitles"
-        PlayerRemoteAction.AUDIO_TRACKS -> "Audio"
-        PlayerRemoteAction.ASPECT_RATIO -> "Aspect ratio"
-        PlayerRemoteAction.RECORD -> "Record"
-        PlayerRemoteAction.SLEEP_TIMER -> "Sleep timer"
-        PlayerRemoteAction.STOP_PLAYBACK -> "Stop"
+        PlayerRemoteAction.TOGGLE_CONTROLS -> t(R.string.livetv_remote_strip_player_controls)
+        PlayerRemoteAction.SHOW_PROGRAM_INFO -> t(R.string.livetv_remote_strip_program_info)
+        PlayerRemoteAction.OPTIONS_MENU -> t(R.string.livetv_remote_strip_options)
+        PlayerRemoteAction.CHANNEL_LIST -> t(R.string.livetv_remote_strip_channel_list)
+        PlayerRemoteAction.RECENT_CHANNELS -> t(R.string.livetv_remote_strip_recent_channels)
+        PlayerRemoteAction.OPEN_SEARCH -> t(R.string.common_search)
+        PlayerRemoteAction.LAST_CHANNEL -> t(R.string.livetv_remote_strip_previous_channel)
+        PlayerRemoteAction.MINIMIZE_TO_GUIDE -> t(R.string.livetv_remote_strip_tv_guide)
+        PlayerRemoteAction.CHANNEL_UP -> t(R.string.livetv_remote_strip_channel_up)
+        PlayerRemoteAction.CHANNEL_DOWN -> t(R.string.livetv_remote_strip_channel_down)
+        PlayerRemoteAction.PLAY_PAUSE -> t(R.string.livetv_remote_strip_play_pause)
+        PlayerRemoteAction.SEEK_FORWARD -> t(R.string.livetv_remote_strip_seek_forward)
+        PlayerRemoteAction.SEEK_BACKWARD -> t(R.string.livetv_remote_strip_seek_back)
+        PlayerRemoteAction.RESTART_PROGRAM -> t(R.string.livetv_remote_strip_restart)
+        PlayerRemoteAction.JUMP_TO_LIVE -> t(R.string.livetv_remote_strip_jump_to_live)
+        PlayerRemoteAction.SUBTITLES -> t(R.string.livetv_remote_strip_subtitles)
+        PlayerRemoteAction.AUDIO_TRACKS -> t(R.string.livetv_remote_strip_audio)
+        PlayerRemoteAction.ASPECT_RATIO -> t(R.string.livetv_remote_strip_aspect_ratio)
+        PlayerRemoteAction.RECORD -> t(R.string.livetv_remote_strip_record)
+        PlayerRemoteAction.SLEEP_TIMER -> t(R.string.livetv_remote_strip_sleep_timer)
+        PlayerRemoteAction.STOP_PLAYBACK -> t(R.string.livetv_remote_strip_stop)
         PlayerRemoteAction.NONE -> null
     }
 
@@ -218,13 +225,13 @@ object RemoteControlHints {
                 add(RemoteHint(slotLabel(slot), it))
             }
         }
-        add(RemoteHint(if (miniActive) "Double Back" else "Back", "Top channel"))
+        add(RemoteHint(if (miniActive) t(R.string.livetv_remote_key_double_back) else t(R.string.livetv_remote_key_back), t(R.string.livetv_remote_strip_top_channel)))
         if (miniActive) {
             map.guideSlotFor(GuideRemoteAction.RESUME_PLAYER)?.let {
-                add(RemoteHint(slotLabel(it), "Resume"))
+                add(RemoteHint(slotLabel(it), t(R.string.livetv_remote_strip_resume)))
             }
             map.guideSlotFor(GuideRemoteAction.CLOSE_MINI_PLAYER)?.let {
-                add(RemoteHint(slotLabel(it), "Close mini"))
+                add(RemoteHint(slotLabel(it), t(R.string.livetv_remote_strip_close_mini)))
             }
         }
     }.take(MAX_PAIRS)
@@ -264,10 +271,10 @@ object RemoteControlHints {
             }
         }
         if (scrubbing) {
-            add(RemoteHint("Left/Right", "Scrub"))
+            add(RemoteHint(t(R.string.livetv_remote_key_left_right), t(R.string.livetv_remote_strip_scrub)))
         } else {
             if (channelFlip && verticalFlipMapped(map)) {
-                add(RemoteHint("Up/Down", "Channels"))
+                add(RemoteHint(t(R.string.livetv_remote_key_up_down), t(R.string.livetv_remote_strip_channels)))
             } else {
                 if (channelFlip) {
                     playerStripAction(map.playerAction(RemoteSlot.UP_SHORT))?.let {
@@ -295,12 +302,12 @@ object RemoteControlHints {
         // PlayerScreen's BackHandler minimizes straight to the corner mini (the
         // old reveal-chrome-first rung was removed deliberately), and a
         // catch-up replay exits to where the user came from.
-        add(RemoteHint("Back", if (catchupMode) "Exit" else "Mini player"))
+        add(RemoteHint(t(R.string.livetv_remote_key_back), if (catchupMode) t(R.string.livetv_remote_strip_exit) else t(R.string.livetv_remote_strip_mini_player)))
         // Logan 2026-09-14: Back twice (within 300 ms) ends playback outright
         // - no mini, stream stopped, back on the page the user came from. A
         // catch-up replay already exits on the first Back, so it has no
         // second rung to advertise.
-        if (!catchupMode) add(RemoteHint("Back twice", "Close"))
+        if (!catchupMode) add(RemoteHint(t(R.string.livetv_remote_key_back_twice), t(R.string.common_close)))
         // The two Back rungs are the fixed tail of this strip, so it carries
         // one pair more than the shared cap rather than dropping "Back twice".
     }.take(MAX_PAIRS + 1)
@@ -317,15 +324,15 @@ object RemoteControlHints {
         isPaused: Boolean,
     ): List<RemoteHint> = buildList {
         if (scrubberZone) {
-            add(RemoteHint("Left/Right", "Scrub"))
-            add(RemoteHint("OK", "Go to time"))
-            add(RemoteHint("Down", "Controls"))
+            add(RemoteHint(t(R.string.livetv_remote_key_left_right), t(R.string.livetv_remote_strip_scrub)))
+            add(RemoteHint("OK", t(R.string.livetv_remote_strip_go_to_time)))
+            add(RemoteHint(t(R.string.livetv_remote_key_down), t(R.string.livetv_remote_strip_controls)))
         } else {
-            add(RemoteHint("OK", if (isPaused) "Play" else "Pause"))
-            add(RemoteHint("Left/Right", "Controls"))
-            add(RemoteHint("Up", "Scrubber"))
+            add(RemoteHint("OK", if (isPaused) t(R.string.common_play) else t(R.string.common_pause)))
+            add(RemoteHint(t(R.string.livetv_remote_key_left_right), t(R.string.livetv_remote_strip_controls)))
+            add(RemoteHint(t(R.string.livetv_remote_key_up), t(R.string.livetv_remote_strip_scrubber)))
         }
-        add(RemoteHint("Play/Pause", if (isPaused) "Play" else "Pause"))
-        add(RemoteHint("Back", "Exit"))
+        add(RemoteHint(t(R.string.livetv_remote_key_play_pause), if (isPaused) t(R.string.common_play) else t(R.string.common_pause)))
+        add(RemoteHint(t(R.string.livetv_remote_key_back), t(R.string.livetv_remote_strip_exit)))
     }.take(MAX_PAIRS)
 }

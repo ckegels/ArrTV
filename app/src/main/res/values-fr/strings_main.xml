@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- App shell, onboarding, navigation, main scaffold and shared UI pieces. -->
+<resources>
+    <!-- TvFilterPage.kt -->
+    <string name="main_filter_title">Filtrer</string>
+    <string name="main_filter_show_all_groups">Afficher tous les groupes</string>
+
+    <!-- SecretReveal.kt -->
+    <string name="main_secret_hide">Masquer %1$s</string>
+    <string name="main_secret_show">Afficher %1$s</string>
+    <string name="main_secret_label_key">la clé</string>
+    <string name="main_secret_label_api_key">la clé API</string>
+    <string name="main_secret_label_password">le mot de passe</string>
+
+    <!-- TmdbAttribution.kt -->
+    <string name="main_tmdb_notice">Ce produit utilise l\'API TMDB mais n\'est ni approuvé ni certifié par TMDB.</string>
+    <string name="main_tmdb_key_hint">Les données TMDB ne sont utilisées qu\'après la configuration d\'une clé API TMDB dans Paramètres > Comportement de l\'app.</string>
+
+    <!-- UpdateViewModel.kt -->
+    <string name="main_update_up_to_date">ArrTV est à jour</string>
+
+    <!-- AppTab.kt -->
+    <string name="main_tab_live_tv">TV en direct</string>
+    <string name="main_tab_favorites">Favoris</string>
+    <string name="main_tab_dvr">Enregistrements</string>
+    <string name="main_tab_on_demand">À la demande</string>
+    <string name="main_tab_movies">Films</string>
+    <string name="main_tab_tv_shows">Séries</string>
+
+    <!-- TvNavRail.kt -->
+    <string name="main_rail_arrtv_look">Style ArrTV</string>
+    <string name="main_rail_update">Mise à jour</string>
+
+    <!-- SplashScreen.kt -->
+    <string name="main_splash_tagline">"TV en direct  ·  Films  ·  Séries"</string>
+
+    <!-- SettingUpScreen.kt -->
+    <string name="main_setting_up_title">Configuration</string>
+    <string name="main_setting_up_loading_epg">Chargement de l\'EPG</string>
+    <string name="main_setting_up_loading_vod">Chargement de la VOD</string>
+    <string name="main_setting_up_loading_dvr">Chargement des enregistrements</string>
+    <string name="main_setting_up_loading_preferences">Chargement des préférences</string>
+    <string name="main_setting_up_skip">Passer</string>
+    <string name="main_setting_up_synced">Synchronisé</string>
+
+    <!-- OnboardingSyncCategoryChooser.kt -->
+    <string name="main_sync_chooser_title">Que faut-il récupérer depuis Drive ?</string>
+    <string name="main_sync_chooser_body">Vous pourrez tout modifier plus tard dans les paramètres, et chaque appareil choisit pour lui-même.</string>
+    <string name="main_not_now">Plus tard</string>
+
+    <!-- LiveRewindPrompt.kt -->
+    <string name="main_live_rewind_prompt_title">Nouveau : Retour en arrière</string>
+    <string name="main_live_rewind_prompt_body">Mettez en pause et revenez en arrière sur la TV en direct. Quand vous regardez une chaîne en plein écran, AerioTV garde une mémoire tampon glissante sur cet appareil : vous pouvez reculer, parcourir la timeline, ou mettre en pause et reprendre là où vous en étiez.</string>
+    <string name="main_live_rewind_prompt_footer">La vidéo en mémoire tampon est supprimée automatiquement. Vous pouvez modifier ce choix à tout moment dans Paramètres > Comportement de l\'app > Retour en arrière.</string>
+    <string name="main_live_rewind_prompt_enable">Activer</string>
+    <string name="main_not_now_caps">Plus tard</string>
+
+    <!-- WhatsNewSheet.kt -->
+    <string name="main_whats_new_title">Nouveautés de la v%1$s</string>
+    <string name="main_whats_new_library_title">Toute votre bibliothèque</string>
+    <string name="main_whats_new_library_body">Films et Séries ne s\'arrêtent plus à 40 000 titres. Le catalogue est enregistré sur l\'appareil au fil du chargement, reprend là où il s\'était arrêté après un redémarrage et ne charge jamais toute la bibliothèque en mémoire.</string>
+    <string name="main_whats_new_guide_column_title">Colonne des chaînes du guide</string>
+    <string name="main_whats_new_guide_column_body">Le numéro de chaîne, l\'étoile des favoris et l\'icône Replay sont réunis dans un bandeau au-dessus du logo, qui occupe tout l\'espace en dessous. La saison et l\'épisode passent des cases du guide aux détails du programme.</string>
+    <string name="main_whats_new_playlist_title">Changer de playlist conserve vos données</string>
+    <string name="main_whats_new_playlist_body">Changer de playlist n\'efface plus le guide ni la bibliothèque de la playlist précédente, et les autorisations sont actualisées dès le changement. « Tout actualiser » reconstruit la bibliothèque depuis zéro.</string>
+    <string name="main_whats_new_corners_title">Coins arrondis : deux réglages</string>
+    <string name="main_whats_new_corners_body">Les coins arrondis de la vue Liste et de la vue Guide se règlent désormais séparément dans Paramètres > Apparence, et les visuels du guide suivent le réglage du Guide.</string>
+    <string name="main_whats_new_tv_guide_title">Android TV : Guide uniquement</string>
+    <string name="main_whats_new_tv_guide_body">La vue Liste disparaît sur TV. TV en direct ouvre toujours le Guide, et ses options se trouvent sous Présentation du guide, dans Apparence.</string>
+    <string name="main_whats_new_fixes_title">Corrections</string>
+    <string name="main_whats_new_fixes_body">Changer de flux chez un fournisseur lent ne fige plus l\'image. L\'interface ne déborde plus de l\'écran après un changement de résolution sur le Google TV Streamer. Les rapports de plantage sont enregistrés automatiquement pour l\'export des journaux.</string>
+
+    <!-- ChooseSourceTypeScreen.kt -->
+    <string name="main_add_playlist_title">Ajouter une playlist</string>
+    <string name="main_choose_source_title">Choisir le type de source</string>
+    <string name="main_choose_source_subtitle">Choisissez comment vous connecter à votre source multimédia.</string>
+    <string name="main_source_dispatcharr_title">Connexion directe Dispatcharr</string>
+    <string name="main_source_dispatcharr_subtitle">Connectez-vous à Dispatcharr avec votre identifiant administrateur ou une clé API personnelle (*AerioTV n\'est pas officiellement affilié au projet Dispatcharr)</string>
+    <string name="main_source_xtream_subtitle">API Xtream Codes. TV en direct, films et séries VOD.</string>
+    <string name="main_source_m3u_subtitle">N\'importe quelle URL de playlist M3U. Compatible avec Dispatcharr et tout fournisseur IPTV.</string>
+
+    <!-- WelcomeScreen.kt -->
+    <string name="main_welcome_tagline">Votre centre IPTV et multimédia</string>
+    <string name="main_welcome_devices">Android TV · Téléphone · Tablette</string>
+    <string name="main_welcome_sync_title">Synchroniser avec un compte Google</string>
+    <string name="main_welcome_sync_subtitle">Connectez-vous pour retrouver vos playlists, votre progression, vos rappels et vos préférences sur tous vos appareils.</string>
+    <string name="main_welcome_connect_server">Connecter un serveur</string>
+    <string name="main_welcome_skip_for_now">Ignorer pour l\'instant</string>
+
+    <!-- OnboardingSyncProgressScreen.kt -->
+    <string name="main_restore_title">Restauration de vos données</string>
+    <string name="main_restore_subtitle">Récupération de votre configuration synchronisée depuis Google Drive</string>
+    <string name="main_restore_channels_guide">Chaînes et guide</string>
+    <string name="main_restore_channels_guide_loading">Chargement des chaînes et du guide</string>
+    <string name="main_restore_playlists">Playlists</string>
+    <string name="main_restore_watch_progress">Progression de lecture</string>
+    <string name="main_restore_reminders">Rappels</string>
+    <string name="main_restore_favorites">Favoris</string>
+    <string name="main_restore_watchlist">Ma liste</string>
+    <string name="main_restore_preferences">Préférences</string>
+    <string name="main_restore_credentials">Identifiants</string>
+
+    <!-- ServerDiscovery.kt -->
+    <string name="main_discovery_found_subtitle">Trouvé sur votre réseau · Dispatcharr %1$s · %2$s:%3$d</string>
+    <string name="main_discovery_scanning">Recherche de Dispatcharr sur votre réseau…</string>
+
+    <!-- AppTheme.kt -->
+    <string name="main_theme_aerio">AerioTV</string>
+    <string name="main_theme_midnight">Minuit</string>
+    <string name="main_theme_sunset">Coucher de soleil</string>
+    <string name="main_theme_forest">Forêt</string>
+    <string name="main_theme_lavender">Lavande</string>
+    <string name="main_theme_monochrome">Monochrome</string>
+    <string name="main_theme_slate">Ardoise</string>
+    <string name="main_theme_light">Clair</string>
+
+    <!-- UpdateUi.kt -->
+    <string name="main_update_later">Plus tard</string>
+    <string name="main_update_available_title">Mise à jour disponible</string>
+    <string name="main_update_available_body">AerioTV %1$s est disponible (%2$d Mo). « Mettre à jour » la télécharge et l\'installe en une seule fois.</string>
+    <string name="main_update_action">Mettre à jour</string>
+    <string name="main_update_downloading_title">Téléchargement de la mise à jour</string>
+    <string name="main_update_verifying_title">Vérification du téléchargement</string>
+    <string name="main_update_verifying_body">Vérification de la signature et de la version de la mise à jour.</string>
+    <string name="main_update_ready_title">Prête à installer</string>
+    <string name="main_update_ready_body">AerioTV %1$s est vérifié et prêt. Vos chaînes, paramètres et enregistrements sont conservés. AerioTV va se fermer pour l\'installation ; rouvrez-le depuis votre écran d\'accueil.</string>
+    <string name="main_update_install">Installer</string>
+    <string name="main_update_permission_title">Autorisation unique requise</string>
+    <string name="main_update_permission_body">Android a besoin que vous autorisiez AerioTV à installer des mises à jour. Activez « Autoriser cette source » dans l\'écran Paramètres, revenez, puis appuyez sur Installer. Si c\'est déjà fait, l\'installation se poursuit immédiatement.</string>
+    <string name="main_update_installing_title">Installation</string>
+    <string name="main_update_installing_body">Confirmez la mise à jour dans la fenêtre Android. AerioTV va se fermer pour l\'installation ; rouvrez-le depuis votre écran d\'accueil. Vos données sont conservées.</string>
+    <string name="main_update_error_title">Problème de mise à jour</string>
+    <string name="main_update_try_again">Réessayer</string>
+    <string name="main_update_percent">%1$d %%</string>
+
+    <!-- ConfigureSourceScreen.kt -->
+    <string name="main_configure_title">Configuration</string>
+    <string name="main_configure_test_connection">Tester la connexion</string>
+    <string name="main_configure_name">Nom</string>
+    <string name="main_configure_name_placeholder">Mon serveur IPTV</string>
+    <string name="main_configure_server_url">URL du serveur</string>
+    <string name="main_configure_admin_api_key">Clé API administrateur</string>
+    <string name="main_configure_admin_api_key_placeholder">Collez votre clé API administrateur</string>
+    <string name="main_configure_api_key_info">Utilisez une clé API administrateur Dispatcharr (System -> Users -> Edit User -> API &amp; XC). Elle active les points d\'accès natifs de Dispatcharr pour TV en direct, le guide, les films et les séries. Si votre administrateur change la clé, vous devrez la saisir à nouveau ici. Pour un renouvellement automatique, passez à Nom d\'utilisateur et mot de passe.</string>
+    <string name="main_configure_username">Nom d\'utilisateur</string>
+    <string name="main_configure_password">Mot de passe</string>
+    <string name="main_configure_missing_api_key">La clé API</string>
+    <string name="main_configure_dispatcharr_username_placeholder">Nom d\'utilisateur administrateur Dispatcharr</string>
+    <string name="main_configure_dispatcharr_password_placeholder">Mot de passe administrateur Dispatcharr</string>
+    <string name="main_configure_dispatcharr_password_hint">Utilisez le mot de passe du tableau de bord Dispatcharr (System -> Users -> onglet Account), pas votre mot de passe XC Dispatcharr.</string>
+    <string name="main_configure_userpass_info">Enregistre les identifiants et actualise automatiquement. AerioTV se connecte avec ces identifiants, puis maintient votre session active en arrière-plan. Si votre administrateur Dispatcharr change votre clé API, AerioTV se reconnecte sans rien vous demander. Les identifiants sont stockés dans l\'espace chiffré d\'Android.</string>
+    <string name="main_configure_xc_username_placeholder">Nom d\'utilisateur XC</string>
+    <string name="main_configure_xc_password_placeholder">Mot de passe XC</string>
+    <string name="main_configure_xtream_info">Saisissez l\'URL de votre serveur Xtream Codes et vos identifiants. Utilisateurs de Dispatcharr : utilisez l\'URL de Dispatcharr avec le nom d\'utilisateur et le mot de passe Xtream Codes des paramètres utilisateur de Dispatcharr.</string>
+    <string name="main_configure_m3u_url">URL M3U</string>
+    <string name="main_configure_import_m3u">Importer plutôt un fichier M3U</string>
+    <string name="main_configure_epg_url">URL de l\'EPG (facultatif)</string>
+    <string name="main_configure_import_xmltv">Importer plutôt un fichier XMLTV</string>
+    <string name="main_configure_m3u_info">Collez l\'URL de votre playlist M3U. Fonctionne avec /output/m3u de Dispatcharr, tout fournisseur IPTV ou un lien direct vers un fichier .m3u.</string>
+    <string name="main_configure_lan_url">URL du réseau local (facultatif)</string>
+    <string name="main_configure_lan_url_info">AerioTV utilise automatiquement cette URL quand votre serveur est joignable sur le réseau local, et l\'URL publique ci-dessus sinon. Aucun réglage nécessaire.</string>
+    <string name="main_configure_auth_userpass">Nom d\'utilisateur et mot de passe</string>
+    <string name="main_configure_auth_api_key">Clé API</string>
+    <string name="main_configure_field_required">%1$s : champ obligatoire.</string>
+    <plurals name="main_configure_fields_need_attention">
+        <item quantity="one">%1$d champ à vérifier.</item>
+        <item quantity="many">%1$d champs à vérifier.</item>
+        <item quantity="other">%1$d champs à vérifier.</item>
+    </plurals>
+    <string name="main_configure_vod_enabled">Charger « À la demande » depuis cette playlist</string>
+    <string name="main_configure_vod_enabled_info">Désactivé, les films et séries de cette playlist ne sont pas chargés dans À la demande. Utile si vous ne voulez que la TV en direct de ce serveur, ou si une autre playlist fournit déjà À la demande. Vous pourrez changer cela plus tard dans les Paramètres.</string>
+    <string name="main_configure_dvr_destination">Destination des enregistrements par défaut</string>
+    <string name="main_configure_dvr_destination_server">Serveur (Dispatcharr)</string>
+    <string name="main_configure_dvr_destination_device">Cet appareil</string>
+    <string name="main_configure_dvr_destination_info">Emplacement par défaut des enregistrements. L\'enregistrement sur le serveur nécessite un compte administrateur Dispatcharr. Vous pourrez changer cela plus tard dans Paramètres > Enregistrements.</string>
+    <string name="main_configure_guide_days">Jours de guide</string>
+    <string name="main_configure_guide_days_all">Tout ce qui est disponible</string>
+    <plurals name="main_configure_guide_days_count">
+        <item quantity="one">%1$d jour</item>
+        <item quantity="many">%1$d jours</item>
+        <item quantity="other">%1$d jours</item>
+    </plurals>
+    <string name="main_configure_guide_days_info">Nombre de jours de guide à charger, en arrière et en avant. Dispatcharr uniquement ; les autres sources affichent ce que contient leur guide.</string>
+
+    <!-- Navigation.kt, MainScaffold.kt, MainActivity.kt -->
+    <string name="main_playing_on">Lecture sur %1$s</string>
+    <string name="main_tv_fallback">TV</string>
+    <string name="main_recording_fallback">Enregistrement</string>
+    <string name="main_signed_in_restoring">Connecté en tant que %1$s. Restauration de vos données...</string>
+    <string name="main_signed_in_no_playlists">Connecté en tant que %1$s. Aucune playlist dans Drive pour l\'instant : configurez-en une ci-dessous.</string>
+    <string name="main_signed_in_no_playlists_plain">Connecté. Aucune playlist dans Drive pour l\'instant.</string>
+    <string name="main_sign_in_needs_activity">La connexion nécessite une activité au premier plan. Réessayez.</string>
+    <string name="main_drive_not_set_up">La synchronisation Drive n\'est pas encore configurée</string>
+    <string name="main_drive_not_configured_text">Cette version d\'AerioTV n\'intègre pas d\'identifiant client Web OAuth Google Cloud. Ajoutez GOOGLE_DRIVE_WEB_CLIENT_ID à local.properties (et enregistrez le SHA-1 du certificat de signature de cet APK dans le même projet Cloud) pour que Se connecter avec Google fonctionne.</string>
+    <string name="main_episode_fallback">Épisode</string>
+    <string name="main_arrtv_look_applied">Apparence ArrTV appliquée</string>
+    <string name="main_control_a_tv">Contrôler une TV</string>
+    <string name="main_show_tab_bar">Afficher la barre d\'onglets, %1$s</string>
+    <string name="main_apply_arrtv_look">Appliquer l\'apparence ArrTV</string>
+    <string name="main_refresh_channels_guide">Actualiser les chaînes et le guide</string>
+    <string name="main_close_app_title">Voulez-vous fermer AerioTV ?</string>
+    <string name="main_close_app">Fermer AerioTV</string>
+
+    <!-- PlaylistViewModel.kt -->
+    <string name="main_pl_refresh_saved_failed">Impossible d\'actualiser la source enregistrée : %1$s</string>
+    <string name="main_pl_unknown_error">erreur inconnue</string>
+    <string name="main_pl_enter_url">Saisissez une URL</string>
+    <string name="main_pl_source_later">La prise en charge de %1$s arrivera dans une prochaine version.</string>
+    <string name="main_pl_enter_key_or_login">Saisissez une clé API, ou un nom d\'utilisateur et un mot de passe.</string>
+    <string name="main_pl_user_pass_required">Le nom d\'utilisateur et le mot de passe sont obligatoires</string>
+    <string name="main_pl_no_channels">Aucune chaîne trouvée.</string>
+    <string name="main_pl_failed_to_load">Échec du chargement</string>
+    <string name="main_pl_save_failed">Échec de l\'enregistrement</string>
+    <string name="main_pl_too_large">%1$s : la playlist est trop volumineuse pour la mémoire de cet appareil. S\'il s\'agit d\'un lien get.php Xtream Codes, ajoutez-le plutôt avec le type de source Xtream Codes.</string>
+    <string name="main_pl_prefixed_error">%1$s : %2$s</string>
+    <string name="main_pl_no_active">Aucune playlist active</string>
+    <plurals name="main_pl_channels_loaded">
+        <item quantity="one">%1$d chaîne chargée</item>
+        <item quantity="many">%1$d chaînes chargées</item>
+        <item quantity="other">%1$d chaînes chargées</item>
+    </plurals>
+    <plurals name="main_pl_channels_reloaded">
+        <item quantity="one">%1$d chaîne rechargée</item>
+        <item quantity="many">%1$d chaînes rechargées</item>
+        <item quantity="other">%1$d chaînes rechargées</item>
+    </plurals>
+    <string name="main_pl_refresh_failed">Échec de l\'actualisation : %1$s</string>
+    <string name="main_pl_no_epg_source">Aucune source EPG configurée</string>
+    <plurals name="main_pl_epg_updated">
+        <item quantity="one">EPG mis à jour (%1$d programme)</item>
+        <item quantity="many">EPG mis à jour (%1$d programmes)</item>
+        <item quantity="other">EPG mis à jour (%1$d programmes)</item>
+    </plurals>
+    <string name="main_pl_epg_refresh_failed">Échec de l\'actualisation de l\'EPG : %1$s</string>
+    <plurals name="main_pl_connected_ok">
+        <item quantity="one">Connexion réussie (%1$d chaîne)</item>
+        <item quantity="many">Connexion réussie (%1$d chaînes)</item>
+        <item quantity="other">Connexion réussie (%1$d chaînes)</item>
+    </plurals>
+    <string name="main_pl_connection_failed">Échec de la connexion : %1$s</string>
+    <string name="main_pl_using_local">Serveur local joignable, URL locale utilisée</string>
+    <string name="main_pl_using_remote">URL distante utilisée</string>
+    <string name="main_pl_switch_failed">Échec du changement : %1$s</string>
+</resources>

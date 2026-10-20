@@ -10,6 +10,8 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.mediarouter.media.MediaRouteSelector
 import androidx.mediarouter.media.MediaRouter
 import com.aeriotv.android.BuildConfig
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import com.aeriotv.android.core.cast.hlsproxy.CastHlsProxySession
 import com.aeriotv.android.core.cast.hlsproxy.UnsupportedCodecException
 import com.google.android.gms.cast.Cast
@@ -685,8 +687,8 @@ class AerioCastSender @Inject constructor(
                     castStatusMeaning(error))
                 _involuntaryEnd.tryEmit(InvoluntaryEnd(device, what))
                 surfaceCastFailure(
-                    if (device.isNullOrBlank()) "Casting disconnected"
-                    else "Casting to $device disconnected",
+                    if (device.isNullOrBlank()) AppText.get(R.string.player_cast_disconnected)
+                    else AppText.get(R.string.player_cast_to_device_disconnected, device),
                 )
             }
             endCleanup()
@@ -1024,8 +1026,10 @@ class AerioCastSender @Inject constructor(
                 null
             } catch (e: TimeoutCancellationException) {
                 surfaceCastFailure(
-                    "Dispatcharr did not send any data for this channel within " +
-                        "${CastHlsProxySession.READY_TIMEOUT_MS / 1000} seconds.",
+                    AppText.get(
+                        R.string.player_cast_no_data_within,
+                        (CastHlsProxySession.READY_TIMEOUT_MS / 1000).toInt(),
+                    ),
                 )
                 null
             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -1039,7 +1043,7 @@ class AerioCastSender @Inject constructor(
                 throw e
             } catch (t: Throwable) {
                 Log.w(TAG, "cast proxy start failed: $t")
-                surfaceCastFailure("Can't cast this channel right now")
+                surfaceCastFailure(AppText.get(R.string.player_cast_cannot_cast_now))
                 null
             } ?: run {
                 // Nothing is going to start: stop claiming a switch is under way.
@@ -1079,12 +1083,12 @@ class AerioCastSender @Inject constructor(
     private fun describeRefusal(e: UnsupportedCodecException): String {
         val codec = e.codecName.removeSuffix(" audio").removeSuffix(" video")
         if (e.isVideo) {
-            return "This channel's video is $codec, which Google Cast receivers cannot play."
+            return AppText.get(R.string.player_cast_video_codec_unsupported, codec)
         }
         if (codec.startsWith("AC-3") || codec.startsWith("E-AC-3")) {
-            return "This receiver cannot decode this channel's surround audio (AC-3)."
+            return AppText.get(R.string.player_cast_surround_unsupported)
         }
-        return "This channel's audio is $codec, which the receiver cannot decode."
+        return AppText.get(R.string.player_cast_audio_codec_unsupported, codec)
     }
 
     private fun surfaceCastFailure(message: String) {

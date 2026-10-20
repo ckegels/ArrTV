@@ -1,5 +1,9 @@
 package com.aeriotv.android.feature.ondemand
 
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import com.aeriotv.android.ui.scale.subtext
 import com.aeriotv.android.ui.theme.textAccent
 import android.content.Intent
@@ -311,8 +315,8 @@ fun SeriesDetailScreen(
         (base + episodeInfo?.guestStars.orEmpty() + episodeInfo?.crew.orEmpty()).distinctBy { it.id }
     }
     val castCrewTitle = peopleEpisodeNumber
-        ?.let { "Cast & Crew · Episode $it" }
-        ?: "Cast & Crew"
+        ?.let { stringResource(R.string.ondemand_cast_crew_episode, it.toString()) }
+        ?: stringResource(R.string.ondemand_cast_crew)
 
     // Card title: TMDB's episode name first, else the provider's own title
     // with the SHOW name and the S01E01 markers stripped (the raw provider
@@ -323,7 +327,7 @@ fun SeriesDetailScreen(
         if (tmdbName != null) return tmdbName
         val own = cleanedEpisodeTitle(ep.displayName, series?.displayName ?: "")
         if (own.length > 2) return own
-        return "Episode ${ep.episodeNumber ?: ep.id}"
+        return AppText.get(R.string.ondemand_episode_n, (ep.episodeNumber ?: ep.id).toString())
     }
 
     fun episodeStill(ep: DispatcharrVODEpisode): String? =
@@ -410,11 +414,8 @@ fun SeriesDetailScreen(
                 trailerMenuUrl = url
             } else {
                 qrLink = TvQrLink(
-                    title = label,
-                    caption = when (label) {
-                        "Trailer" -> "Scan with your phone to watch the trailer on YouTube."
-                        else -> "Scan with your phone to view this title on TMDB."
-                    },
+                    title = context.getString(if (label == "Trailer") R.string.ondemand_trailer else R.string.ondemand_view_on_tmdb),
+                    caption = context.getString(if (label == "Trailer") R.string.ondemand_scan_trailer else R.string.ondemand_scan_tmdb),
                     url = url,
                 )
             }
@@ -482,7 +483,7 @@ fun SeriesDetailScreen(
                     androidx.compose.material3.CircularProgressIndicator()
                 } else {
                     Text(
-                        text = "Series not found",
+                        text = stringResource(R.string.ondemand_series_not_found),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -530,8 +531,8 @@ fun SeriesDetailScreen(
                         ) {
                             TvHeroActionButton(
                                 title = when {
-                                    isLoading && episodes.isEmpty() -> "Loading…"
-                                    else -> target?.label ?: "Play"
+                                    isLoading && episodes.isEmpty() -> stringResource(R.string.common_loading)
+                                    else -> target?.label ?: stringResource(R.string.common_play)
                                 },
                                 icon = Icons.Filled.PlayArrow,
                                 primary = true,
@@ -542,28 +543,28 @@ fun SeriesDetailScreen(
                             )
                             if (target?.resuming == true) {
                                 TvHeroActionButton(
-                                    title = "Play from Beginning",
+                                    title = stringResource(R.string.media_play_from_beginning),
                                     icon = Icons.Filled.Replay,
                                     onClick = { playEpisode(target.episode, true) },
                                 )
                             }
                             if (versionOptions.size > 1) {
                                 TvHeroActionButton(
-                                    title = "Version: ${selectedVersion?.label ?: "Auto"}",
+                                    title = stringResource(R.string.ondemand_version_value, selectedVersion?.label ?: stringResource(R.string.ondemand_version_auto)),
                                     icon = Icons.Outlined.Tune,
                                     onClick = { showVersionPicker = true },
                                 )
                             }
                             trailerUrl?.let { url ->
                                 TvHeroActionButton(
-                                    title = "Trailer",
+                                    title = stringResource(R.string.ondemand_trailer),
                                     icon = Icons.Outlined.PlayCircle,
                                     onClick = { openLink("Trailer", url) },
                                 )
                             }
                             tmdbUrl?.let { url ->
                                 TvHeroActionButton(
-                                    title = "TMDB",
+                                    title = stringResource(R.string.ondemand_tmdb),
                                     icon = Icons.Outlined.Info,
                                     onClick = { openLink("View on TMDB", url) },
                                 )
@@ -592,7 +593,7 @@ fun SeriesDetailScreen(
                             // Only offered when there is an actual choice (> 1
                             // provider copy on a Dispatcharr Direct Connect source).
                             versionLabel = if (versionOptions.size > 1) {
-                                selectedVersion?.label ?: "Auto"
+                                selectedVersion?.label ?: stringResource(R.string.ondemand_version_auto)
                             } else {
                                 null
                             },
@@ -648,7 +649,7 @@ fun SeriesDetailScreen(
                     // single-season show (VODDetailView 856-860).
                     item(key = "episodes-header") {
                         Text(
-                            text = "Episodes",
+                            text = stringResource(R.string.ondemand_episodes),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onBackground,
@@ -667,7 +668,7 @@ fun SeriesDetailScreen(
                 } else if (error != null && episodes.isEmpty()) {
                     item {
                         Text(
-                            text = "Couldn't load episodes: $error",
+                            text = stringResource(R.string.ondemand_load_episodes_failed, error),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error,
                             modifier = Modifier.padding(horizontal = edgeInset, vertical = 24.dp),
@@ -676,7 +677,7 @@ fun SeriesDetailScreen(
                 } else if (episodes.isEmpty()) {
                     item {
                         Text(
-                            text = "Server returned no episodes for this series.",
+                            text = stringResource(R.string.ondemand_no_episodes),
                             style = MaterialTheme.typography.bodyMedium.subtext(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = edgeInset, vertical = 24.dp),
@@ -760,21 +761,23 @@ fun SeriesDetailScreen(
                         // Genre then Seasons, right column Released then
                         // Director.
                         val facts = buildList {
-                            genre?.let { add("Genre" to joinGenres(it)) }
+                            genre?.let { add(stringResource(R.string.ondemand_genre) to joinGenres(it)) }
                             info?.effectiveReleaseDate?.takeIf { it.length > 4 }
-                                ?.let { add("Released" to it) }
+                                ?.let { add(stringResource(R.string.ondemand_released) to it) }
                             if (episodes.isNotEmpty()) {
                                 val sN = seasons.size
                                 val eN = episodes.size
                                 add(
-                                    "Seasons" to
-                                        "$sN season${if (sN == 1) "" else "s"}, " +
-                                        "$eN episode${if (eN == 1) "" else "s"}",
+                                    stringResource(R.string.ondemand_seasons) to stringResource(
+                                        R.string.ondemand_seasons_value,
+                                        pluralStringResource(R.plurals.ondemand_season_count, sN, sN),
+                                        pluralStringResource(R.plurals.ondemand_episode_count, eN, eN),
+                                    ),
                                 )
                             }
-                            director?.let { add("Director" to it) }
-                            if (castCrewPeople.isEmpty()) cast?.let { add("Cast" to it) }
-                            info?.effectiveCountry?.takeIf { it.isNotBlank() }?.let { add("Country" to it) }
+                            director?.let { add(stringResource(R.string.ondemand_director) to it) }
+                            if (castCrewPeople.isEmpty()) cast?.let { add(stringResource(R.string.ondemand_cast) to it) }
+                            info?.effectiveCountry?.takeIf { it.isNotBlank() }?.let { add(stringResource(R.string.ondemand_country) to it) }
                         }
                         TvDetailsBlock(facts = facts) {
                             TmdbSourceNote(
@@ -849,10 +852,10 @@ fun SeriesDetailScreen(
             // Guard never armed: this menu opens from a short press, and the
             // rows' own OK latch already ignores the opening press's release.
             TvActionMenuDialog(
-                title = "Trailer",
+                title = stringResource(R.string.ondemand_trailer),
                 actions = listOf(
                     TvMenuAction(
-                        label = "Play in YouTube",
+                        label = stringResource(R.string.ondemand_play_in_youtube),
                         icon = Icons.Filled.PlayArrow,
                         onClick = {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
@@ -861,12 +864,12 @@ fun SeriesDetailScreen(
                         },
                     ),
                     TvMenuAction(
-                        label = "Show QR Code",
+                        label = stringResource(R.string.ondemand_show_qr),
                         icon = Icons.Filled.QrCode,
                         onClick = {
                             qrLink = TvQrLink(
-                                title = "Trailer",
-                                caption = "Scan with your phone to watch the trailer on YouTube.",
+                                title = context.getString(R.string.ondemand_trailer),
+                                caption = context.getString(R.string.ondemand_scan_trailer),
                                 url = url,
                             )
                         },
@@ -1010,7 +1013,7 @@ private fun SeriesHeroSection(
                 // already shows on the meta strip below. Same cleaned name
                 // the TV hero uses.
                 Text(
-                    text = displayTitle(series.displayName, null).ifBlank { "Untitled" },
+                    text = displayTitle(series.displayName, null).ifBlank { stringResource(R.string.livetv_untitled) },
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.Bold,
@@ -1134,17 +1137,17 @@ private fun SeriesInfoSection(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 if (trailerUrl != null) {
-                    PillButton(icon = Icons.Outlined.PlayCircle, text = "Trailer") {
+                    PillButton(icon = Icons.Outlined.PlayCircle, text = stringResource(R.string.ondemand_trailer)) {
                         onOpenUrl("Trailer", trailerUrl)
                     }
                 }
                 if (tmdbUrl != null) {
-                    PillButton(icon = Icons.Outlined.Info, text = "View on TMDB") {
+                    PillButton(icon = Icons.Outlined.Info, text = stringResource(R.string.ondemand_view_on_tmdb)) {
                         onOpenUrl("View on TMDB", tmdbUrl)
                     }
                 }
                 if (isTv && versionLabel != null) {
-                    PillButton(icon = Icons.Outlined.Tune, text = "Version: $versionLabel") {
+                    PillButton(icon = Icons.Outlined.Tune, text = stringResource(R.string.ondemand_version_value, versionLabel)) {
                         onVersionClick()
                     }
                 }
@@ -1154,16 +1157,16 @@ private fun SeriesInfoSection(
             if (isTv) MetaRow(label, value) else PhoneMetaRow(label, value)
         }
         // iOS order: Genre first, then Released (VODDetailView 1305, 1313).
-        if (!genre.isNullOrBlank()) row("Genre", genre)
+        if (!genre.isNullOrBlank()) row(stringResource(R.string.ondemand_genre), genre)
         // v0.26.0 release_date as its own row when it carries more than the
         // bare year already shown in the hero. Mirrors iOS VODDetailView.
-        info?.releaseDate?.takeIf { it.length > 4 }?.let { row("Released", it) }
+        info?.releaseDate?.takeIf { it.length > 4 }?.let { row(stringResource(R.string.ondemand_released), it) }
         // The text rows duplicate the Cast & Crew photo strip when it
         // renders; they stay as the fallback when TMDB enrichment is off
         // or returned nothing for this title.
-        if (!cast.isNullOrBlank() && !castPhotosVisible) row("Cast", cast)
-        if (!director.isNullOrBlank() && !castPhotosVisible) row("Director", director)
-        if (!country.isNullOrBlank()) row("Country", country)
+        if (!cast.isNullOrBlank() && !castPhotosVisible) row(stringResource(R.string.ondemand_cast), cast)
+        if (!director.isNullOrBlank() && !castPhotosVisible) row(stringResource(R.string.ondemand_director), director)
+        if (!country.isNullOrBlank()) row(stringResource(R.string.ondemand_country), country)
         if (isTv) {
             TmdbAttribution(modifier = Modifier.padding(top = 12.dp), long = true, isTv = true)
         } else {
@@ -1344,7 +1347,7 @@ private fun PillButton(
 private fun MetaRow(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         Text(
-            text = "$label:",
+            text = stringResource(R.string.ondemand_label_colon, label),
             style = MaterialTheme.typography.bodyMedium.subtext(),
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             modifier = Modifier.width(80.dp),
@@ -1378,7 +1381,7 @@ private fun SeasonPicker(
                 // as the library group pills (tvOS MoviesPillStyle).
                 com.aeriotv.android.ui.tv.TvPill(
                     // Apple always renders "Season {n}" (VODDetailView 849).
-                    label = "Season $season",
+                    label = stringResource(R.string.ondemand_season_n, season.toString()),
                     selected = isSelected,
                     onClick = { onSelect(season) },
                 )
@@ -1396,7 +1399,7 @@ private fun SeasonPicker(
                 // reads in the app background over the accent fill, unselected
                 // in secondary text (1552).
                 Text(
-                    text = "Season $season",
+                    text = stringResource(R.string.ondemand_season_n, season.toString()),
                     style = MaterialTheme.typography.labelMedium,
                     color = if (isSelected) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Medium,
@@ -1475,7 +1478,7 @@ private fun EpisodeRow(
 
         Column(modifier = Modifier.weight(1f)) {
             val titleLine = buildString {
-                episode.episodeNumber?.let { append("E$it · ") }
+                episode.episodeNumber?.let { append(AppText.get(R.string.ondemand_episode_prefix, it.toString()) + " ") }
                 append(title)
             }
             Text(
@@ -1491,7 +1494,7 @@ private fun EpisodeRow(
                 episode.airDate?.let { formatAirDate(it) }?.takeIf { it.isNotBlank() },
                 episode.rating?.takeIf { it.isNotBlank() && it != "0.0" }
                     ?.let { runCatching { String.format("%.1f", it.toDouble()) }.getOrDefault(it) }
-                    ?.let { "★ $it" },
+                    ?.let { AppText.get(R.string.ondemand_rating_star, it) },
             )
             if (pieces.isNotEmpty()) {
                 Spacer(Modifier.height(2.dp))
@@ -1555,7 +1558,7 @@ private fun FloatingBackButton(onClick: () -> Unit) {
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(R.string.common_back),
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
@@ -1566,9 +1569,9 @@ private fun formatEpisodeDuration(secs: Int): String {
     val h = secs / 3600
     val m = (secs % 3600) / 60
     return when {
-        h > 0 && m > 0 -> "${h}h ${m}m"
-        h > 0 -> "${h}h"
-        else -> "${m}m"
+        h > 0 && m > 0 -> AppText.get(R.string.ondemand_duration_h_m, h, m)
+        h > 0 -> AppText.get(R.string.ondemand_duration_h, h)
+        else -> AppText.get(R.string.ondemand_duration_m, m)
     }
 }
 

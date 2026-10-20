@@ -1,5 +1,8 @@
 package com.aeriotv.android.core.data
 
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
+
 /**
  * Where the channel list comes from. Mirrors iOS ServerType (Aerio/Models/Models.swift:111+)
  * with the same three categories. Each implies a different fetch + auth flow:
@@ -25,12 +28,21 @@ package com.aeriotv.android.core.data
  * provider's `get.php` link as a plain M3U URL: PlaylistRepository detects
  * that shape and loads it through the XC JSON path too.
  */
-enum class SourceType(val displayName: String, val isImplemented: Boolean) {
-    M3uUrl("M3U URL", true),
-    DispatcharrApiKey("Dispatcharr (API Key)", true),
-    DispatcharrUserPass("Dispatcharr (Username & Password)", true),
-    XtreamCodes("Xtream Codes", true),
+enum class SourceType(val isImplemented: Boolean) {
+    M3uUrl(true),
+    DispatcharrApiKey(true),
+    DispatcharrUserPass(true),
+    XtreamCodes(true),
     ;
+
+    /** Display only: resolved on each read, never persisted (rows store [name]). */
+    val displayName: String
+        get() = when (this) {
+            M3uUrl -> AppText.get(R.string.core_source_type_m3u_url)
+            DispatcharrApiKey -> AppText.get(R.string.core_source_type_dispatcharr_api_key)
+            DispatcharrUserPass -> AppText.get(R.string.core_source_type_dispatcharr_user_pass)
+            XtreamCodes -> "Xtream Codes"
+        }
 
     /** True for source types that carry VOD (movies + series). Mirrors iOS
      *  ServerType.supportsVOD: Dispatcharr (any auth) and Xtream Codes have

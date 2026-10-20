@@ -1,5 +1,8 @@
 package com.aeriotv.android.feature.dvr
 
+import com.aeriotv.android.R
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import com.aeriotv.android.ui.scale.subtext
 import com.aeriotv.android.ui.LocalDvrAccess
 import android.widget.Toast
@@ -158,7 +161,7 @@ fun DvrTabContent(
         CenterAlignedTopAppBar(
             title = {
                 Text(
-                    text = "My Recordings",
+                    text = stringResource(R.string.media_my_recordings),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
@@ -181,8 +184,8 @@ fun DvrTabContent(
             state.recordings.any { it.source == DvrViewModel.Source.Local }
         if (state.unsupportedSource && !hasLocalContent) {
             EmptyState(
-                title = "DVR needs Dispatcharr",
-                body = "Switch to a Dispatcharr playlist in Settings to schedule recordings.",
+                title = stringResource(R.string.media_dvr_needs_dispatcharr),
+                body = stringResource(R.string.media_dvr_needs_dispatcharr_body),
             )
             return@Column
         }
@@ -199,21 +202,21 @@ fun DvrTabContent(
             ) {
                 item {
                     FilterPill(
-                        label = "Scheduled (${state.scheduledCount})",
+                        label = stringResource(R.string.media_filter_scheduled_count, state.scheduledCount),
                         selected = state.filter == DvrViewModel.Filter.Scheduled,
                         onClick = { viewModel.setFilter(DvrViewModel.Filter.Scheduled) },
                     )
                 }
                 item {
                     FilterPill(
-                        label = "Recording (${state.recordingCount})",
+                        label = stringResource(R.string.media_filter_recording_count, state.recordingCount),
                         selected = state.filter == DvrViewModel.Filter.Recording,
                         onClick = { viewModel.setFilter(DvrViewModel.Filter.Recording) },
                     )
                 }
                 item {
                     FilterPill(
-                        label = "Completed (${state.completedCount})",
+                        label = stringResource(R.string.media_filter_completed_count, state.completedCount),
                         selected = state.filter == DvrViewModel.Filter.Completed,
                         onClick = { viewModel.setFilter(DvrViewModel.Filter.Completed) },
                     )
@@ -256,7 +259,7 @@ fun DvrTabContent(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = "Clear All",
+                            text = stringResource(R.string.media_clear_all),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.error,
                             fontWeight = FontWeight.Medium,
@@ -268,7 +271,7 @@ fun DvrTabContent(
                         modifier = Modifier.padding(start = 8.dp),
                     ) {
                         Text(
-                            text = "Clear All",
+                            text = stringResource(R.string.media_clear_all),
                             color = MaterialTheme.colorScheme.error,
                             fontWeight = FontWeight.Medium,
                         )
@@ -285,7 +288,7 @@ fun DvrTabContent(
         }
         state.error?.let { err ->
             Text(
-                text = "Couldn't load recordings: $err",
+                text = stringResource(R.string.media_load_recordings_failed, err),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(24.dp),
@@ -297,14 +300,14 @@ fun DvrTabContent(
             // non-zero count on a sibling chip.
             val (emptyTitle, emptyBody) = when (state.filter) {
                 DvrViewModel.Filter.Scheduled ->
-                    "No scheduled recordings" to
-                        "Schedule a recording from the TV guide to get started."
+                    stringResource(R.string.media_empty_scheduled_title) to
+                        stringResource(R.string.media_empty_scheduled_body)
                 DvrViewModel.Filter.Recording ->
-                    "Nothing recording right now" to
-                        "Recordings in progress will show up here."
+                    stringResource(R.string.media_empty_recording_title) to
+                        stringResource(R.string.media_empty_recording_body)
                 DvrViewModel.Filter.Completed ->
-                    "No completed recordings" to
-                        "Finished recordings will show up here, ready to play."
+                    stringResource(R.string.media_empty_completed_title) to
+                        stringResource(R.string.media_empty_completed_body)
             }
             EmptyState(title = emptyTitle, body = emptyBody)
             return@Column
@@ -370,7 +373,7 @@ fun DvrTabContent(
                         } else {
                             Toast.makeText(
                                 context,
-                                "This recording has no playable file yet.",
+                                context.getString(R.string.media_dvr_no_playable_file),
                                 Toast.LENGTH_SHORT,
                             ).show()
                         }
@@ -385,14 +388,14 @@ fun DvrTabContent(
                                 onSuccess = {
                                     Toast.makeText(
                                         context,
-                                        "Saving \"${rec.title}\" to device…",
+                                        context.getString(R.string.media_saving_title_to_device, rec.title),
                                         Toast.LENGTH_SHORT,
                                     ).show()
                                 },
                                 onFailure = { t ->
                                     Toast.makeText(
                                         context,
-                                        "Save to Device failed: ${t.message ?: t::class.simpleName}",
+                                        context.getString(R.string.media_save_to_device_failed, t.message ?: t::class.simpleName),
                                         Toast.LENGTH_SHORT,
                                     ).show()
                                 },
@@ -405,14 +408,14 @@ fun DvrTabContent(
                                 onSuccess = {
                                     Toast.makeText(
                                         context,
-                                        "Remove Commercials started.",
+                                        context.getString(R.string.media_remove_commercials_started),
                                         Toast.LENGTH_SHORT,
                                     ).show()
                                 },
                                 onFailure = { t ->
                                     Toast.makeText(
                                         context,
-                                        "Remove Commercials failed: ${t.message ?: t::class.simpleName}",
+                                        context.getString(R.string.media_remove_commercials_failed, t.message ?: t::class.simpleName),
                                         Toast.LENGTH_SHORT,
                                     ).show()
                                 },
@@ -425,14 +428,14 @@ fun DvrTabContent(
                                 onSuccess = {
                                     Toast.makeText(
                                         context,
-                                        "Recording stopped.",
+                                        context.getString(R.string.media_recording_stopped),
                                         Toast.LENGTH_SHORT,
                                     ).show()
                                 },
                                 onFailure = { t ->
                                     Toast.makeText(
                                         context,
-                                        "Stop Recording failed: ${t.message ?: t::class.simpleName}",
+                                        context.getString(R.string.media_stop_recording_failed, t.message ?: t::class.simpleName),
                                         Toast.LENGTH_SHORT,
                                     ).show()
                                 },
@@ -452,7 +455,7 @@ fun DvrTabContent(
                 val id = rec.id.removePrefix("server-").toIntOrNull()
                 pendingEdit = null
                 if (id == null) {
-                    Toast.makeText(context, "Invalid recording id.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.media_invalid_recording_id), Toast.LENGTH_SHORT).show()
                     return@EditRecordingSheet
                 }
                 scope.launch {
@@ -464,12 +467,12 @@ fun DvrTabContent(
                         description = newDescription,
                     ).fold(
                         onSuccess = {
-                            Toast.makeText(context, "Recording updated.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.media_recording_updated), Toast.LENGTH_SHORT).show()
                         },
                         onFailure = { t ->
                             Toast.makeText(
                                 context,
-                                "Update failed: ${t.message ?: t::class.simpleName}",
+                                context.getString(R.string.media_update_failed, t.message ?: t::class.simpleName),
                                 Toast.LENGTH_SHORT,
                             ).show()
                         },
@@ -482,14 +485,13 @@ fun DvrTabContent(
     pendingDelete?.let { rec ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text("Delete recording?") },
+            title = { Text(stringResource(R.string.media_delete_recording_title)) },
             text = {
                 Text(
-                    "This removes \"${rec.title}\" " +
-                            if (rec.source == DvrViewModel.Source.Local)
-                                "from this device permanently."
-                            else
-                                "from your Dispatcharr server. The file is gone after this."
+                    if (rec.source == DvrViewModel.Source.Local)
+                        stringResource(R.string.media_delete_recording_local_body, rec.title)
+                    else
+                        stringResource(R.string.media_delete_recording_server_body, rec.title)
                 )
             },
             confirmButton = {
@@ -498,21 +500,21 @@ fun DvrTabContent(
                     scope.launch {
                         viewModel.deleteRecording(rec).fold(
                             onSuccess = {
-                                Toast.makeText(context, "Recording deleted.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.media_recording_deleted), Toast.LENGTH_SHORT).show()
                             },
                             onFailure = { t ->
                                 Toast.makeText(
                                     context,
-                                    "Delete failed: ${t.message ?: t::class.simpleName}",
+                                    context.getString(R.string.media_delete_failed, t.message ?: t::class.simpleName),
                                     Toast.LENGTH_SHORT,
                                 ).show()
                             },
                         )
                     }
-                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) { Text("Cancel") }
+                TextButton(onClick = { pendingDelete = null }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -523,19 +525,13 @@ fun DvrTabContent(
     if (pendingClearAll) {
         AlertDialog(
             onDismissRequest = { pendingClearAll = false },
-            title = { Text("Clear all completed?") },
+            title = { Text(stringResource(R.string.media_clear_all_completed_title)) },
             text = {
                 Text(
                     if (canManageDvr) {
-                        "This removes all ${state.completedCount} completed " +
-                            "recordings. Server-side recordings are deleted on " +
-                            "your Dispatcharr server; local recordings have " +
-                            "their files removed from this device. This can't " +
-                            "be undone."
+                        pluralStringResource(R.plurals.media_clear_all_completed_body, state.completedCount, state.completedCount)
                     } else {
-                        "This removes every completed recording saved on this " +
-                            "device. Recordings on your Dispatcharr server are " +
-                            "left alone. This can't be undone."
+                        stringResource(R.string.media_clear_all_completed_local_body)
                     },
                 )
             },
@@ -547,25 +543,25 @@ fun DvrTabContent(
                             onSuccess = { n ->
                                 Toast.makeText(
                                     context,
-                                    "Deleted $n recordings.",
+                                    context.resources.getQuantityString(R.plurals.media_deleted_recordings, n, n),
                                     Toast.LENGTH_SHORT,
                                 ).show()
                             },
                             onFailure = { t ->
                                 Toast.makeText(
                                     context,
-                                    "Clear All partially failed: ${t.message ?: t::class.simpleName}",
+                                    context.getString(R.string.media_clear_all_partially_failed, t.message ?: t::class.simpleName),
                                     Toast.LENGTH_SHORT,
                                 ).show()
                             },
                         )
                     }
                 }) {
-                    Text("Delete All", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.media_delete_all), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingClearAll = false }) { Text("Cancel") }
+                TextButton(onClick = { pendingClearAll = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -689,18 +685,22 @@ private fun RecordingRow(
         DvrViewModel.Recording.Status.Unknown -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val statusLabel = when (rec.status) {
-        DvrViewModel.Recording.Status.Recording -> "Recording"
-        DvrViewModel.Recording.Status.Completed -> "Completed"
+        DvrViewModel.Recording.Status.Recording -> stringResource(R.string.media_recording_short)
+        DvrViewModel.Recording.Status.Completed -> stringResource(R.string.media_status_completed)
         // Stopped-but-saved reads as Completed, matching Dispatcharr (see color).
-        DvrViewModel.Recording.Status.Stopped -> "Completed"
-        DvrViewModel.Recording.Status.Failed -> "Failed"
-        DvrViewModel.Recording.Status.Scheduled -> "Scheduled"
-        DvrViewModel.Recording.Status.Unknown -> "Unknown"
+        DvrViewModel.Recording.Status.Stopped -> stringResource(R.string.media_status_completed)
+        DvrViewModel.Recording.Status.Failed -> stringResource(R.string.media_status_failed)
+        DvrViewModel.Recording.Status.Scheduled -> stringResource(R.string.media_status_scheduled)
+        DvrViewModel.Recording.Status.Unknown -> stringResource(R.string.common_unknown)
     }
     val dateFmt = DateFormat.getDateInstance(DateFormat.MEDIUM)
     val timeFmt = com.aeriotv.android.core.ui.ClockFormat.short()
-    val dateLabel = "${dateFmt.format(Date(rec.startMillis))} at " +
-            "${timeFmt.format(Date(rec.startMillis))} – ${timeFmt.format(Date(rec.endMillis))}"
+    val dateLabel = stringResource(
+        R.string.media_date_at_time_range,
+        dateFmt.format(Date(rec.startMillis)),
+        timeFmt.format(Date(rec.startMillis)),
+        timeFmt.format(Date(rec.endMillis)),
+    )
 
     var menuOpen by remember { mutableStateOf(false) }
     val isTv = rememberIsTvDevice()
@@ -807,7 +807,7 @@ private fun RecordingRow(
                 // it on the focused row only, where the eye already is.
                 if (isTv && focused) {
                     Text(
-                        text = "Hold OK for options",
+                        text = stringResource(R.string.media_hold_ok_for_options),
                         style = MaterialTheme.typography.labelMedium.subtext(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                     )
@@ -846,7 +846,7 @@ private fun RecordingRow(
 private fun DestinationBadge(source: DvrViewModel.Source) {
     val isLocal = source == DvrViewModel.Source.Local
     val icon = if (isLocal) Icons.Outlined.Smartphone else Icons.Outlined.Storage
-    val label = if (isLocal) "Local" else "Server"
+    val label = if (isLocal) stringResource(R.string.media_badge_local) else stringResource(R.string.media_badge_server)
     // iOS uses `Color.green` for local rows — system green (#34C759). Server
     // rows pull the active theme accent so the badge stays brand-coherent
     // when a custom accent is set in Appearance.
@@ -908,6 +908,15 @@ private fun RecordingActionMenu(
         rec.status == DvrViewModel.Recording.Status.Stopped
     val isInProgress = rec.status == DvrViewModel.Recording.Status.Recording
     val isScheduled = rec.status == DvrViewModel.Recording.Status.Scheduled
+    val saveToDeviceLabel = stringResource(R.string.media_save_to_device)
+    val removeCommercialsLabel = stringResource(R.string.media_remove_commercials)
+    val startAtLiveLabel = stringResource(R.string.media_start_at_live)
+    val watchFromBeginningLabel = stringResource(R.string.media_watch_from_beginning)
+    val stopRecordingLabel = stringResource(R.string.media_stop_recording)
+    val editLabel = stringResource(R.string.common_edit)
+    val cancelLabel = stringResource(R.string.common_cancel)
+    val deleteFromServerLabel = stringResource(R.string.media_delete_from_server)
+    val deleteFromDeviceLabel = stringResource(R.string.media_delete_from_device)
 
     // One source of truth for the per-status actions; rendered as an anchored
     // DropdownMenu on phone (a thumb-distance idiom) and as a centered Dialog
@@ -915,10 +924,10 @@ private fun RecordingActionMenu(
     // modal idiom on TV is the centered panel).
     val actions = buildList {
         if (isCompleted && isServer) {
-            add(TvMenuAction("Save to Device", Icons.Outlined.Download) { onSaveToDevice() })
+            add(TvMenuAction(saveToDeviceLabel, Icons.Outlined.Download) { onSaveToDevice() })
             // Comskip is a server-side write (IsAdminOrDVRManager).
             if (canManage) {
-                add(TvMenuAction("Remove Commercials", Icons.Outlined.ContentCut) { onRemoveCommercials() })
+                add(TvMenuAction(removeCommercialsLabel, Icons.Outlined.ContentCut) { onRemoveCommercials() })
             }
         }
         if (isInProgress && isServer) {
@@ -930,21 +939,21 @@ private fun RecordingActionMenu(
                 // Tap already starts from the beginning (see the row's
                 // onClick), so the menu leads with the OTHER option, Start
                 // at Live, and keeps Watch from Beginning for discoverability.
-                add(TvMenuAction("Start at Live", Icons.Outlined.PlayArrow) { onWatchLive() })
-                add(TvMenuAction("Watch from Beginning", Icons.Outlined.SkipPrevious) { onWatchFromBeginning() })
+                add(TvMenuAction(startAtLiveLabel, Icons.Outlined.PlayArrow) { onWatchLive() })
+                add(TvMenuAction(watchFromBeginningLabel, Icons.Outlined.SkipPrevious) { onWatchFromBeginning() })
             }
             // Dispatcharr 0.30 dvr_access "view": list and play only.
-            if (canManage) add(TvMenuAction("Stop Recording", Icons.Outlined.Stop) { onStopRecording() })
+            if (canManage) add(TvMenuAction(stopRecordingLabel, Icons.Outlined.Stop) { onStopRecording() })
         }
         if (isScheduled && isServer && canManage) {
-            add(TvMenuAction("Edit", Icons.Outlined.Edit) { onEdit() })
+            add(TvMenuAction(editLabel, Icons.Outlined.Edit) { onEdit() })
         }
         val deleteLabel = when {
-            isServer && isScheduled -> "Cancel"
-            isServer -> "Delete from Server"
+            isServer && isScheduled -> cancelLabel
+            isServer -> deleteFromServerLabel
             // Unambiguous local label (Logan 2026-09-15): the bytes live on
             // this device, and this never touches the server.
-            else -> "Delete from Device"
+            else -> deleteFromDeviceLabel
         }
         if (!isServer || canManage) {
             add(TvMenuAction(deleteLabel, Icons.Outlined.Delete, destructive = true) { onDelete() })

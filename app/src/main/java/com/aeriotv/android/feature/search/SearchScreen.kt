@@ -66,6 +66,8 @@ import coil3.compose.AsyncImage
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * Global Search screen (parity task #41). Reproduces the iOS SearchView: a
@@ -112,7 +114,7 @@ fun SearchScreen(
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = stringResource(R.string.common_back),
                         tint = MaterialTheme.colorScheme.onBackground,
                     )
                 }
@@ -139,7 +141,7 @@ fun SearchScreen(
                     },
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                placeholder = { Text("Search movies, shows, programs…") },
+                placeholder = { Text(stringResource(R.string.livetv_search_placeholder)) },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             )
         }
@@ -149,7 +151,7 @@ fun SearchScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SearchViewModel.Scope.entries.forEach { scope ->
                 ScopeChip(
-                    label = scope.label,
+                    label = stringResource(scope.labelRes),
                     selected = scope == state.scope,
                     onClick = { viewModel.onScopeChange(scope) },
                 )
@@ -161,7 +163,7 @@ fun SearchScreen(
         when {
             state.query.isBlank() -> CenterMessage(
                 icon = Icons.Filled.Search,
-                title = "Search for movies, shows, or EPG programs",
+                title = stringResource(R.string.livetv_search_prompt),
             )
             state.isSearching && state.results.isEmpty() -> Box(
                 modifier = Modifier.fillMaxSize(),
@@ -169,8 +171,8 @@ fun SearchScreen(
             ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary) }
             state.results.isEmpty() -> CenterMessage(
                 icon = Icons.Filled.Search,
-                title = "No results for “${state.query}”",
-                subtitle = "Try a different search term or change the scope filter.",
+                title = stringResource(R.string.livetv_search_no_results, state.query),
+                subtitle = stringResource(R.string.livetv_search_no_results_hint),
             )
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -327,11 +329,12 @@ private data class ResultDisplay(
     val detail: String? = null,
 )
 
+@Composable
 private fun resultDisplay(result: SearchViewModel.Result): ResultDisplay = when (result) {
     is SearchViewModel.Result.Movie -> ResultDisplay(
         title = result.movie.displayName,
         subtitle = listOfNotNull(
-            "Movie",
+            stringResource(R.string.livetv_search_result_movie),
             result.movie.year?.toString(),
             result.movie.genre?.takeIf { it.isNotBlank() },
         ).joinToString("  ·  "),
@@ -342,7 +345,7 @@ private fun resultDisplay(result: SearchViewModel.Result): ResultDisplay = when 
     is SearchViewModel.Result.Series -> ResultDisplay(
         title = result.series.displayName,
         subtitle = listOfNotNull(
-            "TV Show",
+            stringResource(R.string.livetv_search_result_tv_show),
             result.series.year?.toString(),
             result.series.genre?.takeIf { it.isNotBlank() },
         ).joinToString("  ·  "),
@@ -356,7 +359,7 @@ private fun resultDisplay(result: SearchViewModel.Result): ResultDisplay = when 
         ResultDisplay(
             title = result.programme.title,
             subtitle = listOfNotNull(
-                "LIVE".takeIf { result.isLive },
+                stringResource(R.string.livetv_live_badge).takeIf { result.isLive },
                 result.channelName,
                 range,
             ).joinToString("  ·  "),

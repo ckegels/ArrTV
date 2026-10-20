@@ -1,5 +1,8 @@
 package com.aeriotv.android.feature.movies.tv
 
+import com.aeriotv.android.R
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
 import com.aeriotv.android.ui.scale.subtext
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -104,6 +107,7 @@ internal fun TvMediaTab(
     isSearchBusy: Boolean,
 ) {
     val pageId = kind.name
+    val context = LocalContext.current
     // Come back at the exact offset AND on the exact focusable that opened
     // the detail (hero button, shelf card or grid cell): arm() freezes both
     // (tvOS never disposes the tab, MoviesView.swift:221, 259-279).
@@ -129,11 +133,11 @@ internal fun TvMediaTab(
         val details: () -> Unit = { item?.let(open) }
         val meta = buildList {
             page.year?.let { add(it.toString()) }
-            if ((page.season ?: 0) > 0) add("S${page.season} E${page.episode ?: 0}")
+            if ((page.season ?: 0) > 0) add(context.getString(R.string.media_season_episode_short, page.season ?: 0, page.episode ?: 0))
             // tvOS: VODSeries.durationText is always empty, so a TV Shows
             // hero never carries a runtime (VODModels.swift:1288).
             if (kind != MediaKind.TVShows) {
-                page.durationSecs?.takeIf { it > 0 }?.let { s -> add(if (s >= 3600) "${s / 3600} h ${(s % 3600) / 60} min" else "${s / 60} min") }
+                page.durationSecs?.takeIf { it > 0 }?.let { s -> add(if (s >= 3600) context.getString(R.string.media_duration_h_min, s / 3600, (s % 3600) / 60) else context.getString(R.string.media_duration_min, s / 60)) }
             }
             page.genre?.split(',', '/', '|')?.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() }?.let { add(it) }
         }
@@ -145,22 +149,22 @@ internal fun TvMediaTab(
             // play (Logan 2026-09-11). Movies keep Play / Resume.
             val primaryLabel = when {
                 seriesLabel != null -> seriesLabel
-                page.hasProgress -> "Resume"
-                else -> "Play"
+                page.hasProgress -> context.getString(R.string.media_resume)
+                else -> context.getString(R.string.common_play)
             }
             add(TvHeroButton(primaryLabel, Icons.Filled.PlayArrow, primary = true, id = "Primary", onClick = play))
             // tvOS plays at 0 and LEAVES WatchProgress intact
             // (MoviesView.swift:1507-1511): the row must survive.
             if (page.hasProgress) {
-                add(TvHeroButton("Play from Beginning", Icons.Filled.Replay, id = "FromStart") { armHero(); onPlayFromStart(videoId, page.title) })
+                add(TvHeroButton(context.getString(R.string.media_play_from_beginning), Icons.Filled.Replay, id = "FromStart") { armHero(); onPlayFromStart(videoId, page.title) })
             }
-            add(TvHeroButton("Details", Icons.Outlined.Info, id = "Details", onClick = details))
+            add(TvHeroButton(context.getString(R.string.media_details), Icons.Outlined.Info, id = "Details", onClick = details))
         }
         val longPress = buildList {
-            if (item != null) add(TvMenuAction(if (item.key in watchlistKeys) "Remove from Watchlist" else "Add to Watchlist") { onToggleWatchlist(item) })
-            if (item != null) add(TvMenuAction(if (item.key in hiddenKeys) "Unhide" else "Hide") { onToggleHidden(item) })
-            if (!watchlist) add(TvMenuAction("Remove from Continue Watching", destructive = true) { onRemoveProgress(videoId) })
-            else if (item != null) add(TvMenuAction("Remove from Watchlist", destructive = true) { onRemoveWatchlist(item.key) })
+            if (item != null) add(TvMenuAction(context.getString(if (item.key in watchlistKeys) R.string.media_remove_from_watchlist else R.string.media_add_to_watchlist)) { onToggleWatchlist(item) })
+            if (item != null) add(TvMenuAction(context.getString(if (item.key in hiddenKeys) R.string.media_unhide else R.string.media_hide)) { onToggleHidden(item) })
+            if (!watchlist) add(TvMenuAction(context.getString(R.string.media_remove_from_continue_watching), destructive = true) { onRemoveProgress(videoId) })
+            else if (item != null) add(TvMenuAction(context.getString(R.string.media_remove_from_watchlist), destructive = true) { onRemoveWatchlist(item.key) })
         }
         return TvHeroPage(
             key = page.key, title = page.title, artUrl = backdrops[page.key] ?: page.artUrl,
@@ -187,7 +191,7 @@ internal fun TvMediaTab(
         heldHero.value
     }
     val watchlistShelf = TvShelf(
-        title = "Watchlist",
+        title = stringResource(R.string.media_watchlist),
         items = watchlistPages,
         key = { it.key },
         cardWidth = TV_POSTER_WIDTH,
@@ -199,28 +203,29 @@ internal fun TvMediaTab(
             rating = formatRating(page.rating),
             onClick = { item?.let(open) }, modifier = modifier,
             longPressActions = listOfNotNull(
-                item?.let { TvMenuAction("Details") { open(it) } },
-                item?.let { TvMenuAction(if (it.key in hiddenKeys) "Unhide" else "Hide") { onToggleHidden(it) } },
-                item?.let { TvMenuAction("Remove from Watchlist", destructive = true) { onRemoveWatchlist(it.key) } },
+                item?.let { TvMenuAction(context.getString(R.string.media_details)) { open(it) } },
+                item?.let { TvMenuAction(context.getString(if (it.key in hiddenKeys) R.string.media_unhide else R.string.media_hide)) { onToggleHidden(it) } },
+                item?.let { TvMenuAction(context.getString(R.string.media_remove_from_watchlist), destructive = true) { onRemoveWatchlist(it.key) } },
             ),
         )
     }
     val sortActions = MediaSortOrder.entries.map { order ->
-        TvMenuAction(if (order == sortOrder) order.label + "  ✓" else order.label) { onSort(order) }
+        val label = stringResource(order.labelRes)
+        TvMenuAction(if (order == sortOrder) label + "  ✓" else label) { onSort(order) }
     }
     val extras = buildList<@Composable () -> Unit> {
         if (personMatchName != null) add {
             Text(
-                "Includes titles with $personMatchName", fontSize = 10.sp.subtext(),
+                stringResource(R.string.media_includes_titles_with, personMatchName), fontSize = 10.sp.subtext(),
                 color = MaterialTheme.colorScheme.tertiary, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }
         if (showProviderPills) add {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(end = 8.dp), modifier = Modifier.fillMaxWidth()) {
-                item(key = "all") { TvPill("All Providers", selectedProviderId == null, onClick = { onSelectProvider(null) }) }
+                item(key = "all") { TvPill(stringResource(R.string.media_all_providers), selectedProviderId == null, onClick = { onSelectProvider(null) }) }
                 items(providerIds.size, key = { providerIds[it] }) { i ->
                     val pid = providerIds[i]
-                    TvPill(providerNames[pid] ?: "Provider $pid", selectedProviderId == pid, onClick = { onSelectProvider(if (selectedProviderId == pid) null else pid) })
+                    TvPill(providerNames[pid] ?: stringResource(R.string.media_provider_n, pid), selectedProviderId == pid, onClick = { onSelectProvider(if (selectedProviderId == pid) null else pid) })
                 }
             }
         }
@@ -230,9 +235,9 @@ internal fun TvMediaTab(
         gridState = gridState,
         heroPages = tvHero,
         // The hero is always the Continue Watching carousel.
-        heroSectionTitle = if (tvHero.isNotEmpty()) "Continue Watching" else null,
+        heroSectionTitle = if (tvHero.isNotEmpty()) stringResource(R.string.media_continue_watching) else null,
         shelves = listOf(watchlistShelf),
-        headerTitle = if (isSearching) "Results" else kind.libraryTitle,
+        headerTitle = if (isSearching) stringResource(R.string.media_results) else stringResource(kind.libraryTitleRes),
         headerCount = gridItems.size,
         columns = 7,
         gridRowSpacing = 24.dp,
@@ -246,7 +251,7 @@ internal fun TvMediaTab(
         onQueryChange = onQueryChange,
         onSearchToggle = onSearchToggle,
         onClearSearch = onClearSearch,
-        searchPlaceholder = if (kind == MediaKind.Movies) "Search movies" else "Search TV shows",
+        searchPlaceholder = if (kind == MediaKind.Movies) stringResource(R.string.media_search_movies) else stringResource(R.string.media_search_tv_shows),
         isSearching = isSearching,
         searchExtras = extras,
         pills = genrePills,
@@ -260,15 +265,15 @@ internal fun TvMediaTab(
                 title = item.title, year = item.year, posterUrl = posterUrlFor(item), rating = formatRating(item.rating),
                 onClick = { open(item) }, modifier = scope.modifier,
                 longPressActions = listOf(
-                    TvMenuAction("Details") { open(item) },
-                    TvMenuAction(if (item.key in watchlistKeys) "Remove from Watchlist" else "Add to Watchlist") { onToggleWatchlist(item) },
-                    TvMenuAction(if (item.key in hiddenKeys) "Unhide" else "Hide") { onToggleHidden(item) },
+                    TvMenuAction(context.getString(R.string.media_details)) { open(item) },
+                    TvMenuAction(context.getString(if (item.key in watchlistKeys) R.string.media_remove_from_watchlist else R.string.media_add_to_watchlist)) { onToggleWatchlist(item) },
+                    TvMenuAction(context.getString(if (item.key in hiddenKeys) R.string.media_unhide else R.string.media_hide)) { onToggleHidden(item) },
                 ),
             )
         },
         emptyContent = {
             if (isLoading || (!isSearching && libraryPending) || (isSearching && isSearchBusy)) CircularProgressIndicator()
-            else Text(if (isSearching) "No results" else kind.emptyTitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            else Text(if (isSearching) stringResource(R.string.media_no_results) else stringResource(kind.emptyTitleRes), color = MaterialTheme.colorScheme.onSurfaceVariant)
         },
         isLoading = isLoading,
         railLetters = available,

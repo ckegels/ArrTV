@@ -1,5 +1,7 @@
 package com.aeriotv.android.core.sync
 
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import android.content.Context
 import android.os.Build
 import android.util.Log
@@ -240,8 +242,8 @@ class DriveSyncManager @Inject constructor(
             result[category] = outcome == PullOutcome.Applied
             when (outcome) {
                 PullOutcome.Applied -> updateRestoreStep(category, RestoreStepState.Done)
-                PullOutcome.NoRemote -> updateRestoreStep(category, RestoreStepState.Done, "Nothing in Drive yet")
-                PullOutcome.Failed -> updateRestoreStep(category, RestoreStepState.Failed, "Couldn't restore")
+                PullOutcome.NoRemote -> updateRestoreStep(category, RestoreStepState.Done, AppText.get(R.string.core_sync_restore_nothing_in_drive))
+                PullOutcome.Failed -> updateRestoreStep(category, RestoreStepState.Failed, AppText.get(R.string.core_sync_restore_failed))
             }
         }
         appPreferences.setSyncLastPullAt(System.currentTimeMillis())

@@ -1,5 +1,7 @@
 package com.aeriotv.android.core.ui
 
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Forward30
@@ -61,8 +63,8 @@ object SkipIntervals {
         else -> forwardMs
     }
 
-    fun backLabel(seconds: Int = backSeconds.value): String = "Back $seconds seconds"
-    fun forwardLabel(seconds: Int = forwardSeconds.value): String = "Forward $seconds seconds"
+    fun backLabel(seconds: Int = backSeconds.value): String = AppText.plural(R.plurals.core_skip_back_seconds, seconds, seconds)
+    fun forwardLabel(seconds: Int = forwardSeconds.value): String = AppText.plural(R.plurals.core_skip_forward_seconds, seconds, seconds)
 
     /** Material's numbered replay glyph where one exists, else a drawn one. */
     fun backIcon(seconds: Int = backSeconds.value): ImageVector = when (seconds) {

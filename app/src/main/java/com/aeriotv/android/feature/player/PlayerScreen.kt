@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.player
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import android.util.Log
 import android.view.ViewGroup
 import android.widget.Toast
@@ -2541,7 +2543,7 @@ private fun PlayerSheets(
                         //      only a fatal player error or a confirmed dead session reopens.
                         val newUrl = runCatching { onSwitchChannelStream(uuid, id) }.getOrNull()
                         if (newUrl.isNullOrBlank()) {
-                            Toast.makeText(context, "Stream switch failed", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.player_switch_failed), Toast.LENGTH_SHORT).show()
                             return@launch
                         }
 
@@ -2567,13 +2569,13 @@ private fun PlayerSheets(
                         if (!confirmed) {
                             Toast.makeText(
                                 context,
-                                "Stream switch not confirmed; staying on current feed",
+                                context.getString(R.string.player_switch_not_confirmed),
                                 Toast.LENGTH_SHORT,
                             ).show()
                             return@launch
                         }
 
-                        Toast.makeText(context, "Switching stream...", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.player_switching_stream), Toast.LENGTH_SHORT).show()
                         // GH #33: while casting, the phone must NOT start a local decode.
                         // change_stream already landed server-side (confirmed above), so the
                         // channel's /proxy/ts/ URL now serves the switched upstream -- re-tune
@@ -2895,12 +2897,12 @@ private fun LiveRewindChromeSection(
                         val minutes = { ms: Long -> ((System.currentTimeMillis() - ms) / 60_000).coerceAtLeast(1) }
                         when {
                             !entered -> Toast.makeText(
-                                context, "Paused ${minutes(pausedAt)} min; nothing was kept on the TV -- continuing live",
+                                context, context.getString(R.string.player_paused_nothing_kept, minutes(pausedAt).toInt()),
                                 Toast.LENGTH_LONG,
                             ).show()
                             from != pausedAt -> Toast.makeText(
                                 context,
-                                "Paused ${minutes(pausedAt)} min; the TV kept the last ${minutes(from)} -- continuing from ${minutes(from)} min ago",
+                                context.getString(R.string.player_paused_kept_last, minutes(pausedAt).toInt(), minutes(from).toInt(), minutes(from).toInt()),
                                 Toast.LENGTH_LONG,
                             ).show()
                         }
@@ -3003,7 +3005,7 @@ private fun LiveRewindChromeSection(
         onShowRecord = { target -> recordTarget = target },
         onShowStreamInfo = {
             streamInfo = exoHolder.player?.captureStreamInfo() ?: StreamInfoSnapshot(
-                videoLines = listOf("(player not ready)"),
+                videoLines = listOf(context.getString(R.string.player_player_not_ready)),
                 audioLines = emptyList(),
                 cacheLines = emptyList(),
                 syncLines = emptyList(),
@@ -3038,8 +3040,8 @@ private fun LiveRewindChromeSection(
                     languages.mapIndexed { index, (value, _) ->
                         SubtitleTrack(
                             generatedCaptionsId(index),
-                            if (index == 0) "Generated captions (from the sound)"
-                            else "Generated captions -- translated to ${com.aeriotv.android.core.playback.CaptionLanguage.label(value)}",
+                            if (index == 0) context.getString(R.string.player_generated_captions_original)
+                            else context.getString(R.string.player_generated_captions_translated, com.aeriotv.android.core.playback.CaptionLanguage.label(value)),
                             "",
                         )
                     }
@@ -3131,7 +3133,7 @@ private fun CatchupUnavailableCard(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "Catch-up Unavailable",
+            text = stringResource(R.string.player_catchup_unavailable_title),
             style = MaterialTheme.typography.headlineSmall,
             color = Color.White,
         )
@@ -3147,11 +3149,11 @@ private fun CatchupUnavailableCard(
         val busy = lastErrorText.orEmpty().contains("503")
         Text(
             text = if (busy) {
-                "The provider keeping this programme's archive is in use on another device. Try again when it is free."
+                stringResource(R.string.player_catchup_archive_busy)
             } else if (noArchive) {
-                "Your provider doesn't have an archive for this programme."
+                stringResource(R.string.player_catchup_no_archive_programme)
             } else {
-                "Playback of this programme's archive failed."
+                stringResource(R.string.player_catchup_archive_failed)
             },
             style = MaterialTheme.typography.bodyMedium,
             color = Color.White.copy(alpha = 0.72f),
@@ -3166,7 +3168,7 @@ private fun CatchupUnavailableCard(
             )
         }
         Button(onClick = onClose) {
-            Text("Go Back")
+            Text(stringResource(R.string.player_go_back))
         }
     }
 }
@@ -3208,7 +3210,7 @@ private fun StreamUnavailableCard(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "Channel Unavailable",
+            text = stringResource(R.string.player_channel_unavailable_title),
             style = MaterialTheme.typography.headlineSmall,
             color = Color.White,
         )
@@ -3222,8 +3224,8 @@ private fun StreamUnavailableCard(
         }
         Text(
             text = when {
-                reconnecting -> "Reconnecting…"
-                retryCountdown > 0 -> "Retrying in ${retryCountdown}s"
+                reconnecting -> stringResource(R.string.player_reconnecting_ellipsis)
+                retryCountdown > 0 -> stringResource(R.string.player_retrying_in, retryCountdown)
                 else -> " "
             },
             style = MaterialTheme.typography.bodyMedium,
@@ -3238,14 +3240,14 @@ private fun StreamUnavailableCard(
                 unavailableRetrySerial += 1
                 exoHolder.retryUnavailable()
             }) {
-                Text("Retry Now")
+                Text(stringResource(R.string.player_retry_now))
             }
         }
         Text(
             text = if (isTvForm) {
-                "Retry is highlighted below - press Select. Back to exit, or D-pad up/down to change channels."
+                stringResource(R.string.player_retry_highlighted_hint)
             } else {
-                "Press Back to exit, or use the D-pad up/down to change channels."
+                stringResource(R.string.player_back_to_exit_hint)
             },
             style = MaterialTheme.typography.bodySmall,
             color = Color.White.copy(alpha = 0.6f),
@@ -3268,20 +3270,18 @@ private fun ChannelNotAvailableCard(onClose: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "Channel Not Available",
+            text = stringResource(R.string.player_channel_not_available_title),
             style = MaterialTheme.typography.headlineSmall,
             color = Color.White,
         )
         Text(
-            text = "This channel isn't in the active playlist. If you just " +
-                "switched playlists, go back and pick it again from the " +
-                "refreshed guide.",
+            text = stringResource(R.string.player_channel_not_in_playlist),
             style = MaterialTheme.typography.bodyMedium,
             color = Color.White.copy(alpha = 0.72f),
             textAlign = TextAlign.Center,
         )
         Button(onClick = onClose) {
-            Text("Go Back")
+            Text(stringResource(R.string.player_go_back))
         }
     }
 }
@@ -3299,19 +3299,18 @@ private fun NoStreamAssignedCard(onClose: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "No Stream Assigned",
+            text = stringResource(R.string.player_no_stream_assigned_title),
             style = MaterialTheme.typography.headlineSmall,
             color = Color.White,
         )
         Text(
-            text = "This channel doesn't have a stream yet. Event channels " +
-                "usually get one shortly before air time.",
+            text = stringResource(R.string.player_no_stream_assigned),
             style = MaterialTheme.typography.bodyMedium,
             color = Color.White.copy(alpha = 0.72f),
             textAlign = TextAlign.Center,
         )
         Button(onClick = onClose) {
-            Text("Go Back")
+            Text(stringResource(R.string.player_go_back))
         }
     }
 }

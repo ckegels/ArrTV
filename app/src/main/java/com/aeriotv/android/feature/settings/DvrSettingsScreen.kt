@@ -52,7 +52,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.aeriotv.android.R
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.aeriotv.android.feature.dvr.DvrViewModel
@@ -106,7 +108,7 @@ fun DvrSettingsScreen(
     val usedFraction = if (capMB > 0) (usedMB.toFloat() / capMB.toFloat()).coerceIn(0f, 1f) else 0f
 
     Column(modifier = Modifier.fillMaxSize()) {
-        SettingsDetailTopBar(title = "DVR Settings", onBack = onBack)
+        SettingsDetailTopBar(title = stringResource(R.string.settings2_dvr_title), onBack = onBack)
 
         androidx.compose.foundation.layout.Box(
             modifier = Modifier.fillMaxSize(),
@@ -131,18 +133,18 @@ fun DvrSettingsScreen(
                 val defaultDestination by settingsVm.dvrDefaultDestination
                     .collectAsStateWithLifecycle(initialValue = "server")
                 Card(
-                    header = "Default Destination",
-                    footer = "Where new recordings are saved unless you change it in the record sheet. Accounts without server recording always record to this device.",
+                    header = stringResource(R.string.settings2_dvr_destination_header),
+                    footer = stringResource(R.string.settings2_dvr_destination_footer),
                 ) {
                     Column {
                         DestinationRow(
-                            label = "Server (Dispatcharr)",
+                            label = stringResource(R.string.settings2_dvr_destination_server),
                             selected = defaultDestination != "local",
                             onSelect = { settingsVm.setDvrDefaultDestination("server") },
                         )
                         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
                         DestinationRow(
-                            label = "This device",
+                            label = stringResource(R.string.settings2_this_device),
                             selected = defaultDestination == "local",
                             onSelect = { settingsVm.setDvrDefaultDestination("local") },
                         )
@@ -152,19 +154,19 @@ fun DvrSettingsScreen(
 
             item {
                 Card(
-                    header = "Default Recording Buffers",
-                    footer = "Buffers extend new recordings beyond the scheduled window. Existing recordings aren't touched. Useful for sports and live events that run over.",
+                    header = stringResource(R.string.settings2_dvr_buffers_header),
+                    footer = stringResource(R.string.settings2_dvr_buffers_footer),
                 ) {
                     Column {
                         BufferRow(
-                            label = "Start Early",
+                            label = stringResource(R.string.settings2_dvr_start_early),
                             options = ROLL_OPTIONS,
                             selected = preRoll,
                             onSelect = settingsVm::setDvrDefaultPreRollMins,
                         )
                         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
                         BufferRow(
-                            label = "End Late",
+                            label = stringResource(R.string.settings2_dvr_end_late),
                             options = ROLL_OPTIONS,
                             selected = postRoll,
                             onSelect = settingsVm::setDvrDefaultPostRollMins,
@@ -177,14 +179,14 @@ fun DvrSettingsScreen(
                 // Breaks Comskip marked on a server recording (Dispatch More v239, Comskip in
                 // "mark" mode): the recording stays whole and the player skips them
                 Card(
-                    header = "Commercial Breaks",
-                    footer = "For server recordings whose breaks Comskip marked (Dispatcharr's Comskip in Mark mode). The recording is never cut, so a wrong guess costs nothing: after an automatic skip, press Left to go back.",
+                    header = stringResource(R.string.settings2_dvr_commercial_header),
+                    footer = stringResource(R.string.settings2_dvr_commercial_footer),
                 ) {
                     Column {
                         listOf(
-                            "auto" to "Skip automatically",
-                            "button" to "Show a Skip ad button",
-                            "off" to "Play them",
+                            "auto" to stringResource(R.string.settings2_dvr_commercial_auto),
+                            "button" to stringResource(R.string.settings2_dvr_commercial_button),
+                            "off" to stringResource(R.string.settings2_dvr_commercial_off),
                         ).forEachIndexed { index, (value, label) ->
                             if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
                             DestinationRow(
@@ -201,12 +203,12 @@ fun DvrSettingsScreen(
                 // What the record sheet used to ask every time; it now shows it in one line and
                 // only opens the rows under "Adjust"
                 Card(
-                    header = "Server Recordings",
-                    footer = "Dispatcharr runs Comskip after the recording ends and cuts the breaks it finds, when Comskip is set up on the server. Series rules use the server's own buffer and Comskip settings.",
+                    header = stringResource(R.string.settings2_dvr_server_header),
+                    footer = stringResource(R.string.settings2_dvr_server_footer),
                 ) {
                     SettingsToggleRow(
-                        title = "Mark ad breaks (Comskip)",
-                        subtitle = "Comskip on new server recordings. In Mark mode it only marks the breaks for skipping; in Cut mode it cuts them out, and a wrong guess cuts part of the programme.",
+                        title = stringResource(R.string.settings2_dvr_comskip_toggle),
+                        subtitle = stringResource(R.string.settings2_dvr_comskip_subtitle),
                         checked = removeCommercials,
                         onCheckedChange = settingsVm::setDvrRemoveCommercials,
                     )
@@ -215,13 +217,13 @@ fun DvrSettingsScreen(
 
             item {
                 Card(
-                    header = "Local Storage",
-                    footer = "Cap applies to local recordings on this device only. Server recordings live on Dispatcharr and are tracked there.",
+                    header = stringResource(R.string.settings2_dvr_local_header),
+                    footer = stringResource(R.string.settings2_dvr_local_footer),
                 ) {
                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "Maximum",
+                                text = stringResource(R.string.settings2_dvr_maximum),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onBackground,
                                 fontWeight = FontWeight.Medium,
@@ -252,7 +254,11 @@ fun DvrSettingsScreen(
                         Spacer(Modifier.height(10.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "${formatStorage(usedMB)} of ${formatStorage(capMB)} used",
+                                text = stringResource(
+                                    R.string.settings2_dvr_storage_used,
+                                    formatStorage(usedMB),
+                                    formatStorage(capMB),
+                                ),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = if (usedFraction > 0.8f)
                                     MaterialTheme.colorScheme.error
@@ -287,18 +293,21 @@ fun DvrSettingsScreen(
 
             item {
                 Card(
-                    header = "Storage Location",
-                    footer = "Local recordings save to your Downloads folder (in an AerioTV subfolder) by default, so you can find them in any file manager. Choose Folder picks a custom location via the Storage Access Framework, retained across reboots.",
+                    header = stringResource(R.string.settings2_dvr_location_header),
+                    footer = stringResource(R.string.settings2_dvr_location_footer),
                 ) {
                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                         Text(
-                            text = "Currently saving to:",
+                            text = stringResource(R.string.settings2_dvr_currently_saving),
                             style = MaterialTheme.typography.bodySmall.subtext(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Spacer(Modifier.height(2.dp))
                         Text(
-                            text = formatCustomFolderLabel(customFolderUri),
+                            text = formatCustomFolderLabel(
+                                customFolderUri,
+                                stringResource(R.string.settings2_dvr_default_folder),
+                            ),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onBackground,
                             fontWeight = FontWeight.Medium,
@@ -310,7 +319,7 @@ fun DvrSettingsScreen(
                                 modifier = Modifier.dpadFocusRing(RoundedCornerShape(50)),
                             ) {
                                 Text(
-                                    text = "Choose Folder",
+                                    text = stringResource(R.string.settings2_dvr_choose_folder),
                                     color = MaterialTheme.colorScheme.textAccent,
                                 )
                             }
@@ -334,7 +343,7 @@ fun DvrSettingsScreen(
                                     ),
                                 ) {
                                     Text(
-                                        text = "Reset to Default",
+                                        text = stringResource(R.string.settings2_dvr_reset_default),
                                         color = MaterialTheme.colorScheme.error,
                                     )
                                 }
@@ -346,12 +355,12 @@ fun DvrSettingsScreen(
 
             item {
                 SettingsSection(
-                    header = "Behavior",
-                    footer = "Holds a CPU wake lock while a local recording is downloading so Doze can't stall it. Server-side recordings are unaffected (they run on Dispatcharr). Leave on unless you're debugging battery drain.",
+                    header = stringResource(R.string.settings2_dvr_behavior_header),
+                    footer = stringResource(R.string.settings2_dvr_behavior_footer),
                 ) {
                     SettingsToggleRow(
-                        title = "Keep device awake during recording",
-                        subtitle = "Recommended for long local recordings.",
+                        title = stringResource(R.string.settings2_dvr_keep_awake),
+                        subtitle = stringResource(R.string.settings2_dvr_keep_awake_subtitle),
                         checked = keepAwake,
                         onCheckedChange = settingsVm::setDvrKeepAwakeDuringRecording,
                     )
@@ -410,7 +419,7 @@ private fun DestinationRow(
         if (selected) {
             Icon(
                 imageVector = Icons.Filled.Check,
-                contentDescription = "Selected",
+                contentDescription = stringResource(R.string.common_selected),
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
@@ -481,14 +490,19 @@ private fun BufferRow(
     }
 }
 
-private fun formatRoll(mins: Int): String = if (mins == 0) "None" else "$mins min"
+@Composable
+private fun formatRoll(mins: Int): String =
+    if (mins == 0) stringResource(R.string.common_none)
+    else stringResource(R.string.settings2_dvr_roll_minutes, mins)
 
+@Composable
 private fun formatStorage(mb: Int): String {
     if (mb >= 1024) {
         val gb = mb / 1024.0
-        return if (gb >= 10) "${gb.toInt()} GB" else String.format("%.1f GB", gb)
+        return if (gb >= 10) stringResource(R.string.settings2_dvr_storage_gb, gb.toInt())
+        else stringResource(R.string.settings2_dvr_storage_gb_decimal, gb)
     }
-    return "$mb MB"
+    return stringResource(R.string.settings2_dvr_storage_mb, mb)
 }
 
 private val ROLL_OPTIONS: List<Int> = listOf(0, 5, 10, 15, 30, 60)
@@ -500,9 +514,9 @@ private val ROLL_OPTIONS: List<Int> = listOf(0, 5, 10, 15, 30, 60)
  * DocumentFile lookup here keeps the row cheap to render; names shift to
  * canonical only after the picker callback resolves the URI.
  */
-private fun formatCustomFolderLabel(uriString: String): String {
+private fun formatCustomFolderLabel(uriString: String, defaultLabel: String): String {
     if (uriString.isBlank()) {
-        return "Device Downloads (AerioTV folder)"
+        return defaultLabel
     }
     return runCatching {
         val uri = Uri.parse(uriString)

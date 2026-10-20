@@ -1,5 +1,8 @@
 package com.aeriotv.android.feature.settings
 
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,7 +69,8 @@ fun MoviesAndTvShowsSettingsScreen(
 
     TvKeyboardOnOkHost {
         Column(modifier = Modifier.fillMaxSize()) {
-            SettingsDetailTopBar(title = "Movies & TV Shows", onBack = onBack)
+            val context = LocalContext.current
+            SettingsDetailTopBar(title = stringResource(R.string.settings_movies_title), onBack = onBack)
 
             val vp = rememberViewport()
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
@@ -90,20 +94,20 @@ fun MoviesAndTvShowsSettingsScreen(
                     // read by the shared OnDemandViewModel, so it always applied
                     // everywhere even while the rows were TV-only.
                     item("refresh-library") {
-                        SettingsSection(header = "Refresh library") {
+                        SettingsSection(header = stringResource(R.string.settings_movies_refresh_library)) {
                             listOf(
-                                0 to "Every Launch",
-                                24 to "Daily",
-                                168 to "Weekly",
+                                0 to R.string.settings_movies_refresh_every_launch,
+                                24 to R.string.settings_movies_refresh_daily,
+                                168 to R.string.settings_movies_refresh_weekly,
                             ).forEach { (hours, label) ->
                                 SettingsSelectionRow(
-                                    label = label,
+                                    label = stringResource(label),
                                     selected = vodRefreshHours == hours,
                                     onClick = { viewModel.setVodLibraryRefreshHours(hours) },
                                 )
                             }
                             Text(
-                                text = "Live TV channels refresh on every launch. Movies and TV Shows open from the saved library and re-sweep the provider on this schedule. Pull down on either tab to refresh right away.",
+                                text = stringResource(R.string.settings_movies_refresh_note),
                                 style = MaterialTheme.typography.bodySmall.subtext(),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -114,12 +118,12 @@ fun MoviesAndTvShowsSettingsScreen(
                     // MARK: Posters
                     item("posters") {
                         SettingsSection(
-                            header = "Posters",
-                            footer = "Show posters in the Program Info panel and fill in missing artwork on On Demand detail screens, looked up on TMDB with your own free API key (themoviedb.org). Off by default. The key syncs across your devices via Google Drive (kept in your private app data).",
+                            header = stringResource(R.string.settings_movies_posters_header),
+                            footer = stringResource(R.string.settings_movies_posters_footer),
                         ) {
                             SettingsToggleRow(
-                                title = "TMDB poster fallback",
-                                subtitle = "When a poster is missing, look it up on TMDB. Needs the free API key below.",
+                                title = stringResource(R.string.settings_movies_tmdb_fallback),
+                                subtitle = stringResource(R.string.settings_movies_tmdb_fallback_subtitle),
                                 checked = programPostersTmdb,
                                 onCheckedChange = viewModel::setProgramPostersTmdbEnabled,
                             )
@@ -137,11 +141,11 @@ fun MoviesAndTvShowsSettingsScreen(
                                         keyDraft = it
                                         viewModel.resetTmdbKeyTestState()
                                     },
-                                    label = { Text("TMDB API key (v3) or read token (v4)") },
+                                    label = { Text(stringResource(R.string.settings_movies_tmdb_key_label)) },
                                     singleLine = true,
                                     visualTransformation = keyReveal.transformation,
                                     trailingIcon = {
-                                        SecretRevealIconButton(state = keyReveal, contentLabel = "key")
+                                        SecretRevealIconButton(state = keyReveal, contentLabel = stringResource(R.string.main_secret_label_key))
                                     },
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -163,22 +167,22 @@ fun MoviesAndTvShowsSettingsScreen(
                                         enabled = keyDraft.isNotBlank() &&
                                             tmdbKeyState != SettingsViewModel.TmdbKeyTestState.Testing,
                                         modifier = Modifier.dpadFocusRing(RoundedCornerShape(50)),
-                                    ) { Text("Test") }
+                                    ) { Text(stringResource(R.string.settings_movies_tmdb_test)) }
                                     TextButton(
                                         onClick = { viewModel.saveTmdbKey(keyDraft) },
                                         enabled = keyDraft.isNotBlank() || savedTmdbKey.isNotBlank(),
                                         modifier = Modifier.dpadFocusRing(RoundedCornerShape(50)),
-                                    ) { Text("Save") }
+                                    ) { Text(stringResource(R.string.common_save)) }
                                     Spacer(Modifier.weight(1f))
                                     val (statusText, statusColor) = when (tmdbKeyState) {
                                         SettingsViewModel.TmdbKeyTestState.Testing ->
-                                            "Checking..." to MaterialTheme.colorScheme.onSurfaceVariant
+                                            stringResource(R.string.settings_movies_tmdb_checking) to MaterialTheme.colorScheme.onSurfaceVariant
                                         SettingsViewModel.TmdbKeyTestState.Valid ->
-                                            "Valid key" to androidx.compose.ui.graphics.Color(0xFF4CAF50)
+                                            stringResource(R.string.settings_movies_tmdb_valid) to androidx.compose.ui.graphics.Color(0xFF4CAF50)
                                         SettingsViewModel.TmdbKeyTestState.Invalid ->
-                                            "Invalid key" to MaterialTheme.colorScheme.error
+                                            stringResource(R.string.settings_movies_tmdb_invalid) to MaterialTheme.colorScheme.error
                                         SettingsViewModel.TmdbKeyTestState.Saved ->
-                                            "Saved" to androidx.compose.ui.graphics.Color(0xFF4CAF50)
+                                            stringResource(R.string.settings_movies_tmdb_saved) to androidx.compose.ui.graphics.Color(0xFF4CAF50)
                                         SettingsViewModel.TmdbKeyTestState.Idle ->
                                             "" to MaterialTheme.colorScheme.onSurfaceVariant
                                     }
@@ -196,11 +200,11 @@ fun MoviesAndTvShowsSettingsScreen(
 
                     // MARK: Display Scale
                     settingsCard(
-                        header = "Display Scale",
-                        footer = "Independent scale for Movies & Series. 100% matches the default; 85-175% lets you trade density for readability (150%+ shows fewer, larger items - handy on a TV across the room). Changes apply live.",
+                        header = context.getString(R.string.settings_display_scale_header),
+                        footer = context.getString(R.string.settings_movies_scale_footer),
                     ) {
                         ScaleSliderRow(
-                            label = "Movies & Series",
+                            label = stringResource(R.string.settings_movies_scale_label),
                             value = scaleMovies,
                             onValueChange = viewModel::setDisplayScaleMovies,
                         )

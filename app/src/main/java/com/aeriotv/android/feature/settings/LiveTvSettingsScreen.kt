@@ -1,5 +1,8 @@
 package com.aeriotv.android.feature.settings
 
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -92,7 +95,8 @@ fun LiveTvSettingsScreen(
     val menuGuard = rememberTvMenuGuard()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        SettingsDetailTopBar(title = "Live TV", onBack = onBack)
+        val context = LocalContext.current
+        SettingsDetailTopBar(title = stringResource(R.string.settings_livetv_title), onBack = onBack)
 
         val vp = rememberViewport()
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
@@ -113,54 +117,53 @@ fun LiveTvSettingsScreen(
                 // MARK: Guide Presentation
                 item("guide-presentation") {
                     SettingsSection(
-                        header = "Guide Presentation",
+                        header = stringResource(R.string.settings_livetv_presentation_header),
                         footer = (
                             if (listViewShown) {
-                                "Turn logos or numbers off to give long channel names more row width. Applies to the Live TV list and the Guide."
+                                stringResource(R.string.settings_livetv_presentation_footer_list)
                             } else {
-                                "Turn logos or numbers off to give long channel names more room in the Guide's channel column."
+                                stringResource(R.string.settings_livetv_presentation_footer_guide)
                             }
-                            ) + " Rounded corners round channel logos and program artwork to match the card " +
-                            "or cell they sit in. Artwork that floats on a transparent background stays square either way.",
+                            ) + " " + stringResource(R.string.settings_livetv_presentation_footer_rounded),
                     ) {
                         SettingsToggleRow(
-                            title = "Show Channel Logos",
+                            title = stringResource(R.string.settings_livetv_show_logos),
                             subtitle = if (listViewShown) {
-                                "Display each channel's logo in the Live TV list."
+                                stringResource(R.string.settings_livetv_show_logos_list)
                             } else {
-                                "Display each channel's logo in the Guide's channel column."
+                                stringResource(R.string.settings_livetv_show_logos_guide)
                             },
                             checked = showChannelLogos,
                             onCheckedChange = viewModel::setShowChannelLogos,
                         )
                         SettingsToggleRow(
-                            title = "Show Channel Numbers",
+                            title = stringResource(R.string.settings_livetv_show_numbers),
                             subtitle = if (listViewShown) {
-                                "Display each channel's number in the Live TV list and Guide."
+                                stringResource(R.string.settings_livetv_show_numbers_list)
                             } else {
-                                "Display each channel's number in the Guide's channel column."
+                                stringResource(R.string.settings_livetv_show_numbers_guide)
                             },
                             checked = showChannelNumbers,
                             onCheckedChange = viewModel::setShowChannelNumbers,
                         )
                         SettingsToggleRow(
-                            title = "Show Channel Names",
-                            subtitle = "Display each channel's name in the Guide's channel column.",
+                            title = stringResource(R.string.settings_livetv_show_names),
+                            subtitle = stringResource(R.string.settings_livetv_show_names_subtitle),
                             checked = showChannelNames,
                             onCheckedChange = viewModel::setShowChannelNames,
                         )
                         SettingsToggleRow(
-                            title = "Show Program Subtitles",
+                            title = stringResource(R.string.settings_livetv_show_subtitles),
                             subtitle = if (listViewShown) {
-                                "Display the episode or match name under each program title in the Guide and Live TV list. Turn off if your EPG repeats the description there."
+                                stringResource(R.string.settings_livetv_show_subtitles_list)
                             } else {
-                                "Display the episode or match name under each program title in the Guide. Turn off if your EPG repeats the description there."
+                                stringResource(R.string.settings_livetv_show_subtitles_guide)
                             },
                             checked = showProgramSubtitles,
                             onCheckedChange = viewModel::setShowProgramSubtitles,
                         )
                         SettingsToggleRow(
-                            title = "Rounded corners in Guide view",
+                            title = stringResource(R.string.settings_livetv_rounded_guide),
                             checked = roundedArtworkGuide,
                             onCheckedChange = viewModel::setRoundedArtworkGuide,
                         )
@@ -173,21 +176,18 @@ fun LiveTvSettingsScreen(
                 // source screens gated these rows before the regroup.
                 if (listViewShown) item("list-view") {
                     SettingsSection(
-                        header = "List view",
-                        footer = "Which layout Live TV opens in. Automatic uses the List on " +
-                            "phones and the Guide on TV and larger tablets. On phones you " +
-                            "can still switch for the current session with the List / Guide " +
-                            "button; on TV this setting is the only switch.",
+                        header = stringResource(R.string.settings_livetv_list_view_header),
+                        footer = stringResource(R.string.settings_livetv_list_view_footer),
                     ) {
                         SettingsToggleRow(
-                            title = "Rounded corners in List view",
+                            title = stringResource(R.string.settings_livetv_rounded_list),
                             checked = roundedArtwork,
                             onCheckedChange = viewModel::setRoundedArtwork,
                         )
                         val current = defaultLiveTVView.lowercase()
                         DEFAULT_LIVE_TV_VIEW_OPTIONS.forEach { (value, label) ->
                             SettingsSelectionRow(
-                                label = label,
+                                label = stringResource(label),
                                 selected = current == value,
                                 onClick = { viewModel.setDefaultLiveTVView(value) },
                             )
@@ -197,16 +197,16 @@ fun LiveTvSettingsScreen(
 
                 // MARK: Guide Layout (TV)
                 if (isTv) item("guide-layout") {
-                    SettingsSection(header = "Guide Layout") {
+                    SettingsSection(header = stringResource(R.string.settings_livetv_guide_layout_header)) {
                         SettingsSelectionRow(
-                            label = "Basic",
-                            subtitle = "Full program details in every guide cell",
+                            label = stringResource(R.string.settings_livetv_layout_basic),
+                            subtitle = stringResource(R.string.settings_livetv_layout_basic_subtitle),
                             selected = liveTvLayout != "preview",
                             onClick = { viewModel.setLiveTvLayout("basic") },
                         )
                         SettingsSelectionRow(
-                            label = "Channel Preview",
-                            subtitle = "A banner shows the highlighted program; cells keep the title and tags",
+                            label = stringResource(R.string.settings_livetv_layout_preview),
+                            subtitle = stringResource(R.string.settings_livetv_layout_preview_subtitle),
                             selected = liveTvLayout == "preview",
                             onClick = { viewModel.setLiveTvLayout("preview") },
                         )
@@ -216,12 +216,8 @@ fun LiveTvSettingsScreen(
                 // MARK: Groups
                 item("groups") {
                     SettingsSection(
-                        header = "Groups",
-                        footer = "The Live TV group the app opens on for this playlist. " +
-                            "Recently Watched is the last 25 channels you played, newest " +
-                            "first; picking it also shows it in Manage Groups. A group " +
-                            "that later disappears from the playlist falls back " +
-                            "automatically.",
+                        header = stringResource(R.string.settings_livetv_groups_header),
+                        footer = stringResource(R.string.settings_livetv_groups_footer),
                     ) {
                         val fixedTokens = listOf(
                             com.aeriotv.android.feature.playlist.PlaylistViewModel.ALL_GROUPS,
@@ -248,29 +244,27 @@ fun LiveTvSettingsScreen(
                         // Moved here from Remote Control (Settings phase 1). Same
                         // row, same dialog, same persisted key.
                         SettingsSection(
-                            header = "Group Selection",
-                            footer = "How channel groups are picked in the guide. Top pills keep the group row above the grid; the sidebar menu hides that row and opens by holding Left in the grid (unless Left (Hold) is reassigned in Remote Control). Only one is active at a time.",
+                            header = stringResource(R.string.settings_livetv_group_selection),
+                            footer = stringResource(R.string.settings_livetv_group_selection_footer_tv),
                         ) {
                             GroupSelectionRow(
-                                slotName = "Group Selection",
-                                valueName = if (guideGroupSelector == "sidebar") "Sidebar menu" else "Top group pills",
+                                slotName = stringResource(R.string.settings_livetv_group_selection),
+                                valueName = stringResource(if (guideGroupSelector == "sidebar") R.string.settings_livetv_sidebar_menu else R.string.settings_livetv_top_group_pills),
                                 onClick = { editingGroupSelector = true },
                             )
                         }
                     } else {
                         SettingsSection(
-                            header = "Group Selection",
-                            footer = "How Live TV picks a channel group. Drawer opens a " +
-                                "group list from the header button; Pills puts the groups " +
-                                "in a strip across the header.",
+                            header = stringResource(R.string.settings_livetv_group_selection),
+                            footer = stringResource(R.string.settings_livetv_group_selection_footer_phone),
                         ) {
                             SettingsSelectionRow(
-                                label = "Drawer",
+                                label = stringResource(R.string.settings_livetv_drawer),
                                 selected = phoneGroupSelector != "pills",
                                 onClick = { viewModel.setPhoneGroupSelector("sidebar") },
                             )
                             SettingsSelectionRow(
-                                label = "Pills",
+                                label = stringResource(R.string.settings_livetv_pills),
                                 selected = phoneGroupSelector == "pills",
                                 onClick = { viewModel.setPhoneGroupSelector("pills") },
                             )
@@ -281,24 +275,25 @@ fun LiveTvSettingsScreen(
                 // MARK: Badges
                 item("badges") {
                     SettingsSection(
-                        header = "Badges",
-                        footer = "Program badges are the LIVE, NEW, PREMIERE, FINALE, " +
-                            "REPEAT, and season/episode pills on the guide and channel " +
-                            "list. Remembered separately for " +
-                            (if (isTv) "TVs" else "phones and tablets") +
-                            " and synced across your " +
-                            (if (isTv) "TVs" else "mobile devices") + ".",
+                        header = stringResource(R.string.settings_livetv_badges_header),
+                        footer = stringResource(if (isTv) R.string.settings_livetv_badges_footer_tv else R.string.settings_livetv_badges_footer_mobile),
                     ) {
                         SettingsToggleRow(
-                            title = "Show program badges",
-                            subtitle = "LIVE, NEW, and season/episode pills on the guide",
+                            title = stringResource(R.string.settings_livetv_show_badges),
+                            subtitle = stringResource(R.string.settings_livetv_show_badges_subtitle),
                             checked = showEpgBadges,
                             onCheckedChange = { viewModel.setShowEpgBadges(isTv, it) },
                         )
                         if (showEpgBadges) {
-                            for (badge in listOf("NEW", "REPEAT", "LIVE", "PREMIERE", "FINALE")) {
+                            for ((badge, badgeLabel) in listOf(
+                                "NEW" to R.string.settings_livetv_badge_new,
+                                "REPEAT" to R.string.settings_livetv_badge_repeat,
+                                "LIVE" to R.string.settings_livetv_badge_live,
+                                "PREMIERE" to R.string.settings_livetv_badge_premiere,
+                                "FINALE" to R.string.settings_livetv_badge_finale,
+                            )) {
                                 SettingsToggleRow(
-                                    title = "${badge.first()}${badge.drop(1).lowercase()} badge",
+                                    title = stringResource(badgeLabel),
                                     checked = badge !in hiddenEpgBadges,
                                     onCheckedChange = { on ->
                                         viewModel.setBadgeHidden(badge, hidden = !on)
@@ -311,15 +306,15 @@ fun LiveTvSettingsScreen(
 
                 // MARK: Display Scale
                 settingsCard(
-                    header = "Display Scale",
+                    header = context.getString(R.string.settings_display_scale_header),
                     footer = if (listViewShown) {
-                        "Independent scale for the Live TV List. 100% matches the default; 85-175% lets you trade density for readability (150%+ shows fewer, larger items - handy on a TV across the room). Changes apply live."
+                        context.getString(R.string.settings_livetv_scale_footer_list)
                     } else {
-                        "Independent scale for Live TV. 100% matches the default; 85-175% lets you trade density for readability (150%+ shows fewer, larger items - handy on a TV across the room). Changes apply live."
+                        context.getString(R.string.settings_livetv_scale_footer_guide)
                     },
                 ) {
                     ScaleSliderRow(
-                        label = if (listViewShown) "Live TV List" else "Live TV",
+                        label = stringResource(if (listViewShown) R.string.settings_livetv_scale_list_label else R.string.settings_livetv_title),
                         value = scaleLiveTV,
                         onValueChange = viewModel::setDisplayScaleLiveTV,
                     )
@@ -327,12 +322,12 @@ fun LiveTvSettingsScreen(
 
                 // MARK: Colors
                 settingsCard(
-                    header = "Colors",
-                    footer = "Tint EPG cells and channel cards by program category. Select a category below to override its hex.",
+                    header = context.getString(R.string.settings_livetv_colors_header),
+                    footer = context.getString(R.string.settings_livetv_colors_footer),
                 ) {
                     ToggleRow(
-                        title = "Color Programs by Category",
-                        subtitle = "Apply category tints to the guide and channel rows.",
+                        title = stringResource(R.string.settings_livetv_color_by_category),
+                        subtitle = stringResource(R.string.settings_livetv_color_by_category_subtitle),
                         checked = palette.masterEnabled,
                         onCheckedChange = viewModel::setCategoryColorsEnabled,
                     )
@@ -390,7 +385,7 @@ fun LiveTvSettingsScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = "Reset Colors to Defaults",
+                            text = stringResource(R.string.settings_livetv_reset_colors),
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color(0xFFFB8C00),
                             fontWeight = FontWeight.Medium,
@@ -428,16 +423,16 @@ fun LiveTvSettingsScreen(
 
     if (editingGroupSelector) {
         TvActionMenuDialog(
-            title = "Group Selection",
+            title = stringResource(R.string.settings_livetv_group_selection),
             actions = listOf(
                 TvMenuAction(
-                    label = if (guideGroupSelector != "sidebar") "Top group pills  (current)" else "Top group pills",
+                    label = stringResource(R.string.settings_livetv_top_group_pills).let { if (guideGroupSelector != "sidebar") stringResource(R.string.settings_livetv_menu_current, it) else it },
                 ) {
                     viewModel.setGuideGroupSelector("pills")
                     editingGroupSelector = false
                 },
                 TvMenuAction(
-                    label = if (guideGroupSelector == "sidebar") "Sidebar menu  (current)" else "Sidebar menu",
+                    label = stringResource(R.string.settings_livetv_sidebar_menu).let { if (guideGroupSelector == "sidebar") stringResource(R.string.settings_livetv_menu_current, it) else it },
                 ) {
                     viewModel.setGuideGroupSelector("sidebar")
                     editingGroupSelector = false
@@ -481,7 +476,7 @@ private fun GroupSelectionRow(
  *  Live TV screen reads; the in-screen List / Guide button is session-only and
  *  never writes here. */
 private val DEFAULT_LIVE_TV_VIEW_OPTIONS = listOf(
-    "" to "Automatic",
-    "list" to "List",
-    "guide" to "Guide",
+    "" to R.string.settings_livetv_view_automatic,
+    "list" to R.string.settings_livetv_view_list,
+    "guide" to R.string.settings_livetv_view_guide,
 )

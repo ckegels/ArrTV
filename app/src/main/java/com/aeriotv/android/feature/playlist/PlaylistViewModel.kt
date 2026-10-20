@@ -1328,10 +1328,33 @@ class PlaylistViewModel @Inject constructor(
         Log.i(TAG, "group first: $group, ${inGroup.size} channels, ${rows.size} programmes (read ${readMs}ms)")
     }
 
+    /**
+     * Full rebuilds one at a time: a request while one runs waits for ONE more, which serves
+     * every request made meanwhile (CoalescingRunner). Two full rebuilds of 56,000 rows used to
+     * run side by side for 24-28 s each on a Chromecast HD, both holding the whole window, with
+     * the heap at its limit (2026-10-20). A paint of rows already read ([preloadedRows]: the
+     * quick paints) goes straight through: small, and it must not wait behind a long rebuild.
+     */
+    // lazy: startup work launched from init can ask before construction reaches this line
+    private val catalogRebuilds by lazy {
+        com.aeriotv.android.core.util.CoalescingRunner<PlaylistEntity>(viewModelScope) { reasons, playlist ->
+            rebuildGuideCatalogNow(playlist, reasons.distinct().joinToString("+"), null)
+        }
+    }
+
     private suspend fun rebuildGuideCatalog(
         playlist: PlaylistEntity,
         reason: String,
         preloadedRows: List<EPGProgramme>? = null,
+    ) {
+        if (preloadedRows != null) rebuildGuideCatalogNow(playlist, reason, preloadedRows)
+        else catalogRebuilds.request(reason, playlist)
+    }
+
+    private suspend fun rebuildGuideCatalogNow(
+        playlist: PlaylistEntity,
+        reason: String,
+        preloadedRows: List<EPGProgramme>?,
     ) {
         val channels = _state.value.channels
         if (channels.isEmpty()) {

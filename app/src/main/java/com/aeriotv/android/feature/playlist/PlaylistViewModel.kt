@@ -1728,19 +1728,21 @@ class PlaylistViewModel @Inject constructor(
                     // something; short-circuits the recompose when the source
                     // already had categories baked in (XMLTV path).
                     if (enriched !== programmes) {
-                        runCatching { repository.saveEpgToCache(playlist.id, enriched) }
-                            .onFailure { Log.w(TAG, "persisting enriched categories failed", it) }
-                        rebuildGuideCatalog(playlist, "enrich")
-                        // Keep the cache enriched too so tints survive a relaunch
-                        // -- but write ONLY the rows enrichment actually
-                        // touched. E-6: this used to hand the whole feed back
-                        // to saveEpgToCache, re-writing ~139k rows and four
-                        // indexes each, plus a second retention sweep, to
-                        // change a category string on a few hundred airing
-                        // programmes. enrichNowPlayingCategories returns a
-                        // parallel list whose untouched entries are the SAME
-                        // instances, so identity picks out the changes for
-                        // free.
+                        // Write ONLY the rows enrichment actually touched, then
+                        // rebuild from the cache. E-6: handing the whole feed
+                        // back to saveEpgToCache re-wrote every row (52k on the
+                        // user's server) and its indexes, plus a second
+                        // retention sweep, to change a category string on a
+                        // couple of thousand airing programmes. c84457ae (the
+                        // catalog-only rebuild) brought that full save back in
+                        // front of the rebuild; on a Chromecast HD it ran next
+                        // to playback and the picture dropped frames (2026-10-19).
+                        // The unique (playlist, channel, start) index makes
+                        // insertAll's REPLACE an in-place update, so the rebuild
+                        // reads exactly what the full save would have left.
+                        // enrichNowPlayingCategories returns a parallel list whose
+                        // untouched entries are the SAME instances, so identity
+                        // picks out the changes for free.
                         val changedRows = withContext(Dispatchers.Default) {
                             if (enriched.size == programmes.size) {
                                 enriched.filterIndexed { i, p -> p !== programmes[i] }
@@ -1750,6 +1752,7 @@ class PlaylistViewModel @Inject constructor(
                         }
                         runCatching { repository.updateEpgRowsInCache(playlist.id, changedRows) }
                             .onFailure { Log.w(TAG, "enriched cache update failed", it) }
+                        rebuildGuideCatalog(playlist, "enrich")
                         Log.i(
                             TAG,
                             "EPG enriched: categories backfilled for now-playing programmes " +

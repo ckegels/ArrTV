@@ -4,7 +4,8 @@ import androidx.compose.ui.graphics.Color
 
 /**
  * Brand theme presets mirroring iOS AerioTV's AppTheme enum.
- * User-selectable from Settings. Default is [Aerio] (cyan on navy).
+ * User-selectable from Settings. Default is [Aerio] (cyan on navy), or the
+ * build's [Default].
  *
  * Each theme carries BOTH a dark and a light rendition. The dark rendition
  * ([appBackground]/[cardBackground]/[accentPrimary]) is the original palette
@@ -128,6 +129,15 @@ enum class AppTheme(
         lightCardBackground = Color(0xFFFFFFFF),
         lightAccentPrimary = Color(0xFF2B7A86),
     ),
+    ;
+
+    companion object {
+        /** The theme before the user picks one: [Aerio], unless the build
+         *  names another (BuildConfig.DEFAULT_THEME, Gradle property
+         *  aerio.defaultTheme). */
+        val Default: AppTheme =
+            entries.firstOrNull { it.name == com.aeriotv.android.BuildConfig.DEFAULT_THEME } ?: Aerio
+    }
 }
 
 /**

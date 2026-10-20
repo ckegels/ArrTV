@@ -239,10 +239,14 @@ class PlaylistViewModel @Inject constructor(
         private const val EPG_SYNC_TRUST_MS = 12L * 60L * 60L * 1000L
 
         /** Launch quick paint: the cached rows read before the first guide
-         *  frame (the pre-9be8071 quick pass window). The full window follows
-         *  in the background. */
-        private const val QUICK_PAINT_BACK_MS = 2L * 60L * 60L * 1000L
-        private const val QUICK_PAINT_AHEAD_MS = 8L * 60L * 60L * 1000L
+         *  frame, for every channel. The full window follows in the background
+         *  (one rebuild at a time, at a calm moment). One hour back and two
+         *  ahead is what a guide shows at launch: 2 h back / 8 h ahead read
+         *  ~41,000 rows on the user's 1,540 channels (Chromecast HD, 2026-10-20)
+         *  next to the first channel's start. Later hours say "Loading…" until
+         *  the full window is in. */
+        private const val QUICK_PAINT_BACK_MS = 1L * 60L * 60L * 1000L
+        private const val QUICK_PAINT_AHEAD_MS = 2L * 60L * 60L * 1000L
 
         /** Generation of the on-disk EPG cache this build trusts. BUMP THIS
          *  whenever a shipped defect could have written a corrupt cache: the
@@ -1208,8 +1212,7 @@ class PlaylistViewModel @Inject constructor(
         guideForwardJob = viewModelScope.launch {
           // While the wider guide is read, empty cells say so ("Loading…", not "No info"):
           // reading a further day back takes 20 s on a Shield (168,000 rows, 2026-10-01)
-          _state.update { it.copy(guideWidening = true) }
-          try {
+          whileGuideFills {
             // Logan 2026-09-11: the playlist's Guide Days setting governs the
             // default forward edge (both directions), not the old Settings >
             // Network "Guide Window" preference.
@@ -1223,9 +1226,19 @@ class PlaylistViewModel @Inject constructor(
                 guideForwardFetchedThroughMs = throughMs
             }
             rebuildGuideCatalog(playlist, "jump")
-          } finally {
-            _state.update { it.copy(guideWidening = false) }
           }
+        }
+    }
+
+    /** How many guide fills are running; the cells say "Loading…" while any is. */
+    private val guideFills = java.util.concurrent.atomic.AtomicInteger()
+
+    private suspend fun <T> whileGuideFills(block: suspend () -> T): T {
+        if (guideFills.incrementAndGet() == 1) _state.update { it.copy(guideWidening = true) }
+        try {
+            return block()
+        } finally {
+            if (guideFills.decrementAndGet() == 0) _state.update { it.copy(guideWidening = false) }
         }
     }
 
@@ -1601,7 +1614,11 @@ class PlaylistViewModel @Inject constructor(
             _state.update { it.copy(isEpgLoading = false) }
             AppLaunchTrace.noteGuidePrograms(cached.size)
             publishCachedEpgSpan(playlist)
-            viewModelScope.launch { rebuildGuideCatalog(playlist, "cache") }
+            viewModelScope.launch {
+                // Past the quick window's two hours the cells say "Loading…", not "No info",
+                // until the full window is in
+                whileGuideFills { rebuildGuideCatalog(playlist, "cache") }
+            }
         }
         // Release the other sections' cached restores whether or not there WAS
         // a cache to paint: a fresh install has no guide rows, and On Demand

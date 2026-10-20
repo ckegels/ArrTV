@@ -461,6 +461,9 @@ fun GuideScreen(
         }
     }
     val grid = remember { GuideGridState(initialViewportStartMs = System.currentTimeMillis() - 15 * 60_000L) }
+    LaunchedEffect(state.guideWidening) {
+        grid.placeholderTitle = if (state.guideWidening) "Loading…" else "No info"
+    }
     // Compact modern (TiviMate): the live timeline starts on the half hour.
     LaunchedEffect(modernRows) {
         if (grid.alignToHalfHour != modernRows) {

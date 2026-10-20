@@ -395,8 +395,8 @@ class DispatcharrLiveUpdates @Inject constructor(
             return
         }
         val now = System.currentTimeMillis()
-        val from = now - HOUR_MS
-        val to = now + DAY_MS
+        // The marks vouch for every day once saved, so a marks-based fetch covers them all
+        val (from, to) = if (wanted != null) repository.guideDeltaRange(playlist, now) else (now - HOUR_MS) to (now + DAY_MS)
         com.aeriotv.android.core.guide.GuideWorkGate.awaitCalm("live guide window ($reason)")
         val programmes = try {
             withContext(Dispatchers.IO) {

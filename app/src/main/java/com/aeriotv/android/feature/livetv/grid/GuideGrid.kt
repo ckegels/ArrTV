@@ -254,6 +254,19 @@ fun GuideGrid(
     // Plain sets: never read in composition.
     val keysDownSeen = remember { HashSet<Key>() }
     val keysSwallowing = remember { HashSet<Key>() }
+    // Right at the end of the Guide Days did nothing and said nothing (Shield 2026-10-20)
+    var endNoticeAtMs by remember { mutableStateOf(0L) }
+    val stepRightOrSayEnd: () -> Unit = {
+        if (!state.stepRight()) {
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (now - endNoticeAtMs > 3_000L) {
+                endNoticeAtMs = now
+                android.widget.Toast.makeText(
+                    context, context.getString(com.aeriotv.android.R.string.livetv_guide_end_notice), android.widget.Toast.LENGTH_SHORT,
+                ).show()
+            }
+        }
+    }
     val keyHandlerInner: (KeyEvent) -> Boolean = handler@{ event ->
         traceBy = "unhandled"
         if (event.key == Key.DirectionLeft || event.key == Key.DirectionRight || event.key == Key.Back) {
@@ -367,14 +380,14 @@ fun GuideGrid(
                         if (rightDownSeen && !rightHoldLatched) {
                             val action = remoteAction(RemoteSlot.RIGHT_SHORT)
                             when {
-                                action == GuideRemoteAction.NAVIGATE -> state.stepRight()
+                                action == GuideRemoteAction.NAVIGATE -> stepRightOrSayEnd()
                                 // Program actions fire on every press.
                                 action.columnIndependent -> runAction(action)
                                 // Edge-gated: a remapped Right fires only on the row's last program.
                                 else -> {
                                     val last = state.atLastCell()
                                     android.util.Log.d("GuideGrid", "right gate: action=$action row=${state.focusRow} cellStart=${state.focusCellStartMs} lastCell=$last -> ${if (last) "fire" else "step"}")
-                                    if (last) runAction(action) else state.stepRight()
+                                    if (last) runAction(action) else stepRightOrSayEnd()
                                 }
                             }
                         }

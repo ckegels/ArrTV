@@ -132,6 +132,21 @@ class PlaylistRefreshWorker @AssistedInject constructor(
             Log.i(TAG, "EPG cache is fresh; skipping the background EPG rewrite")
             return@runCatching Result.success()
         }
+        // Dispatch More v275: only the guides whose marks moved
+        val delta = repository.guideDelta(playlist)
+        if (delta != null) {
+            if (delta.epgIds.isNotEmpty()) {
+                val (from, to) = repository.guideDeltaRange(playlist, System.currentTimeMillis())
+                val rows = repository.fetchGuideProgrammes(playlist, delta.epgIds, from, to)
+                val n = repository.writeGuideDelta(playlist.id, channels.getOrThrow(), rows, to)
+                Log.i(TAG, "Background refresh: ${delta.epgIds.size} guides changed, $n channels rewritten")
+                repository.announceCacheUpdate(PlaylistRepository.CacheUpdate.Guide(playlist.id))
+            } else {
+                Log.i(TAG, "Background refresh: no guide of these channels changed")
+            }
+            repository.rememberMarks(playlist.id, delta.marks)
+            return@runCatching Result.success()
+        }
         val epg = repository.loadEpg(playlist, knownKeys)
         if (epg.isFailure) {
             Log.w(TAG, "EPG refresh failed", epg.exceptionOrNull())

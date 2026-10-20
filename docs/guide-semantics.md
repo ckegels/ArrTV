@@ -102,8 +102,15 @@ Both age AND identity:
   is under 12 h old, on a source refresh and on the socket's reconnect. A
   channel that joins (Show Groups) or moves to another guide asks for its own
   guide too. More than 400 changed guides, or a third of them, or no marks:
-  the whole grid as before. The background job still downloads the whole guide.
-  Back in the app after 30 minutes, a changed guide takes the same path.
+  the whole grid as before. Back in the app after 30 minutes, a changed guide
+  takes the same path; so does the background job (written straight to the
+  cache, stale raw-keyed copies removed first), and the quiet day-chunk sweep
+  asks the marks before the sources fingerprint: unchanged marks, no sweep.
+  Marks-based fetches cover now -1 h to the end of the forward Guide Days.
+- Categories (ANDROID, Dispatch More v275): the grid is asked with
+  `categories=1`, and the per-programme category requests are skipped.
+- End of the guide (ANDROID): Right on the last programme of the Guide Days
+  says so (a short notice, at most every 3 s).
 - Background (ANDROID): no full guide rebuild runs while the app is in the
   background, and one that was running when the system shed the guide is not
   installed; both run on return.

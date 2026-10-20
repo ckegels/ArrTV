@@ -166,6 +166,9 @@ private const val MAX_DELTA_GUIDES = 400
 private const val DELTA_SHARE_DIVISOR = 3
 private const val NO_GUIDE_ID = -1
 
+/** A capability probe that succeeded this recently answers for the next one (probeCapabilities). */
+private const val PROBE_REUSE_MS = 60_000L
+
 /** Small per-device file for guide maintenance times (the daily catch-up reach prune). */
 private const val EPG_MAINTENANCE_PREFS = "epg_maintenance"
 
@@ -703,11 +706,24 @@ class PlaylistRepository @Inject constructor(
         // same second; without this the server saw two identical probes and the
         // log printed two "probe OK" lines. Late callers join the running pass
         // instead of starting a second one.
+        // And one a minute: a launch probed at the warm-up, again in refresh() seconds later and
+        // again from a gated surface -- users/me, capabilities and system settings each time
+        // (2026-10-20 debug log: users/me six times in one start). A pass that succeeded under a
+        // minute ago with the same key answers for a forced one too; a new key always probes.
+        // The key and the addresses: an edited playlist probes again (it registers its routes)
+        val key = dao.byId(playlistId)?.let { "${it.apiKey}|${it.urlString}|${it.lanUrlString}" }
+        recentProbes[playlistId]?.let { (at, probedKey) ->
+            if (probedKey == key && android.os.SystemClock.elapsedRealtime() - at < PROBE_REUSE_MS) return true
+        }
         val pending = CompletableDeferred<Boolean>()
         val running = inFlightCapabilityProbes.putIfAbsent(playlistId, pending)
         if (running != null) return running.await()
         return try {
             val result = probeCapabilitiesUncoalesced(playlistId, force)
+            if (result) {
+                recentProbes[playlistId] = android.os.SystemClock.elapsedRealtime() to
+                    dao.byId(playlistId)?.let { "${it.apiKey}|${it.urlString}|${it.lanUrlString}" }
+            }
             pending.complete(result)
             result
         } catch (t: Throwable) {
@@ -718,6 +734,9 @@ class PlaylistRepository @Inject constructor(
             inFlightCapabilityProbes.remove(playlistId, pending)
         }
     }
+
+    /** The last successful probe per playlist: when, and with which key and addresses. */
+    private val recentProbes = ConcurrentHashMap<String, Pair<Long, String?>>()
 
     private suspend fun probeCapabilitiesUncoalesced(playlistId: String, force: Boolean): Boolean {
         val playlist = dao.byId(playlistId) ?: return false
@@ -1175,6 +1194,44 @@ class PlaylistRepository @Inject constructor(
         return GuideDelta(changed, now)
     }
 
+    /**
+     * What a marks-based fetch covers: from an hour ago (the past already aired and is kept as
+     * the catch-up archive) to the end of the Guide Days the sweep walks. The marks then vouch
+     * for every day the guide holds, so the sweep can trust them too.
+     */
+    fun guideDeltaRange(playlist: PlaylistEntity, now: Long): Pair<Long, Long> {
+        val guideDays = resolveGuideDays(playlist.epgRetentionDays) ?: GUIDE_DAYS_ALL_MAX_BACK
+        return (now - 3_600_000L) to (dayFloorMs(now) + (guideDays + 1) * 86_400_000L)
+    }
+
+    /**
+     * Writes the programmes of changed guides ([rows], raw keys as the grid sends them) to the
+     * cache with nothing on screen to patch (the background job): every channel they reach is
+     * rewritten from them, its stale raw-keyed copies removed first, as the open guide's bulk
+     * path does (PlaylistViewModel.applyGuideWindow). Returns the channels rewritten.
+     */
+    suspend fun writeGuideDelta(
+        playlistId: String,
+        channels: List<M3UChannel>,
+        rows: List<EPGProgramme>,
+        toMillis: Long,
+    ): Int {
+        val maps = com.aeriotv.android.core.guide.GuideMatchMaps.build(channels)
+        val rewritten = maps.channelsForGridKeys(rows.mapTo(HashSet()) { it.channelId })
+        if (rewritten.isEmpty()) return 0
+        val byId = channels.associateBy { it.guideChannelId().value }
+        val gridKeys = rewritten.flatMapTo(HashSet()) { id ->
+            byId[id]?.let { com.aeriotv.android.core.guide.GuideMatchMaps.rawKeysOf(it, withNumber = false) }.orEmpty()
+        }
+        deleteRawKeyedEpg(playlistId, gridKeys, System.currentTimeMillis(), toMillis)
+        val bridged = withContext(layeringDispatcher) {
+            com.aeriotv.android.core.data.bridgeChannelIds(rows, channels)
+                .filter { it.channelId in rewritten && it.endMillis - it.startMillis >= 30_000L }
+        }
+        saveEpgToCache(playlistId, com.aeriotv.android.core.guide.GuideCatalog.inStoreOrder(bridged))
+        return rewritten.size
+    }
+
     /** The guide cache now holds what [marks] stand for. */
     fun rememberMarks(playlistId: String, marks: com.aeriotv.android.core.network.DispatchMoreGuideMarks) =
         syncStamps.saveMarks(playlistId, marks)
@@ -1215,6 +1272,10 @@ class PlaylistRepository @Inject constructor(
         val isDispatcharr = sourceType == SourceType.DispatcharrApiKey ||
             sourceType == SourceType.DispatcharrUserPass
         if (!isDispatcharr || programmes.isEmpty()) return programmes
+        // Dispatch More v275 puts the categories in the grid: a blank one is the guide's own
+        if (com.aeriotv.android.core.network.DispatchMore.serverFor(effectiveBaseUrl(playlist))?.gridCategories == true) {
+            return programmes
+        }
 
         val now = System.currentTimeMillis()
         // Group nominees: channels whose currently-airing program has a real
@@ -1807,6 +1868,31 @@ class PlaylistRepository @Inject constructor(
                 if (!isDispatcharr || playlist.apiKey.isNullOrBlank()) return@launch
                 if (!playlist.dispatcharrVersionAtLeast("0.30.0")) return@launch
                 val base = effectiveBaseUrl(playlist)
+                // Dispatch More v275: the marks say which of this login's guides changed. Any
+                // of the server's 43 sources refreshing moved the fingerprint below, and every
+                // day of every guide came down again -- also right after a first download.
+                val delta = guideDelta(playlist)
+                if (delta != null) {
+                    if (delta.epgIds.isEmpty()) {
+                        Log.i("PlaylistRepo", "[EPG] guide marks unchanged, background sweep skipped")
+                        rememberMarks(playlistId, delta.marks)
+                    } else {
+                        awaitSweepWindow()
+                        val (from, to) = guideDeltaRange(playlist, System.currentTimeMillis())
+                        val rows = runCatching { fetchGuideProgrammes(playlist, delta.epgIds, from, to) }.getOrElse {
+                            if (it is CancellationException) throw it
+                            Log.w("PlaylistRepo", "[EPG] background sweep of ${delta.epgIds.size} guides failed: $it")
+                            return@launch
+                        }
+                        Log.i("PlaylistRepo", "[EPG] background sweep: ${delta.epgIds.size} guides changed, ${rows.size} programmes")
+                        // The open guide writes them (it removes the stale copies first); the
+                        // marks are saved once it has
+                        announceCacheUpdate(CacheUpdate.GuideWindow(playlistId, rows, from, to, changedGuides = true, marks = delta.marks))
+                    }
+                    runCatching { pruneEpgBeyondCatchupReach(playlistId) }
+                        .onFailure { Log.w("PlaylistRepo", "[EPG] sweep catch-up reach prune failed", it) }
+                    return@launch
+                }
                 // The GATE: no server-side re-ingest, no sweep at all.
                 val fingerprint = changedEpgSourcesFingerprint(playlist, base) ?: return@launch
                 val now = System.currentTimeMillis()
@@ -3677,7 +3763,12 @@ class PlaylistRepository @Inject constructor(
             }.getOrNull()
             // GH #53: which SOURCE an EPGData row came from decides whether its
             // tvg_id is a real broadcast identity at all. See [dispatcharrGuideKey].
-            val epgSourceTypeById: Map<Int, String?>? = runCatching {
+            // The guide links carry each source's type (Dispatch More v272): no second request
+            val linkedTypes = epgDataById?.values
+                ?.takeIf { guideLinksPath != null && it.isNotEmpty() && it.all { d -> d.epgSourceId == null || d.sourceType != null } }
+                ?.filter { it.epgSourceId != null }
+                ?.associate { it.epgSourceId!! to it.sourceType }
+            val epgSourceTypeById: Map<Int, String?>? = linkedTypes ?: runCatching {
                 dispatcharrClient.listEpgSources(base, key).associate { it.id to it.sourceType }
             }.onFailure {
                 if (it is CancellationException) throw it

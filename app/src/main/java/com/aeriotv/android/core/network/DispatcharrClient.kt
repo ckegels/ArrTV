@@ -562,6 +562,7 @@ class DispatcharrClient @Inject constructor() {
                     guideMarksPath = (root["guide_marks_url"] as? JsonPrimitive)?.contentOrNull
                         ?.takeIf { it.startsWith("/") },
                     gridEpgIds = (root["grid_epg_ids"] as? JsonPrimitive)?.booleanOrNull == true,
+                    gridCategories = (root["grid_categories"] as? JsonPrimitive)?.booleanOrNull == true,
                 ),
             )
         }.getOrNull()
@@ -1277,6 +1278,8 @@ class DispatcharrClient @Inject constructor() {
             startMillis?.let { add("start=" + java.time.Instant.ofEpochMilli(it).toString()) }
             endMillis?.let { add("end=" + java.time.Instant.ofEpochMilli(it).toString()) }
             epgIds?.let { ids -> add("epg_ids=" + ids.sorted().joinToString(",")) }
+            // Dispatch More v275: the categories in the grid itself (see enrichNowPlayingCategories)
+            if (DispatchMore.serverFor(baseUrl)?.gridCategories == true) add("categories=1")
         }.joinToString("&")
         val url = "${baseUrl.trimEnd('/')}/api/epg/grid/" + if (query.isEmpty()) "" else "?$query"
         // Streamed into the rows: the 24 h grid of a big lineup is tens of MB of JSON, and
@@ -3208,6 +3211,9 @@ data class DispatcharrEpgData(
      *  which upstream feed a given tvg-id legitimately belongs to. */
     @SerialName("epg_source")
     val epgSourceId: Int? = null,
+    /** The source's type, in Dispatch More's guide links only (v272): no /api/epg/sources/ then. */
+    @SerialName("source_type")
+    val sourceType: String? = null,
 )
 
 /**

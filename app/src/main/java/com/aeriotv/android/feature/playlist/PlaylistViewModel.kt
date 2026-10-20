@@ -579,7 +579,7 @@ class PlaylistViewModel @Inject constructor(
 
     /**
      * Dispatch More v275: fetch and write only the guides whose marks moved since the guide
-     * cache was saved, over the span the cache holds (a day at least, a week at most). False when
+     * cache was saved, over the whole forward Guide Days (PlaylistRepository.guideDeltaRange). False when
      * the server cannot say which, or nothing is on screen to patch: the caller then downloads the
      * whole guide as before.
      */
@@ -593,10 +593,7 @@ class PlaylistViewModel @Inject constructor(
             return true
         }
         if (_state.value.epgByChannel !is com.aeriotv.android.core.guide.GuideCatalog) return false
-        val now = System.currentTimeMillis()
-        val cachedEnd = runCatching { repository.cachedEpgSpan(playlist.id)?.second }.getOrNull() ?: 0L
-        val from = now - 3_600_000L
-        val to = cachedEnd.coerceIn(now + 86_400_000L, now + 7 * 86_400_000L)
+        val (from, to) = repository.guideDeltaRange(playlist, System.currentTimeMillis())
         com.aeriotv.android.core.guide.GuideWorkGate.awaitCalm("guide delta")
         val programmes = try {
             withContext(Dispatchers.IO) { repository.fetchGuideProgrammes(playlist, delta.epgIds, from, to) }

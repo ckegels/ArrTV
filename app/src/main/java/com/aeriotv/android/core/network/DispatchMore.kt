@@ -83,6 +83,8 @@ object DispatchMore {
         val guideMarksPath: String? = null,
         /** The grid takes `epg_ids` (v275): the programmes of some guides only. */
         val gridEpgIds: Boolean = false,
+        /** The grid takes `categories=1` (v275): no request per airing programme to tint the guide. */
+        val gridCategories: Boolean = false,
     )
 
     // The formats the server accepts; anything else it ignores.

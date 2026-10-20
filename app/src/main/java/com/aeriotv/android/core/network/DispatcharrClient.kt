@@ -1211,13 +1211,16 @@ class DispatcharrClient @Inject constructor() {
             endMillis?.let { add("end=" + java.time.Instant.ofEpochMilli(it).toString()) }
         }.joinToString("&")
         val url = "${baseUrl.trimEnd('/')}/api/epg/grid/" + if (query.isEmpty()) "" else "?$query"
-        val response: HttpResponse = client.get(url) { applyAuth(apiKey) }
-        unauthorizedCheck(response, url)
-        if (!response.status.isSuccess()) {
-            throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_epg_grid_failed, response.status.value, response.status.description))
+        // Streamed into the rows: the 24 h grid of a big lineup is tens of MB of JSON, and
+        // holding it whole next to the decoded rows doubled the launch's memory peak.
+        return client.prepareGet(url) { applyAuth(apiKey) }.execute { response ->
+            unauthorizedCheck(response, url)
+            if (!response.status.isSuccess()) {
+                throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_epg_grid_failed, response.status.value, response.status.description))
+            }
+            @OptIn(ExperimentalSerializationApi::class)
+            json.decodeFromStream<EpgGridResponse>(response.bodyAsChannel().toInputStream()).data
         }
-        val wrapper: EpgGridResponse = response.body()
-        return wrapper.data
     }
 
     /**
@@ -1371,33 +1374,32 @@ class DispatcharrClient @Inject constructor() {
         var reportedCount = -1
         var nextUrl: String? = url
         var pagesLeft = MAX_LIST_PAGES
+        val rowSerializer = serializer<T>()
         while (nextUrl != null && pagesLeft > 0) {
             pagesLeft -= 1
             val pageUrl: String = nextUrl
-            val response: HttpResponse = client.get(pageUrl) { applyAuth(apiKey) }
-            unauthorizedCheck(response, pageUrl)
-            if (!response.status.isSuccess()) {
-                throw DispatcharrError.Transport(AppText.get(R.string.core_http_error_from_url, response.status.value, response.status.description, pageUrl))
+            // Decoded straight from the stream into the rows' own types: reading the body as
+            // a JsonElement tree first held every field of every row as maps of boxed values.
+            // For /api/epg/epgdata/ (every guide record on the server, to keep three fields)
+            // that tree filled a Chromecast HD's whole 256 MB heap and once ran out of memory
+            // (2026-10-20, arr.115).
+            val page = client.prepareGet(pageUrl) { applyAuth(apiKey) }.execute { response ->
+                unauthorizedCheck(response, pageUrl)
+                if (!response.status.isSuccess()) {
+                    throw DispatcharrError.Transport(AppText.get(R.string.core_http_error_from_url, response.status.value, response.status.description, pageUrl))
+                }
+                decodeListPage(response.bodyAsChannel().toInputStream(), rowSerializer, pageUrl)
             }
-            val raw: JsonElement = response.body()
-            nextUrl = when {
-                raw is JsonArray -> {
-                    raw.forEach { out.add(json.decodeFromJsonElement(serializer<T>(), it)) }
-                    null
+            out.addAll(page.results)
+            nextUrl = if (page.envelope) {
+                reportedCount = page.count ?: reportedCount
+                page.next?.takeIf { cursor ->
+                    val cursorHost = runCatching { java.net.URI(cursor).host }.getOrNull()
+                    cursorHost != null && trustedHost != null &&
+                        cursorHost.equals(trustedHost, ignoreCase = true)
                 }
-                raw is JsonObject && raw["results"] is JsonArray -> {
-                    raw["results"]!!.jsonArray.forEach {
-                        out.add(json.decodeFromJsonElement(serializer<T>(), it))
-                    }
-                    reportedCount = (raw["count"] as? JsonPrimitive)?.intOrNull ?: reportedCount
-                    (raw["next"] as? JsonPrimitive)?.takeIf { it !is JsonNull }?.content
-                        ?.takeIf { cursor ->
-                            val cursorHost = runCatching { java.net.URI(cursor).host }.getOrNull()
-                            cursorHost != null && trustedHost != null &&
-                                cursorHost.equals(trustedHost, ignoreCase = true)
-                        }
-                }
-                else -> throw DispatcharrError.UnexpectedResponse(AppText.get(R.string.core_dispatcharr_unexpected_shape_from, pageUrl, raw::class.simpleName.orEmpty()))
+            } else {
+                null
             }
         }
         if (nextUrl != null) {
@@ -1414,6 +1416,39 @@ class DispatcharrClient @Inject constructor() {
             )
         }
         return out
+    }
+
+    /** One page of a list endpoint: a bare array (stock Dispatcharr), or a DRF envelope. */
+    class ListPage<T>(val results: List<T>, val envelope: Boolean, val next: String?, val count: Int?)
+
+    @Serializable
+    private class ListEnvelope<T>(val results: List<T> = emptyList(), val next: String? = null, val count: Int? = null)
+
+    /** Streams [input] (an array or a `{"results": [...], "next", "count"}` envelope) into rows. */
+    @OptIn(ExperimentalSerializationApi::class)
+    internal fun <T> decodeListPage(
+        input: java.io.InputStream,
+        rowSerializer: kotlinx.serialization.KSerializer<T>,
+        url: String,
+    ): ListPage<T> {
+        val pushback = java.io.PushbackInputStream(input, 1)
+        var first: Int
+        do { first = pushback.read() } while (first == ' '.code || first == '\n'.code || first == '\r'.code || first == '\t'.code)
+        if (first < 0) return ListPage(emptyList(), envelope = false, next = null, count = null)
+        pushback.unread(first)
+        return when (first) {
+            '['.code -> ListPage(
+                json.decodeToSequence(pushback, rowSerializer, DecodeSequenceMode.ARRAY_WRAPPED).toList(),
+                envelope = false, next = null, count = null,
+            )
+            '{'.code -> {
+                val page = json.decodeFromStream(ListEnvelope.serializer(rowSerializer), pushback)
+                ListPage(page.results, envelope = true, next = page.next?.takeIf { it.isNotBlank() }, count = page.count)
+            }
+            else -> throw DispatcharrError.UnexpectedResponse(
+                AppText.get(R.string.core_dispatcharr_unexpected_shape_from, url, first.toChar().toString()),
+            )
+        }
     }
 
     /**

@@ -216,6 +216,22 @@ class AerioExoPlayerHolder @Inject constructor(
     @Volatile private var cachedAudioPassthrough: Boolean = false
     // Teletext subtitles (teletext/TeletextMedia3.kt): read when a stream's extractor is built
     @Volatile private var cachedTeletextSubtitles: Boolean = true
+    // Generated captions (Settings -> Player): the TS extractor keeps its timestamp adjuster
+    @Volatile private var cachedGeneratedCaptions: Boolean = true
+    @Volatile private var streamTimestampAdjuster: androidx.media3.common.util.TimestampAdjuster? = null
+
+    /**
+     * The stream time (PTS, in seconds, as the server's caption worker reads it) of the frame
+     * on screen now, or null when it is not known (generated captions off, nothing playing,
+     * no sample read yet). ExoPlayer maps the first sample's PTS to 0 for a progressive TS
+     * stream, so the position plus the adjuster's offset back is the stream's own time.
+     */
+    fun streamTimeNowSeconds(): Double? {
+        val p = player ?: return null
+        val offsetUs = streamTimestampAdjuster?.timestampOffsetUs ?: return null
+        if (offsetUs == androidx.media3.common.C.TIME_UNSET) return null
+        return (p.currentPosition * 1000L - offsetUs) / 1_000_000.0
+    }
     @Volatile private var cachedBufferFloorMs: Int = com.aeriotv.android.feature.settings.bufferMillisFor("default")
 
     init {
@@ -232,6 +248,9 @@ class AerioExoPlayerHolder @Inject constructor(
         }
         prefScope.launch {
             appPreferences.teletextSubtitles.collect { cachedTeletextSubtitles = it }
+        }
+        prefScope.launch {
+            appPreferences.generatedCaptions.collect { cachedGeneratedCaptions = it }
         }
         prefScope.launch {
             appPreferences.liveStartBufferMs.collect { cachedLiveStartBuffers = it }
@@ -2123,8 +2142,16 @@ class AerioExoPlayerHolder @Inject constructor(
             .createExtractors()
         // With teletext subtitles on, the same TsExtractor plus a teletext track reader and
         // parser (teletext/TeletextMedia3.kt); off, Media3's own, exactly as before
+        // With generated captions on, the TS extractor is built here with a timestamp adjuster
+        // the player keeps, so it can tell the stream time on screen (streamTimeNowSeconds);
+        // otherwise exactly as before
+        val adjuster = if (cachedGeneratedCaptions) androidx.media3.common.util.TimestampAdjuster(0) else null
+        streamTimestampAdjuster = adjuster
         val ts: Extractor? = if (cachedTeletextSubtitles) {
-            com.aeriotv.android.core.playback.teletext.teletextTsExtractor()
+            if (adjuster != null) com.aeriotv.android.core.playback.teletext.teletextTsExtractor(adjuster)
+            else com.aeriotv.android.core.playback.teletext.teletextTsExtractor()
+        } else if (adjuster != null) {
+            com.aeriotv.android.core.playback.teletext.plainTsExtractor(adjuster)
         } else all.firstOrNull { it is TsExtractor }
         val fmp4: Extractor? = all.firstOrNull {
             it is androidx.media3.extractor.mp4.FragmentedMp4Extractor

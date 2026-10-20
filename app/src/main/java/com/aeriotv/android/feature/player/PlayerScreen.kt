@@ -128,6 +128,10 @@ fun PlayerScreen(
      *  endpoint - the screen then stops reporting for this playback. */
     onReportCatchupPosition: suspend (playbackUrl: String, positionSecs: Double, paused: Boolean) -> Boolean =
         { _, _, _ -> true },
+    /** Generated captions (GeneratedCaptions.kt): the lines since `since`, and done. */
+    onPollLiveCaptions: suspend (streamUrl: String, channelUuid: String, since: Long) -> com.aeriotv.android.core.network.LiveCaptions? =
+        { _, _, _ -> null },
+    onStopLiveCaptions: (streamUrl: String, channelUuid: String) -> Unit = { _, _ -> },
     onClose: () -> Unit = {},
     onLaunchMultiview: () -> Unit = {},
     /** Remote Control: hold-Down (openSearch action) hands off to the global
@@ -926,6 +930,11 @@ fun PlayerScreen(
     var streamInfo by streamInfoState
     val subtitlesState = remember { mutableStateOf<SubtitlesState?>(null) }
     var subtitles by subtitlesState
+    // Generated captions picked in the Subtitles menu (GeneratedCaptions.kt)
+    val generatedCaptionsState = remember { mutableStateOf(false) }
+    val generatedCaptionsOn by generatedCaptionsState
+    val generatedCaptionsAllowed by settingsVm.generatedCaptions.collectAsStateWithLifecycle(initialValue = true)
+    val captionLanguage by settingsVm.captionLanguage.collectAsStateWithLifecycle(initialValue = "")
     val audioTracksState = remember { mutableStateOf<AudioTracksState?>(null) }
     var audioTracks by audioTracksState
     val switchStreamState = remember { mutableStateOf<SwitchStreamState?>(null) }
@@ -1783,6 +1792,15 @@ fun PlayerScreen(
             )
         }
 
+        // Generated captions, under the chrome (GeneratedCaptions.kt)
+        GeneratedCaptionsOverlay(
+            exoHolder = exoHolder,
+            streamUrl = currentChannel?.url,
+            active = generatedCaptionsOn && generatedCaptionsAllowed && !isCatchupMode,
+            onPoll = onPollLiveCaptions,
+            onStop = onStopLiveCaptions,
+        )
+
         // Live Rewind ticker + chrome overlay live in their own composable
         // (task #257): the buffer-window head/tail advance every couple of
         // seconds while a session rolls, and reading that ticking state HERE
@@ -1822,6 +1840,8 @@ fun PlayerScreen(
             recordTargetState = recordTargetState,
             streamInfoState = streamInfoState,
             subtitlesState = subtitlesState,
+            generatedCaptionsState = generatedCaptionsState,
+            generatedCaptionsAllowed = generatedCaptionsAllowed,
             audioTracksState = audioTracksState,
             switchStreamState = switchStreamState,
             switchedStreamIdState = switchedStreamIdState,
@@ -2265,6 +2285,7 @@ fun PlayerScreen(
         multiviewPickerOpenState = multiviewPickerOpenState,
         streamInfoState = streamInfoState,
         subtitlesState = subtitlesState,
+        generatedCaptionsState = generatedCaptionsState,
         audioTracksState = audioTracksState,
         switchStreamState = switchStreamState,
         switchedStreamIdState = switchedStreamIdState,
@@ -2377,6 +2398,7 @@ private fun PlayerSheets(
     multiviewPickerOpenState: MutableState<Boolean>,
     streamInfoState: MutableState<StreamInfoSnapshot?>,
     subtitlesState: MutableState<SubtitlesState?>,
+    generatedCaptionsState: MutableState<Boolean>,
     audioTracksState: MutableState<AudioTracksState?>,
     switchStreamState: MutableState<SwitchStreamState?>,
     switchedStreamIdState: MutableState<Int?>,
@@ -2391,6 +2413,9 @@ private fun PlayerSheets(
     var multiviewPickerOpen by multiviewPickerOpenState
     var streamInfo by streamInfoState
     var subtitles by subtitlesState
+    // The caption language the Subtitles menu sets (GeneratedCaptions.kt)
+    val captionSettingsVm: SettingsViewModel = hiltViewModel()
+    var generatedCaptionsOn by generatedCaptionsState
     var audioTracks by audioTracksState
     var switchStream by switchStreamState
     var switchedStreamId by switchedStreamIdState
@@ -2453,7 +2478,17 @@ private fun PlayerSheets(
             tracks = state.tracks,
             currentTrackId = state.currentSid,
             onSelect = { sid ->
-                exoHolder.player?.selectSubtitleTrack(sid)
+                val languageIndex = sid?.let { generatedCaptionsLanguageIndex(it) } ?: -1
+                if (languageIndex >= 0) {
+                    // Generated captions draw themselves (GeneratedCaptions.kt): no track. The
+                    // language is the setting the caption poll reads, so it applies at once
+                    captionSettingsVm.setCaptionLanguage(com.aeriotv.android.core.playback.CaptionLanguage.CHOICES[languageIndex].first)
+                    generatedCaptionsOn = true
+                    exoHolder.player?.selectSubtitleTrack(null)
+                } else {
+                    generatedCaptionsOn = false
+                    exoHolder.player?.selectSubtitleTrack(sid)
+                }
                 subtitles = null
             },
             onDismiss = { subtitles = null },
@@ -2622,6 +2657,8 @@ private fun LiveRewindChromeSection(
     recordTargetState: MutableState<ProgramInfoTarget?>,
     streamInfoState: MutableState<StreamInfoSnapshot?>,
     subtitlesState: MutableState<SubtitlesState?>,
+    generatedCaptionsState: MutableState<Boolean>,
+    generatedCaptionsAllowed: Boolean,
     audioTracksState: MutableState<AudioTracksState?>,
     switchStreamState: MutableState<SwitchStreamState?>,
     switchedStreamIdState: MutableState<Int?>,
@@ -2670,6 +2707,8 @@ private fun LiveRewindChromeSection(
     var recordTarget by recordTargetState
     var streamInfo by streamInfoState
     var subtitles by subtitlesState
+    val captionLanguage by hiltViewModel<SettingsViewModel>().captionLanguage.collectAsStateWithLifecycle(initialValue = "")
+    var generatedCaptionsOn by generatedCaptionsState
     var audioTracks by audioTracksState
     var switchStream by switchStreamState
     var switchedStreamId by switchedStreamIdState
@@ -2966,9 +3005,24 @@ private fun LiveRewindChromeSection(
         },
         onShowSubtitles = {
             val player = exoHolder.player ?: return@PlayerChromeOverlay
+            // Generated captions (GeneratedCaptions.kt) on a live Dispatcharr channel
+            val offerGenerated = generatedCaptionsAllowed && !isCatchupMode &&
+                generatedCaptionsChannelUuid(currentChannel?.url) != null
+            val languages = com.aeriotv.android.core.playback.CaptionLanguage.CHOICES
             subtitles = SubtitlesState(
-                tracks = player.readSubtitleTracks(),
-                currentSid = player.readCurrentSid(),
+                tracks = player.readSubtitleTracks() + if (offerGenerated) {
+                    languages.mapIndexed { index, (value, _) ->
+                        SubtitleTrack(
+                            generatedCaptionsId(index),
+                            if (index == 0) "Generated captions (from the sound)"
+                            else "Generated captions -- translated to ${com.aeriotv.android.core.playback.CaptionLanguage.label(value)}",
+                            "",
+                        )
+                    }
+                } else emptyList(),
+                currentSid = if (generatedCaptionsOn) {
+                    generatedCaptionsId(languages.indexOfFirst { it.first == captionLanguage }.coerceAtLeast(0))
+                } else player.readCurrentSid(),
             )
         },
         onShowAudioTracks = {

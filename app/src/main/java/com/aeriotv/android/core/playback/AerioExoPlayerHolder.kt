@@ -214,6 +214,8 @@ class AerioExoPlayerHolder @Inject constructor(
     // on Main that would otherwise block the channel-tap and player-build paths.
     private val prefScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     @Volatile private var cachedAudioPassthrough: Boolean = false
+    // Teletext subtitles (teletext/TeletextMedia3.kt): read when a stream's extractor is built
+    @Volatile private var cachedTeletextSubtitles: Boolean = true
     @Volatile private var cachedBufferFloorMs: Int = com.aeriotv.android.feature.settings.bufferMillisFor("default")
 
     init {
@@ -227,6 +229,9 @@ class AerioExoPlayerHolder @Inject constructor(
         }
         prefScope.launch {
             appPreferences.autoRecoverFrozenStreams.collect { watchdogReloadEnabled = it }
+        }
+        prefScope.launch {
+            appPreferences.teletextSubtitles.collect { cachedTeletextSubtitles = it }
         }
         prefScope.launch {
             appPreferences.liveStartBufferMs.collect { cachedLiveStartBuffers = it }
@@ -2116,7 +2121,11 @@ class AerioExoPlayerHolder @Inject constructor(
         val all: Array<Extractor> = DefaultExtractorsFactory()
             .setTsExtractorMode(TsExtractor.MODE_SINGLE_PMT)
             .createExtractors()
-        val ts: Extractor? = all.firstOrNull { it is TsExtractor }
+        // With teletext subtitles on, the same TsExtractor plus a teletext track reader and
+        // parser (teletext/TeletextMedia3.kt); off, Media3's own, exactly as before
+        val ts: Extractor? = if (cachedTeletextSubtitles) {
+            com.aeriotv.android.core.playback.teletext.teletextTsExtractor()
+        } else all.firstOrNull { it is TsExtractor }
         val fmp4: Extractor? = all.firstOrNull {
             it is androidx.media3.extractor.mp4.FragmentedMp4Extractor
         }

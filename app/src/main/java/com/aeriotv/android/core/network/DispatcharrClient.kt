@@ -555,6 +555,10 @@ class DispatcharrClient @Inject constructor() {
                     linkDevices = (root["link_devices"] as? JsonPrimitive)?.booleanOrNull == true,
                     linkPath = (root["link_url"] as? JsonPrimitive)?.contentOrNull
                         ?.takeIf { it.startsWith("/") } ?: DispatchMore.DEFAULT_LINK_PATH,
+                    syncPath = (root["sync_url"] as? JsonPrimitive)?.contentOrNull
+                        ?.takeIf { it.startsWith("/") },
+                    guideLinksPath = (root["guide_links_url"] as? JsonPrimitive)?.contentOrNull
+                        ?.takeIf { it.startsWith("/") },
                 ),
             )
         }.getOrNull()
@@ -1066,6 +1070,39 @@ class DispatcharrClient @Inject constructor() {
 
     private suspend fun listEpgDataImpl(baseUrl: String, apiKey: String): List<DispatcharrEpgData> =
         fetchListOrResults("${baseUrl.trimEnd('/')}/api/epg/epgdata/", apiKey)
+
+    /**
+     * Dispatch More v272: only the guide records this login's channels use, in the shape of
+     * /api/epg/epgdata/ rows. ~1.5k rows on the user's server instead of every guide record of
+     * every source (fork/arrTV-integration.md §1a).
+     */
+    suspend fun listGuideLinks(baseUrl: String, apiKey: String, path: String): List<DispatcharrEpgData> =
+        withContext(Dispatchers.IO) { fetchListOrResults(baseUrl.trimEnd('/') + path, apiKey) }
+
+    /**
+     * Dispatch More v272 start-up check: stamps of the lineup, its guide links and the guides.
+     * Null when the server said nothing usable (no connection, an error): the caller then keeps
+     * its time-based checks rather than downloading everything or nothing.
+     */
+    @OptIn(ExperimentalSerializationApi::class)
+    suspend fun fetchSync(baseUrl: String, apiKey: String, path: String): DispatchMoreSync? =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val url = baseUrl.trimEnd('/') + path
+                client.prepareGet(url) {
+                    applyAuth(apiKey)
+                    timeout { requestTimeoutMillis = 20_000; socketTimeoutMillis = 20_000 }
+                }.execute { response ->
+                    unauthorizedCheck(response, url)
+                    if (!response.status.isSuccess()) return@execute null
+                    json.decodeFromStream<DispatchMoreSync>(response.bodyAsChannel().toInputStream())
+                        .takeIf { it.sync >= 1 && it.lineup.isNotEmpty() }
+                }
+            }.onFailure {
+                if (it is kotlinx.coroutines.CancellationException) throw it
+                android.util.Log.w("DispatcharrClient", "start-up check failed: $it")
+            }.getOrNull()
+        }
 
     /**
      * GET /api/epg/sources/ - the EPG sources configured on the Dispatcharr
@@ -3170,6 +3207,18 @@ data class DispatcharrEpgSource(
      */
     @SerialName("updated_at")
     val updatedAt: String? = null,
+)
+
+/** Dispatch More's start-up check (GET /api/core/app-sync/, v272). */
+@Serializable
+data class DispatchMoreSync(
+    val sync: Int = 0,
+    val channels: Int = 0,
+    val lineup: String = "",
+    @SerialName("guide_links")
+    val guideLinks: String = "",
+    val guides: String = "",
+    val programmes: Int = 0,
 )
 
 @Serializable

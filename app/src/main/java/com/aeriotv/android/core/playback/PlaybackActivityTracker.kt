@@ -74,4 +74,12 @@ object PlaybackActivityTracker {
      */
     val isMultiStreamActive: Boolean
         get() = active.get() > 1
+
+    /**
+     * True while any picture is playing, the guide's corner player included: what the
+     * background refresh must not compete with on a 1.4 GB box, where its downloads froze
+     * the picture (2026-10-20). Unlike the instance count this drops when playback stops.
+     */
+    val isPlaying: Boolean
+        get() = mainPlaying || active.get() > 1
 }

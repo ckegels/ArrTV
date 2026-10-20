@@ -38,11 +38,12 @@ import kotlinx.coroutines.flow.first
  * (Network Settings). Default ON. With the toggle off, [enqueuePeriodic] is
  * a no-op and any previously-scheduled work is canceled.
  *
- * No `lastRefreshedAt` freshness check here — WorkManager already paces the
- * runs, and the periodic interval is the only knob we need. A miss (no
- * active playlist, no network mid-window, etc) returns Result.success() so
- * WorkManager re-schedules the next interval at the normal cadence, not a
- * backoff penalty.
+ * A run never starts within [LAUNCH_QUIET_MS] of the app starting or while a
+ * picture plays, and on a Dispatch More v272 server it first asks the start-up
+ * check and downloads only the part that changed (fork/guide-loading-plan.md).
+ * A miss (no active playlist, no network mid-window, launch or playback, etc)
+ * returns Result.success() so WorkManager re-schedules the next interval at
+ * the normal cadence, not a backoff penalty.
  */
 @HiltWorker
 class PlaylistRefreshWorker @AssistedInject constructor(
@@ -68,16 +69,42 @@ class PlaylistRefreshWorker @AssistedInject constructor(
             Log.i(TAG, "Multiview active; deferring background refresh")
             return@runCatching Result.retry()
         }
+        // Never inside a launch or next to playback (fork/guide-loading-plan.md): a run
+        // interrupted by the app being killed counts as due, so it used to start again in the
+        // first seconds of the next launch and download the lineup and every guide record of
+        // the server next to the app's own start -- on a Chromecast HD the heap filled and the
+        // picture froze. The app checks for itself at launch; this run waits for the next period.
+        val sinceStartMs = android.os.SystemClock.elapsedRealtime() - android.os.Process.getStartElapsedRealtime()
+        if (sinceStartMs < LAUNCH_QUIET_MS) {
+            Log.i(TAG, "App started ${sinceStartMs / 1000}s ago; leaving the refresh to its next period")
+            return@runCatching Result.success()
+        }
+        if (com.aeriotv.android.core.playback.PlaybackActivityTracker.isPlaying) {
+            Log.i(TAG, "Playing; leaving the refresh to its next period")
+            return@runCatching Result.success()
+        }
         val playlist = repository.activePlaylist()
         if (playlist == null) {
             Log.i(TAG, "No active playlist; nothing to refresh")
+            return@runCatching Result.success()
+        }
+        // Dispatch More v272: ask what changed and download only that
+        val verdict = repository.startupCheck(playlist)
+        if (verdict?.lineup == com.aeriotv.android.core.data.sync.SyncChange.SAME &&
+            verdict.guides == com.aeriotv.android.core.data.sync.SyncChange.SAME
+        ) {
+            Log.i(TAG, "Start-up check: lineup and guide unchanged; nothing to download")
             return@runCatching Result.success()
         }
         // Channel refresh: writes channel_snapshot via the same path the
         // user-initiated refresh uses. saveChannelsToCache is best-effort
         // inside PlaylistRepository.refresh -- a cache write failure won't
         // fail the network fetch, and vice versa.
-        val channels = repository.refresh(playlist)
+        val channels = if (verdict?.lineup == com.aeriotv.android.core.data.sync.SyncChange.SAME) {
+            kotlin.Result.success(repository.loadCachedChannels(playlist.id))
+        } else {
+            repository.refresh(playlist)
+        }
         if (channels.isFailure) {
             Log.w(TAG, "Channel refresh failed", channels.exceptionOrNull())
             return@runCatching Result.retry()
@@ -99,8 +126,8 @@ class PlaylistRefreshWorker @AssistedInject constructor(
         // for data that could be minutes old. If a foreground refresh just ran,
         // there is nothing here worth the disk churn.
         val newestEpg = runCatching { repository.newestEpgFetch(playlist.id) }.getOrNull()
-        if (newestEpg != null &&
-            System.currentTimeMillis() - newestEpg < EPG_FRESH_ENOUGH_MS
+        if (verdict?.guides == com.aeriotv.android.core.data.sync.SyncChange.SAME ||
+            newestEpg != null && System.currentTimeMillis() - newestEpg < EPG_FRESH_ENOUGH_MS
         ) {
             Log.i(TAG, "EPG cache is fresh; skipping the background EPG rewrite")
             return@runCatching Result.success()
@@ -122,7 +149,10 @@ class PlaylistRefreshWorker @AssistedInject constructor(
             channels.getOrThrow(),
         )
         runCatching { repository.saveEpgToCache(playlist.id, bridged) }
-            .onSuccess { repository.announceCacheUpdate(PlaylistRepository.CacheUpdate.Guide(playlist.id)) }
+            .onSuccess {
+                repository.announceCacheUpdate(PlaylistRepository.CacheUpdate.Guide(playlist.id))
+                runCatching { repository.rememberGuides(playlist, verdict) }
+            }
             .onFailure { Log.w(TAG, "saveEpgToCache failed", it) }
         Log.i(
             TAG,
@@ -145,6 +175,13 @@ class PlaylistRefreshWorker @AssistedInject constructor(
          *  than an hour means the app already did this work. */
         private const val EPG_FRESH_ENOUGH_MS = 60L * 60L * 1000L
 
+        /** No refresh this soon after the app process started: the launch does its own check. */
+        private const val LAUNCH_QUIET_MS = 10L * 60L * 1000L
+
+        /** The interval the schedule was last registered with (see [enqueuePeriodic]). */
+        private const val PREFS = "playlist_refresh_schedule"
+        private const val KEY_INTERVAL = "interval_mins"
+
         /**
          * Idempotent registration. Call from app startup with the user's
          * configured interval (default 360 minutes = 6 hours, matching the
@@ -163,16 +200,24 @@ class PlaylistRefreshWorker @AssistedInject constructor(
                 safeMins.toLong(), TimeUnit.MINUTES,
             )
                 .setConstraints(constraints)
+                // A first run one whole interval out, never at once: registering happens at app
+                // start, which is exactly when a refresh must not run
+                .setInitialDelay(safeMins.toLong(), TimeUnit.MINUTES)
                 .addTag(TAG)
                 .build()
+            // UPDATE only when the interval really changed (so a new pick in Settings applies
+            // at once). Re-registering the same schedule at every start with UPDATE stopped a
+            // run in progress and started it again in the middle of the launch (seen at every
+            // cold start on a Chromecast HD, 2026-10-20). Installs from before this registered
+            // without the interval saved: they take UPDATE once, which brings the initial delay.
+            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val changed = prefs.getInt(KEY_INTERVAL, -1) != safeMins
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 UNIQUE_NAME,
-                // UPDATE so changing the interval in Settings re-anchors the
-                // schedule immediately. The OLD KEEP policy left a 6h job
-                // running until its next firing, ignoring the user's pick.
-                ExistingPeriodicWorkPolicy.UPDATE,
+                if (changed) ExistingPeriodicWorkPolicy.UPDATE else ExistingPeriodicWorkPolicy.KEEP,
                 request,
             )
+            if (changed) prefs.edit().putInt(KEY_INTERVAL, safeMins).apply()
         }
 
         /** Cancel the schedule -- called when the user disables background refresh. */

@@ -234,6 +234,9 @@ class PlaylistViewModel @Inject constructor(
          * making quick app revisits zero-network.
          */
         private const val EPG_CACHE_TTL_MS = 30L * 60L * 1000L
+        /** How long the start-up check's "guide unchanged" spares a download: past this the
+         *  cache may no longer reach far enough ahead, whatever the server says. */
+        private const val EPG_SYNC_TRUST_MS = 12L * 60L * 60L * 1000L
 
         /** Launch quick paint: the cached rows read before the first guide
          *  frame (the pre-9be8071 quick pass window). The full window follows
@@ -818,12 +821,29 @@ class PlaylistViewModel @Inject constructor(
             // Freshness gate: within the TTL window, the cached rail is
             // good enough and we skip the channel network round-trip entirely
             // (the EPG cache has its own 30-min TTL).
-            val newest = runCatching { repository.newestChannelFetch(saved.id) }.getOrNull()
-            val freshChannels = hasChannelCache && newest != null &&
-                (System.currentTimeMillis() - newest) < CHANNEL_CACHE_TTL_MS
-            if (freshChannels) {
-                Log.i(TAG, "bootstrap: channel cache fresh, skipping network refresh")
-                return@launch
+            // Dispatch More v272: the server says whether the lineup changed since this cache
+            // was downloaded, so an unchanged lineup costs one small request however old the
+            // cache is, and a changed one is fetched at once instead of up to a day later.
+            val verdict = if (hasChannelCache) repository.startupCheck(saved) else null
+            when (verdict?.lineup) {
+                com.aeriotv.android.core.data.sync.SyncChange.SAME -> {
+                    Log.i(TAG, "bootstrap: start-up check says the lineup is unchanged, skipping network refresh")
+                    return@launch
+                }
+                com.aeriotv.android.core.data.sync.SyncChange.CHANGED ->
+                    Log.i(TAG, "bootstrap: start-up check says the lineup changed")
+                else -> {
+                    val newest = runCatching { repository.newestChannelFetch(saved.id) }.getOrNull()
+                    val freshChannels = hasChannelCache && newest != null &&
+                        (System.currentTimeMillis() - newest) < CHANNEL_CACHE_TTL_MS
+                    if (freshChannels) {
+                        // First check against this cache: the time rule vouches for it, so
+                        // its stamp is the one the next launch compares with
+                        verdict?.let { repository.adoptLineupStamp(saved.id, it) }
+                        Log.i(TAG, "bootstrap: channel cache fresh, skipping network refresh")
+                        return@launch
+                    }
+                }
             }
 
             Log.i(TAG, "bootstrap: refreshing channels (hadCache=$hasChannelCache)")
@@ -1596,11 +1616,28 @@ class PlaylistViewModel @Inject constructor(
                     "(written by a build with a known EPG cache defect); forcing one refetch",
             )
         }
+        var syncVerdict: com.aeriotv.android.core.data.sync.SyncVerdict? = null
         if (!forceRefresh && !staleEpoch && !identityStale) {
             val newest = runCatching { repository.newestEpgFetch(playlist.id) }.getOrNull()
-            val fresh = newest != null &&
-                (System.currentTimeMillis() - newest) < EPG_CACHE_TTL_MS
+            val ageMs = newest?.let { System.currentTimeMillis() - it }
+            // Dispatch More v272: an unchanged guide is not downloaded again at every launch
+            // past the 30-minute mark. Trusted only while the cache is under half a day old:
+            // the same server data says nothing about whether this cache reaches today.
+            syncVerdict = repository.startupCheck(playlist)
+            val guides = syncVerdict?.guides
+            if (guides == com.aeriotv.android.core.data.sync.SyncChange.SAME &&
+                ageMs != null && ageMs < EPG_SYNC_TRUST_MS
+            ) {
+                Log.i(TAG, "loadEpgIfConfigured: start-up check says the guide is unchanged, skipping network")
+                _state.update { it.copy(isEpgLoading = false) }
+                return null
+            }
+            val fresh = guides != com.aeriotv.android.core.data.sync.SyncChange.CHANGED &&
+                ageMs != null && ageMs < EPG_CACHE_TTL_MS
             if (fresh) {
+                if (guides == com.aeriotv.android.core.data.sync.SyncChange.UNKNOWN) {
+                    syncVerdict?.let { repository.adoptGuidesStamp(playlist.id, it) }
+                }
                 Log.i(TAG, "loadEpgIfConfigured: cache fresh, skipping network")
                 _state.update { it.copy(isEpgLoading = false) }
                 return null
@@ -1709,6 +1746,9 @@ class PlaylistViewModel @Inject constructor(
                         runCatching {
                             appPreferences.setEpgCacheEpochFor(playlist.id, EPG_CACHE_EPOCH)
                         }
+                        // The guide this download started from is the one the next check
+                        // compares with (a change meanwhile still differs then)
+                        runCatching { repository.rememberGuides(playlist, syncVerdict) }
                     }
                     .onFailure { Log.w(TAG, "saveEpgToCache failed", it) }
                 // iOS parity: fire-and-forget category enrichment for
@@ -2129,6 +2169,13 @@ class PlaylistViewModel @Inject constructor(
             val newest = repository.newestEpgFetch(active.id) ?: return@launch
             val ageMs = System.currentTimeMillis() - newest
             if (ageMs <= maxAgeMillis) return@launch
+            // Dispatch More v272: back in the app is no reason to download a guide the server
+            // has not changed (it was, every time after 30 minutes away).
+            val verdict = repository.startupCheck(active)
+            if (verdict?.guides == com.aeriotv.android.core.data.sync.SyncChange.SAME && ageMs < EPG_SYNC_TRUST_MS) {
+                Log.i(TAG, "refreshEpgIfStale: guide is ${ageMs / 60000}min old, but the start-up check says unchanged")
+                return@launch
+            }
             Log.i(TAG, "refreshEpgIfStale: guide is ${ageMs / 60000}min old, refreshing on foreground")
             loadEpgIfConfigured(active, forceRefresh = true)
         }

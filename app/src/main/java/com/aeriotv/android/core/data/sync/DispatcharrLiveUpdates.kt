@@ -149,14 +149,14 @@ class DispatcharrLiveUpdates @Inject constructor(
         // A guide change is owed a guide window even when the lineup comes back
         // unchanged ("guide read": the channel already had the new key)
         var guideOwed = false
-        fun scheduleChannelCheck(reason: String, afterMs: Long, guide: Boolean = false) {
+        fun scheduleChannelCheck(reason: String, afterMs: Long, guide: Boolean = false, askFirst: Boolean = false) {
             if (guide) guideOwed = true
             channelJob?.cancel()
             channelJob = launch {
                 delay(afterMs)
                 val withGuide = guideOwed
                 guideOwed = false
-                checkChannels(playlist.id, reason, withGuide)
+                checkChannels(playlist.id, reason, withGuide, askFirst)
             }
         }
 
@@ -232,7 +232,7 @@ class DispatcharrLiveUpdates @Inject constructor(
         launch {
             while (true) {
                 delay(CHANNEL_CHECK_INTERVAL_MS)
-                if (channelJob?.isActive != true) scheduleChannelCheck("periodic", 0)
+                if (channelJob?.isActive != true) scheduleChannelCheck("periodic", 0, askFirst = true)
             }
         }
 
@@ -241,7 +241,7 @@ class DispatcharrLiveUpdates @Inject constructor(
                 // Also after every reconnect: catch up on anything missed while
                 // disconnected. Both checks are cheap when nothing changed.
                 DispatcharrLiveEvent.Connected -> {
-                    scheduleChannelCheck("connected", CONNECT_SETTLE_MS)
+                    scheduleChannelCheck("connected", CONNECT_SETTLE_MS, askFirst = true)
                     // Not on the first connect of this app run: the launch loads
                     // the guide itself, and both at once wrote the same day twice
                     // (a Chromecast HD after a restart: 95 s of guide window next
@@ -333,9 +333,18 @@ class DispatcharrLiveUpdates @Inject constructor(
      * under their new key yet, so a window check follows; [withGuide] asks for
      * one whatever the lineup says (the server said a guide changed or was read).
      */
-    private suspend fun checkChannels(playlistId: String, reason: String, withGuide: Boolean = false) {
+    private suspend fun checkChannels(playlistId: String, reason: String, withGuide: Boolean = false, askFirst: Boolean = false) {
         awaitNoMultiview()
         val playlist = repository.activePlaylist()?.takeIf { it.id == playlistId } ?: return
+        // On a connect and every 10 minutes nothing said anything changed: ask the server's
+        // start-up check (Dispatch More v272) before downloading the lineup and its guide
+        // records. That download ran at every launch and every 10 minutes while watching.
+        if (askFirst && !withGuide &&
+            repository.startupCheck(playlist)?.lineup == com.aeriotv.android.core.data.sync.SyncChange.SAME
+        ) {
+            Log.i(TAG, "channel check ($reason): start-up check says the lineup is unchanged")
+            return
+        }
         val before = repository.loadCachedChannels(playlistId)
         val result = withContext(Dispatchers.IO) { repository.refresh(playlist) }
         val channels = result.getOrElse {

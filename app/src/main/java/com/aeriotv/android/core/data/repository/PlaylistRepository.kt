@@ -156,6 +156,10 @@ private const val RETENTION_SWEEP_COOLDOWN_MS = 5L * 60L * 1000L
 private const val EPG_DELETE_BATCH = 2_000
 private const val EPG_DELETE_PAUSE_MS = 50L
 
+/** A start-up check answer is reused this long: one launch's channel and guide decisions (and
+ *  the stamp a download saves) ask within seconds of each other. */
+private const val SYNC_REUSE_MS = 60_000L
+
 /** Small per-device file for guide maintenance times (the daily catch-up reach prune). */
 private const val EPG_MAINTENANCE_PREFS = "epg_maintenance"
 
@@ -940,6 +944,9 @@ class PlaylistRepository @Inject constructor(
     suspend fun refresh(playlist: PlaylistEntity): Result<List<M3UChannel>> = runCatching {
         val sourceType = playlist.resolvedSourceType()
         val base = effectiveBaseUrl(playlist)
+        // The start-up check's stamp as it was BEFORE this download: saved once the lineup
+        // is in, so a change landing meanwhile still differs at the next check.
+        val stampBefore = recentSync(playlist)
         // Dispatcharr branches go through the AuthBroker so a rotated api_key
         // gets silently rebootstrapped instead of surfacing a 401. M3U / Xtream
         // fall straight through to fetchChannelsFor.
@@ -1015,7 +1022,64 @@ class PlaylistRepository @Inject constructor(
             android.util.Log.w("PlaylistRepository", "saveChannelsToCache failed (refresh)", t)
         }
         publishActiveCredentials(refreshed)
+        stampBefore?.let { syncStamps.saveLineup(playlist.id, it) }
         channels
+    }
+
+    private val syncStamps = com.aeriotv.android.core.data.sync.SyncStamps(
+        object : com.aeriotv.android.core.data.sync.SyncStamps.Store {
+            private val prefs = context.getSharedPreferences("playlist_sync", Context.MODE_PRIVATE)
+            override fun get(key: String): String? = prefs.getString(key, null)
+            override fun put(key: String, value: String?) {
+                prefs.edit().apply { if (value == null) remove(key) else putString(key, value) }.apply()
+            }
+        },
+    )
+
+    /** The last start-up check per playlist and when it was asked. */
+    private val lastSync = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, com.aeriotv.android.core.network.DispatchMoreSync>>()
+
+    /**
+     * Dispatch More's start-up check (v272, fork/arrTV-integration.md §1a): whether the lineup
+     * and the guides changed since this cache was downloaded. Null when it cannot say (not a
+     * Dispatcharr playlist, a server without the check, no answer): callers then keep their
+     * time-based rules. One request; answers younger than [SYNC_REUSE_MS] are reused, since the
+     * channel and guide decisions of one launch ask within seconds of each other.
+     */
+    suspend fun startupCheck(playlist: PlaylistEntity): com.aeriotv.android.core.data.sync.SyncVerdict? {
+        val answer = recentSync(playlist) ?: return null
+        return syncStamps.verdict(playlist.id, answer)
+    }
+
+    private suspend fun recentSync(playlist: PlaylistEntity): com.aeriotv.android.core.network.DispatchMoreSync? {
+        val type = playlist.resolvedSourceType()
+        if (type != SourceType.DispatcharrApiKey && type != SourceType.DispatcharrUserPass) return null
+        val now = android.os.SystemClock.elapsedRealtime()
+        lastSync[playlist.id]?.let { (at, answer) -> if (now - at < SYNC_REUSE_MS) return answer }
+        val base = effectiveBaseUrl(playlist)
+        val path = com.aeriotv.android.core.network.DispatchMore.serverFor(base)?.syncPath ?: return null
+        val answer = runCatching {
+            dispatcharrAuth.withApiKeyRetry(playlist.id) { key -> dispatcharrClient.fetchSync(base, key, path) }
+        }.onFailure { if (it is CancellationException) throw it }.getOrNull() ?: return null
+        lastSync[playlist.id] = now to answer
+        return answer
+    }
+
+    /** The check found the lineup cache fresh by the old time rule: call it current from now on. */
+    fun adoptLineupStamp(playlistId: String, verdict: com.aeriotv.android.core.data.sync.SyncVerdict) =
+        syncStamps.saveLineup(playlistId, verdict.answer)
+
+    /** The same for the guide. */
+    fun adoptGuidesStamp(playlistId: String, verdict: com.aeriotv.android.core.data.sync.SyncVerdict) =
+        syncStamps.saveGuides(playlistId, verdict.answer)
+
+    /**
+     * A guide download for [playlist] succeeded: save the guides stamp that was current when it
+     * started ([before], from [startupCheck]), or ask now when there was none.
+     */
+    suspend fun rememberGuides(playlist: PlaylistEntity, before: com.aeriotv.android.core.data.sync.SyncVerdict?) {
+        val answer = before?.answer ?: recentSync(playlist) ?: return
+        syncStamps.saveGuides(playlist.id, answer)
     }
 
     /**
@@ -1893,10 +1957,14 @@ class PlaylistRepository @Inject constructor(
                 // needs /api/epg/epgdata/ as well as /api/epg/sources/ now (to
                 // learn which feed each tvg-id came from), and neither belongs
                 // in front of the guide paint.
+                // Dispatch More v272: the guide records of this login's channels only -- the
+                // same tvg-id -> source pairs, without every guide record on the server.
+                val guideLinksPath = com.aeriotv.android.core.network.DispatchMore.serverFor(base)?.guideLinksPath
                 val layers = runCatching {
                     dispatcharrAuth.withApiKeyRetry(playlistId) { key ->
                         dispatcharrEpgLayers(
-                            epgData = dispatcharrClient.listEpgData(base, key),
+                            epgData = if (guideLinksPath != null) dispatcharrClient.listGuideLinks(base, key, guideLinksPath)
+                            else dispatcharrClient.listEpgData(base, key),
                             sources = dispatcharrClient.listEpgSources(base, key),
                             knownChannelKeys = knownChannelKeys,
                             customXmltvUrl = customXmltvUrl,
@@ -2519,6 +2587,8 @@ class PlaylistRepository @Inject constructor(
     }
 
     suspend fun purgeEpgCache(playlistId: String) {
+        // An emptied cache is not the guide the saved stamp vouched for
+        syncStamps.forgetGuides(playlistId)
         // In batches (EpgProgrammeDao.deleteBatchForPlaylist): one statement
         // for a whole source blocked every other write for minutes.
         while (epgProgrammeDao.deleteBatchForPlaylist(playlistId, EPG_DELETE_BATCH_ROWS) >= EPG_DELETE_BATCH_ROWS) {
@@ -3474,8 +3544,12 @@ class PlaylistRepository @Inject constructor(
             // A failure here silently re-keys channels to the legacy guide key
             // (see [dispatcharrGuideKey]), which changes the EPG identity hash
             // and purges the cached guide on the next load, so log it.
+            // Dispatch More v272 answers for this login's channels only; elsewhere every guide
+            // record of every source comes down (hundreds of thousands on a big server).
+            val guideLinksPath = com.aeriotv.android.core.network.DispatchMore.serverFor(base)?.guideLinksPath
             val epgDataById: Map<Int, DispatcharrEpgData>? = runCatching {
-                dispatcharrClient.listEpgData(base, key).associateBy { it.id }
+                (if (guideLinksPath != null) dispatcharrClient.listGuideLinks(base, key, guideLinksPath)
+                else dispatcharrClient.listEpgData(base, key)).associateBy { it.id }
             }.onFailure {
                 if (it is CancellationException) throw it
                 Log.w("PlaylistRepo", "Dispatcharr epgdata lookup failed; guide keys fall back to legacy: $it")

@@ -72,6 +72,12 @@ object DispatchMore {
          *  follow each other's channel changes (WatchTogether). */
         val linkDevices: Boolean = false,
         val linkPath: String = DEFAULT_LINK_PATH,
+        /** Start-up check (v272): stamps of the lineup, its guide links and the guides, so a
+         *  launch downloads only what changed (PlaylistSync). Null on older servers. */
+        val syncPath: String? = null,
+        /** Just the guide records this login's channels use (v272), instead of every guide
+         *  record of every source on the server from /api/epg/epgdata/. */
+        val guideLinksPath: String? = null,
     )
 
     // The formats the server accepts; anything else it ignores.

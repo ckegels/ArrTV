@@ -1805,6 +1805,9 @@ class AerioExoPlayerHolder @Inject constructor(
         }
 
         override fun onRenderedFirstFrame() {
+            // The stall watch's frozen-playhead clock starts at the first frame, not at
+            // whatever the previous channel or the tune left in it
+            if (!videoFrameRendered) stallProbeAdvanceAtMs = SystemClock.elapsedRealtime()
             videoFrameRendered = true
             noFrameHealAttempts = 0
             // GH #107: video that has been painting steadily for a while means
@@ -3336,11 +3339,18 @@ class AerioExoPlayerHolder @Inject constructor(
                     stallProbePositionMs = probePos
                     stallProbeAdvanceAtMs = now
                 }
+                // Until the first READY of this tune: ExoPlayer draws the first frame while it
+                // is still buffering, so that buffering is the start, not an underrun, and the
+                // playhead counts as frozen only well after the first frame. Every channel
+                // start flashed "Reconnecting" for the ~150 ms between the two (Shield
+                // 2026-10-20: frame +2729 ms, READY +2887 ms, "state=2 frozen=true").
+                val frozenAfterMs =
+                    if (hasReachedPlaybackRestart) STALL_OVERLAY_FROZEN_MS else STALL_OVERLAY_START_FROZEN_MS
                 val playheadFrozen = !playheadAdvanced &&
-                    now - stallProbeAdvanceAtMs >= STALL_OVERLAY_FROZEN_MS
+                    now - stallProbeAdvanceAtMs >= frozenAfterMs
                 val bufferEmpty = bufferAheadNowMs < STALL_OVERLAY_EMPTY_BUFFER_MS && ingestSilent
                 val reallyStalled = stallWatchLive &&
-                    (underrunBuffering || playheadFrozen || bufferEmpty)
+                    ((underrunBuffering && hasReachedPlaybackRestart) || playheadFrozen || bufferEmpty)
                 if (reallyStalled) {
                     if (!ingestStallStatusShown) {
                         ingestStallStatusShown = true
@@ -4455,6 +4465,10 @@ class AerioExoPlayerHolder @Inject constructor(
         /** Playhead frozen this long while we intend to play = a real stall
          *  worth showing "Reconnecting" for. */
         const val STALL_OVERLAY_FROZEN_MS = 1_000L
+
+        /** Before the first READY of a tune: how long after the first frame a still playhead
+         *  counts as a stall (a slow box may take a few seconds from first frame to READY). */
+        const val STALL_OVERLAY_START_FROZEN_MS = 5_000L
 
         /** Playhead frozen this long after a switch = the new upstream is not
          *  flowing yet; the watch starts logging and keeps the switch window open. */

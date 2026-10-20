@@ -562,6 +562,13 @@ class PlaylistRepository @Inject constructor(
         // the very next request routes correctly instead of waiting for a
         // network change.
         entity.lanUrlString?.takeIf { it.isNotBlank() }?.let { lanReachability.refresh(it) }
+        // The start-up check's lineup stamp for what was just downloaded. Dispatch More is known
+        // only from the probe above, after the download, so no stamp was saved and the live
+        // socket's first check downloaded the whole lineup again a minute after sign-in (Shield,
+        // 2026-10-20). Asked seconds after the download: a change in between is a socket event,
+        // which downloads the lineup whatever the stamp says.
+        runCatching { recentSync(entity)?.let { syncStamps.saveLineup(playlistId, it) } }
+            .onFailure { if (it is CancellationException) throw it }
         entity to channels
     }
 
@@ -952,7 +959,7 @@ class PlaylistRepository @Inject constructor(
         val base = effectiveBaseUrl(playlist)
         // The start-up check's stamp as it was BEFORE this download: saved once the lineup
         // is in, so a change landing meanwhile still differs at the next check.
-        val stampBefore = recentSync(playlist)
+        var stampBefore = recentSync(playlist)
         // Dispatcharr branches go through the AuthBroker so a rotated api_key
         // gets silently rebootstrapped instead of surfacing a 401. M3U / Xtream
         // fall straight through to fetchChannelsFor.
@@ -985,6 +992,8 @@ class PlaylistRepository @Inject constructor(
             runCatching { probeCapabilities(playlist.id, force = true) }.getOrDefault(false)
         } else false
         val fresh = if (probed) dao.byId(playlist.id) ?: playlist else playlist
+        // A server first known as Dispatch More from the probe just now (a first refresh)
+        if (stampBefore == null && probed) stampBefore = recentSync(playlist)
         val liveVersion = if (probed) {
             playlist.apiKey?.takeIf { it.isNotBlank() }
                 ?.let { dispatcharrClient.fetchServerVersion(base, it) }

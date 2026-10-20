@@ -782,6 +782,10 @@ class PlaylistViewModel @Inject constructor(
      *  return-to-foreground hook) rebuilds it from the Room cache. */
     @Volatile private var guideShedByTrim = false
 
+    /** A full rebuild was asked for while the app was in the background; [refreshEpgIfStale]
+     *  runs it on return. */
+    @Volatile private var guideRebuildOwed = false
+
     private fun observeMemoryPressure() {
         viewModelScope.launch {
             memoryPressureBus.level.collect { level ->
@@ -1425,6 +1429,14 @@ class PlaylistViewModel @Inject constructor(
         reason: String,
         preloadedRows: List<EPGProgramme>?,
     ) {
+        // Nothing on screen to rebuild for: built in the background, the guide took 127k rows
+        // and 7.5 s of a Shield's memory and CPU just as the system asked the app to shed it
+        // (2026-10-20, onTrimMemory 80 during a guide-update rebuild). Run on return.
+        if (!com.aeriotv.android.core.data.repository.EpgSweepGate.appInForeground) {
+            guideRebuildOwed = true
+            Log.i(TAG, "guide catalog rebuild ($reason) deferred: app in the background, rebuilt on return")
+            return
+        }
         val channels = _state.value.channels
         if (channels.isEmpty()) {
             // Used to return silently (from AerioTV e21e9640): a cached paint that ran
@@ -1461,6 +1473,12 @@ class PlaylistViewModel @Inject constructor(
                 // Dispatcharr live updates compare windows against this guide.
                 stableOrder = stableOrder,
             )
+        }
+        if (guideShedByTrim) {
+            // The app went to the background and shed the guide while this ran: keep it shed
+            guideRebuildOwed = true
+            Log.i(TAG, "guide catalog rebuild ($reason) dropped: the guide was shed meanwhile, rebuilt on return")
+            return
         }
         val published = epgWriteMutex.withLock {
             // Built for a lineup that changed while it ran, when the guide on
@@ -2252,8 +2270,13 @@ class PlaylistViewModel @Inject constructor(
         viewModelScope.launch {
             // A background trim shed the in-memory guide: repaint it from the
             // cache before anything else (the staleness gate below may skip).
+            if (guideRebuildOwed && !guideShedByTrim) {
+                guideRebuildOwed = false
+                _state.value.playlist?.let { rebuildGuideCatalog(it, "owed") }
+            }
             if (guideShedByTrim) {
                 guideShedByTrim = false
+                guideRebuildOwed = false
                 _state.value.playlist?.let { playlist ->
                     // Same two-step paint as launch: the quick window first
                     // (~4 s on a Shield), then the full window (~18 s).
@@ -2281,6 +2304,12 @@ class PlaylistViewModel @Inject constructor(
             val verdict = repository.startupCheck(active)
             if (verdict?.guides == com.aeriotv.android.core.data.sync.SyncChange.SAME && ageMs < EPG_SYNC_TRUST_MS) {
                 Log.i(TAG, "refreshEpgIfStale: guide is ${ageMs / 60000}min old, but the start-up check says unchanged")
+                return@launch
+            }
+            // Dispatch More v275: only the guides that changed
+            if (verdict?.guides == com.aeriotv.android.core.data.sync.SyncChange.CHANGED && ageMs < EPG_SYNC_TRUST_MS &&
+                applyGuideDelta(active, "foreground")
+            ) {
                 return@launch
             }
             Log.i(TAG, "refreshEpgIfStale: guide is ${ageMs / 60000}min old, refreshing on foreground")

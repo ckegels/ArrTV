@@ -103,6 +103,10 @@ Both age AND identity:
   channel that joins (Show Groups) or moves to another guide asks for its own
   guide too. More than 400 changed guides, or a third of them, or no marks:
   the whole grid as before. The background job still downloads the whole guide.
+  Back in the app after 30 minutes, a changed guide takes the same path.
+- Background (ANDROID): no full guide rebuild runs while the app is in the
+  background, and one that was running when the system shed the guide is not
+  installed; both run on return.
 - Pacing (ANDROID): full guide rebuilds run one at a time; requests made while
   one runs are served by one more (CoalescingRunner). Full rebuilds, the guide
   download, category enrichment, the live guide window and each look-back

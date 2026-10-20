@@ -6,6 +6,11 @@ import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
 
 /**
  * Dispatcharr connection-limit refusals, recognized ONLY from the server's
@@ -25,6 +30,14 @@ import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
  * NOT a limit signal and keeps its existing handling. When the server ends
  * an existing client to make room it says nothing that client can read, so
  * that case is never guessed at.
+ *
+ * One more, from a Dispatch More server whose admin holds this login to one
+ * arrTV device at a time (contract §5a): HTTP 409 with `device_replaced`
+ * true and `by`, the device that took over. The server closed this device's
+ * stream when that one started; the reconnect that follows is refused until
+ * the viewer presses "Watch here", which takes the stream back
+ * ([DispatchMore.takeOver]). Reconnecting on our own would take it from the
+ * other TV, and that one from us, forever.
  */
 @UnstableApi
 object DispatcharrConnectionLimit {
@@ -32,12 +45,15 @@ object DispatcharrConnectionLimit {
     /** [STREAM_ENDED] is not a server refusal: the live stream ended cleanly
      *  again right after its one reconnect (see AerioExoPlayerHolder
      *  onLiveCleanEnd). It reuses the same card and Retry plumbing. */
-    enum class Kind { USER_STREAM_LIMIT, PROVIDER_LIMIT, STREAM_ENDED }
+    enum class Kind { USER_STREAM_LIMIT, PROVIDER_LIMIT, STREAM_ENDED, OTHER_DEVICE }
 
     data class Notice(
         val kind: Kind,
         val title: String,
         val message: String,
+        /** [Kind.OTHER_DEVICE]: the id of the device that took over, so this one can
+         *  offer to join it (watch together); null when the server did not say. */
+        val byDevice: String? = null,
     )
 
     /** True while the active playlist is a Dispatcharr API (Direct Connect)
@@ -63,13 +79,14 @@ object DispatcharrConnectionLimit {
 
     /** The limit notice inside whatever Media3 handed us, or null. */
     fun parse(error: Throwable?): Notice? {
-        if (!directConnectActive) return null
         val http = Dispatcharr503.findInvalidResponseCode(error) ?: return null
         return fromResponse(http.responseCode, String(http.responseBody, Charsets.UTF_8))
     }
 
     /** Same match for a raw OkHttp response (cast ingest, retained fill). */
     fun fromResponse(code: Int, body: String): Notice? {
+        // Only Dispatch More sends this, on Xtream links as well as Direct Connect
+        otherDevice(code, body)?.let { return it }
         if (!directConnectActive) return null
         val reason = Dispatcharr503.errorField(body) ?: return null
         return when {
@@ -85,6 +102,46 @@ object DispatcharrConnectionLimit {
             )
             else -> null
         }
+    }
+
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+
+    private val _replaced = kotlinx.coroutines.flow.MutableSharedFlow<Notice>(extraBufferCapacity = 1)
+
+    /** The server said on its socket that another device of this login took over: the
+     *  player stops at once with [otherDeviceNotice] instead of playing out its buffer
+     *  first. The refusal of its next request says the same, for when the socket is closed. */
+    val replaced: kotlinx.coroutines.flow.SharedFlow<Notice> = _replaced
+
+    fun replacedNow(byName: String?, byDevice: String? = null) {
+        _replaced.tryEmit(otherDeviceNotice(byName, byDevice))
+    }
+
+    /** The other-device notice, when this is Dispatch More's refusal of a
+     *  replaced device, naming the device that took over. */
+    private fun otherDevice(code: Int, body: String): Notice? {
+        if (code != 409 || !body.contains("device_replaced")) return null
+        val root = runCatching { json.parseToJsonElement(body) as? JsonObject }.getOrNull() ?: return null
+        if ((root["device_replaced"] as? JsonPrimitive)?.booleanOrNull != true) return null
+        return otherDeviceNotice(
+            (root["by"] as? JsonPrimitive)?.contentOrNull,
+            (root["by_device"] as? JsonPrimitive)?.contentOrNull,
+        )
+    }
+
+    /** "Playing on Bedroom TV" (or on another device, when [byName] is blank). */
+    fun otherDeviceNotice(byName: String?, byDevice: String? = null): Notice {
+        val by = byName?.trim()?.takeIf { it.isNotEmpty() && it != "another device" }
+        return Notice(
+            kind = Kind.OTHER_DEVICE,
+            title = if (by != null) {
+                AppText.get(R.string.player_other_device_title, by)
+            } else {
+                AppText.get(R.string.player_other_device_title_unnamed)
+            },
+            message = AppText.get(R.string.player_other_device_message),
+            byDevice = byDevice?.trim()?.takeIf { it.isNotEmpty() },
+        )
     }
 
     private fun userLimitMessage(reason: String): String {

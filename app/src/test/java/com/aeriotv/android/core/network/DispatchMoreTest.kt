@@ -42,6 +42,42 @@ class DispatchMoreTest {
     }
 
     @Test
+    fun watchHereTakesOverOnTheNextStreamRequestOnly() {
+        assertNull(DispatchMore.streamHeaders(direct(lan, a))[DispatchMore.HEADER_TAKE_OVER])
+        DispatchMore.takeOver()
+        assertEquals("1", DispatchMore.streamHeaders(direct(lan, a))[DispatchMore.HEADER_TAKE_OVER])
+        // A later reconnect does not take the stream back again by itself
+        assertNull(DispatchMore.streamHeaders(direct(lan, a))[DispatchMore.HEADER_TAKE_OVER])
+    }
+
+    @Test
+    fun lookBackAndMoviesSayTheDeviceAndTakeOverOnce() {
+        val lookBack = "$lan/proxy/catchup/$a?session_id=s1"
+        val headers = DispatchMore.playbackHeaders(lookBack)
+        assertEquals("3f2a9c1e-0b7d-4e21-9a55-0f1c2d3e4f50", headers[DispatchMore.HEADER_DEVICE])
+        assertEquals("Living room SHIELD", headers[DispatchMore.HEADER_DEVICE_NAME])
+        // Never the channel left: that is a live channel change's alone
+        assertNull(headers[DispatchMore.HEADER_PREVIOUS])
+        DispatchMore.takeOver()
+        assertEquals("1", DispatchMore.playbackHeaders(lookBack)[DispatchMore.HEADER_TAKE_OVER])
+        assertNull(DispatchMore.playbackHeaders(lookBack)[DispatchMore.HEADER_TAKE_OVER])
+        assertTrue(DispatchMore.playbackHeaders("http://stock:9191/proxy/vod/movie/$a").isEmpty())
+    }
+
+    @Test
+    fun joinIsOfferedOnlyWhereTheServerSwitchedWatchTogetherOn() {
+        assertFalse(DispatchMore.linkDevicesOffered())
+        DispatchMore.register(listOf(lan), DispatchMore.Server(linkDevices = true))
+        assertTrue(DispatchMore.linkDevicesOffered())
+    }
+
+    @Test
+    fun aPressThatMadeNoRequestDoesNotTakeOverLongAfter() {
+        DispatchMore.takeOver(nowMs = System.nanoTime() / 1_000_000 - DispatchMore.TAKE_OVER_WINDOW_MS - 1)
+        assertNull(DispatchMore.streamHeaders(direct(lan, a))[DispatchMore.HEADER_TAKE_OVER])
+    }
+
+    @Test
     fun identifyOffSendsNothingAtAll() {
         DispatchMore.setMaxVideo(1080)
         com.aeriotv.android.core.playback.ArrTvOptimizations.identifyDevice = false

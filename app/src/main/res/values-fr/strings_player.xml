@@ -87,6 +87,51 @@
     <!-- Dispatcharr503.kt -->
     <string name="player_channel_unavailable">Chaîne indisponible</string>
     <!-- DispatcharrConnectionLimit.kt -->
+    <!-- A login the server holds to one TV at a time: another TV took the stream -->
+    <string name="player_other_device_title">Lecture sur %1$s</string>
+    <string name="player_other_device_title_unnamed">Lecture sur un autre appareil</string>
+    <string name="player_other_device_message">Ce compte regarde sur un seul appareil à la fois. Appuyez sur Regarder ici pour regarder sur ce téléviseur ; l\'autre s\'arrête.</string>
+    <string name="player_join_other_device">Rejoindre</string>
+    <string name="player_join_switched_off">Regarder ensemble est désactivé sur le serveur (Paramètres › Streaming › arrTV)</string>
+    <string name="player_join_failed">Cet appareil ne regarde plus de chaîne</string>
+    <string name="player_option_stop_watch_together">Ne plus regarder ensemble</string>
+    <string name="watch_together_offer_title">Regarder ensemble ?</string>
+    <string name="watch_together_offer_message">%1$s regarde %2$s avec ce compte. Rejoignez-le : dès lors, si l\'un de vous change de chaîne, l\'autre suit.</string>
+    <string name="watch_together_offer_message_person">%1$s regarde %2$s sur %3$s. Demander à rejoindre ? %1$s doit d\'abord accepter ; ensuite, quand l\'un de vous change de chaîne, on demande à l\'autre s\'il veut suivre.</string>
+    <string name="watch_together_ask">Demander à rejoindre</string>
+    <string name="watch_together_unnamed_device">Un autre appareil</string>
+    <string name="watch_together_not_now">Pas maintenant</string>
+    <!-- Regarder ensemble avec d'autres personnes de la maison (Dispatch More v266) -->
+    <string name="watch_together_request_message">%1$s veut regarder %2$s avec vous.</string>
+    <string name="watch_together_allow">Accepter (%1$d)</string>
+    <string name="watch_together_decline">Refuser</string>
+    <string name="watch_together_follow_title">Suivre %1$s ?</string>
+    <string name="watch_together_follow_message">%1$s est passé sur %2$s.</string>
+    <string name="watch_together_follow">Suivre (%1$d)</string>
+    <string name="watch_together_stay">Rester</string>
+    <string name="watch_together_asked">Demande envoyée à %1$s, en attente de réponse…</string>
+    <string name="watch_together_no_answer">%1$s n\'a pas répondu</string>
+    <string name="watch_together_declined">%1$s a refusé</string>
+    <string name="watch_together_declined_not_allowed">Votre compte ne peut pas regarder cette chaîne</string>
+    <string name="watch_together_removed">%1$s ne regarde plus avec vous</string>
+    <string name="watch_together_stayed">%1$s est resté sur sa chaîne ; vous continuez seul</string>
+    <string name="watch_together_not_allowed">Votre compte ne peut pas regarder la chaîne choisie par %1$s ; vous continuez seul</string>
+    <string name="watch_together_title">Regarder ensemble</string>
+    <string name="watch_together_menu">Regarder ensemble…</string>
+    <string name="watch_together_can_join">En train de regarder</string>
+    <string name="watch_together_nobody">Personne d\'autre ne regarde en ce moment.</string>
+    <string name="watch_together_with">Vous regardez avec</string>
+    <string name="watch_together_disconnect">Déconnecter</string>
+    <string name="watch_together_leads">mène</string>
+    <string name="watch_together_close">Fermer</string>
+    <string name="watch_together_following_in">Suit dans %1$d s</string>
+    <string name="watch_together_follow_tv_hint">OK : rester sur votre chaîne</string>
+    <string name="watch_together_dont_follow">Ne pas suivre</string>
+    <string name="watch_together_follow_now">Suivre maintenant</string>
+    <string name="watch_together_hint">%1$s regarde %2$s</string>
+    <string name="watch_together_hint_tv">OK : regarder ensemble</string>
+    <string name="watch_together_hint_phone">Touchez pour regarder ensemble</string>
+    <string name="player_watch_here">Regarder ici</string>
     <string name="player_limit_stream_ended_title">Flux terminé</string>
     <string name="player_limit_stream_ended_message">Ce flux a été arrêté par le serveur. Appuyez sur Réessayer pour le relancer.</string>
     <string name="player_limit_user_title">Trop de sessions en cours</string>

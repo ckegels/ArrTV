@@ -421,7 +421,12 @@ fun GuideScreen(
     // setting; All Available (and non-Dispatcharr sources) follow the guide
     // that is actually loaded.
     val historyHours = (guideDaysOffered?.times(24)
-        ?: minOf(state.epgHistoryHours, epgDaysBack * 24)).coerceAtLeast(1)
+        // What the TV's cache holds, not only the day or so the catalog has decoded: the
+        // older days load as the guide scrolls towards them (below). The user, 2026-10-01:
+        // "the guide isn't going back" -- with keep-past-days on the server, the days
+        // were cached but the timeline stopped where the decoded catalog started. Scrolling
+        // towards the edge loads the days (ensureGuideCovers in the combined build, or Jump To).
+        ?: minOf(state.epgHistoryHours, maxOf(epgDaysBack, state.epgCachedDaysBack) * 24)).coerceAtLeast(1)
     val forwardHours = (guideDaysOffered?.times(24) ?: (epgDaysAhead * 24)).coerceAtLeast(3)
     // Guide jump-to-day (Roman via Discord 2026-09-06; Apple parity): the
     // target instant while a jump is active. The window grows to hold it

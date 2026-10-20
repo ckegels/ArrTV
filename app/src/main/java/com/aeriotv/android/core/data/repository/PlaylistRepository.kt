@@ -1979,13 +1979,19 @@ class PlaylistRepository @Inject constructor(
                 val phaseDeadline = System.currentTimeMillis() + UPSTREAM_EPG_TOTAL_BUDGET_MS
                 var collected = 0
                 var downloadMs = 0L
+                var gateMs = 0L
                 for (layer in layers) {
+                    // Each source waits for a calm moment (GuideWorkGate), and that wait, like
+                    // the download, does not count against the phase budget below
+                    val gateFrom = System.currentTimeMillis()
+                    com.aeriotv.android.core.guide.GuideWorkGate.awaitCalm("look-back source")
+                    gateMs += System.currentTimeMillis() - gateFrom
                     // Phase budget gates STARTING another source only, and it
                     // must not count download time either: one 224MB feed at
                     // ~3MB/s is 75s of the 3-minute phase before a byte is
                     // parsed. Extend the phase by each source's download time
                     // so the cap still bounds parse work, not the user's link.
-                    if (System.currentTimeMillis() >= phaseDeadline + downloadMs) {
+                    if (System.currentTimeMillis() >= phaseDeadline + downloadMs + gateMs) {
                         Log.w("PlaylistRepo", "upstream layering: phase budget spent; stopping")
                         break
                     }
@@ -2019,7 +2025,7 @@ class PlaylistRepository @Inject constructor(
                             downloadMs += System.currentTimeMillis() - fetchStartMs
                             sourceDeadline = minOf(
                                 System.currentTimeMillis() + UPSTREAM_EPG_PER_SOURCE_MS,
-                                phaseDeadline + downloadMs,
+                                phaseDeadline + downloadMs + gateMs,
                             )
                             XMLTVParser.parseFile(
                                 file,

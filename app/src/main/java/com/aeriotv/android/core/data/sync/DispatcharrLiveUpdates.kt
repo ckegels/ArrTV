@@ -382,6 +382,7 @@ class DispatcharrLiveUpdates @Inject constructor(
         val now = System.currentTimeMillis()
         val from = now - HOUR_MS
         val to = now + DAY_MS
+        com.aeriotv.android.core.guide.GuideWorkGate.awaitCalm("live guide window ($reason)")
         val programmes = try {
             withContext(Dispatchers.IO) { repository.fetchLiveGridProgrammes(playlist, from, to) }
         } catch (c: CancellationException) {

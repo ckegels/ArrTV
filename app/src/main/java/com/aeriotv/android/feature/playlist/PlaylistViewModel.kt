@@ -1338,7 +1338,11 @@ class PlaylistViewModel @Inject constructor(
     // lazy: startup work launched from init can ask before construction reaches this line
     private val catalogRebuilds by lazy {
         com.aeriotv.android.core.util.CoalescingRunner<PlaylistEntity>(viewModelScope) { reasons, playlist ->
-            rebuildGuideCatalogNow(playlist, reasons.distinct().joinToString("+"), null)
+            val reason = reasons.distinct().joinToString("+")
+            // Not next to a channel start or with the heap nearly full (GuideWorkGate);
+            // requests arriving while it waits are folded into this same rebuild
+            com.aeriotv.android.core.guide.GuideWorkGate.awaitCalm("guide rebuild ($reason)")
+            rebuildGuideCatalogNow(playlist, reason, null)
         }
     }
 
@@ -1687,6 +1691,8 @@ class PlaylistViewModel @Inject constructor(
         // -- the same speedup the windowed cache load (P1 #5) gives the
         // downstream pipeline, but applied to fresh network fetches too.
         val knownKeys = buildChannelEpgKeyBridge(_state.value.channels).keys
+        // The download waits for a calm moment (GuideWorkGate); the cached guide is on screen
+        com.aeriotv.android.core.guide.GuideWorkGate.awaitCalm("guide download")
         return repository.loadEpg(playlist, knownKeys).fold(
             onSuccess = { rawProgrammes ->
                 // Channels may have arrived between the cache-paint above
@@ -1783,6 +1789,7 @@ class PlaylistViewModel @Inject constructor(
                 // viewModelScope (not a child of this suspend call) so the
                 // enrichment never blocks refreshEpg's completion signal.
                 viewModelScope.launch {
+                    com.aeriotv.android.core.guide.GuideWorkGate.awaitCalm("category enrichment")
                     val enriched = runCatching {
                         repository.enrichNowPlayingCategories(playlist, programmes)
                     }.onFailure { Log.w(TAG, "category enrichment failed", it) }

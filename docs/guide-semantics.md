@@ -93,6 +93,12 @@ Both age AND identity:
   the age rules above, and a cache they find fresh adopts the server's stamp.
   The background refresh never runs within 10 minutes of the app starting or
   while a picture plays.
+- Pacing (ANDROID): full guide rebuilds run one at a time; requests made while
+  one runs are served by one more (CoalescingRunner). Full rebuilds, the guide
+  download, category enrichment, the live guide window and each look-back
+  source wait while a channel is starting (tune until 5 s after its first
+  frame, at most 20 s) or the Java heap is over 70 % full, never more than 60 s
+  in one go (GuideWorkGate); the look-back phase budget does not count that wait.
 ANDROID replaces the ratio heuristic ("fewer than 20 % of cached keys match")
 with a hash of the loaded canonical id set: different hash -> refetch; same
 hash -> paint from cache and refresh on the age rule.

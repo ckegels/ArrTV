@@ -161,6 +161,7 @@ class PlaybackTracer {
     fun hasFirstByte(): Boolean = firstByteAtMs != 0L
 
     fun markTuneStart(name: String?, kind: String) {
+        PlaybackActivityTracker.tuneStarted()
         val n = now()
         // A press older than this was not what caused this prime (a watchdog
         // reload, a follow-poller re-prime); start the clock here instead.
@@ -334,6 +335,7 @@ class PlaybackTracer {
 
     /** One summary line per tune, same shape as the tvOS one. */
     fun onFirstFrame() {
+        PlaybackActivityTracker.firstFrame()
         if (summaryLogged || summaryPending) return
         firstFrameAtMs = now()
         if (readyAtMs == 0L) {

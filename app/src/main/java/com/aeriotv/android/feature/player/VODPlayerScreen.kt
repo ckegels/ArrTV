@@ -899,6 +899,10 @@ fun VODPlayerScreen(
                 // Swallow the matching KeyUp too so the focused clickable
                 // underneath never sees a half-delivered press.
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent true
+                // A commercial break on screen takes OK (skip it) and Left (back into it)
+                if (event.nativeKeyEvent.repeatCount == 0 && CommercialBreaks.onKey(event.key)) {
+                    return@onPreviewKeyEvent true
+                }
                 val isRepeat = event.nativeKeyEvent.repeatCount > 0
                 val now = android.os.SystemClock.uptimeMillis()
                 // EVERY handled press is a user action. The per-branch bumps
@@ -1939,6 +1943,12 @@ fun VODPlayerScreen(
                 }
             }
         }
+        // Commercial breaks Comskip marked on a Dispatcharr recording (CommercialBreaks.kt)
+        CommercialBreakSkipper(
+            videoId = videoId,
+            positionOf = { exoPlayer?.currentPosition ?: positionMs },
+            seekTo = { seekPlayer(it) },
+        )
         if (dvrEndPromptVisible) {
             Column(
                 modifier = Modifier

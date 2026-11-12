@@ -195,6 +195,8 @@ fun PlayerScreen(
     val exoHolder = remember { playerEntry.exoPlayerHolder() }
     val problemReports = remember { playerEntry.dispatchMoreReports() }
     var problemReport by remember { mutableStateOf<ProblemReportRequest?>(null) }
+    val guideChoices = remember { playerEntry.dispatchMoreGuides() }
+    var guideChoice by remember { mutableStateOf<GuideChoiceRequest?>(null) }
     val exoWindowState = remember { playerEntry.exoWindowState() }
     val timeshiftController = remember { playerEntry.timeshiftController() }
     // Cast Connect (GH #33) sender. isCasting drives the local-vs-remote swap:
@@ -1883,6 +1885,58 @@ fun PlayerScreen(
                 onDismiss = { problemReport = null },
             )
         }
+        // "Wrong guide? Choose another": offered when the stream's server allows it
+        DisposableEffect(Unit) {
+            GuideChoiceMenu.action = ProblemReportAction(
+                available = {
+                    !reportCatchup.value &&
+                        exoHolder.reportableStreamUrl?.let(guideChoices::canChoose) == true
+                },
+                open = open@{
+                    val url = exoHolder.reportableStreamUrl ?: return@open
+                    // The report "Could not find the guide" sends, read now like the
+                    // report menu's, so it describes the channel as it was
+                    val report = if (problemReports.canReport(url)) {
+                        ProblemReportRequest(
+                            atMs = System.currentTimeMillis(),
+                            streamUrl = url,
+                            channelName = reportChannel.value?.name.orEmpty(),
+                            player = exoHolder.problemReportPlayer(),
+                            extra = mapOf(
+                                "channel" to reportChannel.value?.name,
+                                "programme" to reportProgramme.value?.title,
+                                "cast" to reportCasting.value,
+                            ),
+                        )
+                    } else {
+                        null
+                    }
+                    guideChoice = GuideChoiceRequest(url, reportChannel.value?.name.orEmpty(), report)
+                },
+            )
+            onDispose { GuideChoiceMenu.action = null }
+        }
+        guideChoice?.let { request ->
+            GuideChoiceDialog(
+                request = request,
+                guides = guideChoices,
+                onDismiss = { guideChoice = null },
+                onCouldNotFind = request.report?.let { report ->
+                    {
+                        problemReports.sendInBackground(
+                            what = ProblemKind.GUIDE.label,
+                            happenedAtMs = report.atMs,
+                            streamUrl = report.streamUrl,
+                            player = report.player,
+                            extra = report.extra + mapOf(
+                                "problem" to ProblemKind.GUIDE.code,
+                                "from" to "guide list: could not find the guide",
+                            ),
+                        )
+                    }
+                },
+            )
+        }
 
         // Remote Control: Left-press Channels overlay (GH #54), drawn above
         // the video and all chrome.
@@ -3196,6 +3250,7 @@ private data class SwitchStreamState(
 interface PlayerScreenEntryPoint {
     fun exoPlayerHolder(): com.aeriotv.android.core.playback.AerioExoPlayerHolder
     fun dispatchMoreReports(): com.aeriotv.android.core.network.DispatchMoreReports
+    fun dispatchMoreGuides(): com.aeriotv.android.core.network.DispatchMoreGuides
     fun exoWindowState(): ExoWindowState
     fun timeshiftController(): com.aeriotv.android.core.timeshift.TimeshiftController
     fun castSender(): com.aeriotv.android.core.cast.AerioCastSender

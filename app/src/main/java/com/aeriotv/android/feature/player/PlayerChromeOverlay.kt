@@ -55,6 +55,7 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.ClosedCaption
+import androidx.compose.material.icons.outlined.EventNote
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.GridView
@@ -1202,6 +1203,15 @@ internal object OptionsMenuHoldGate {
     }
 }
 
+/**
+ * Dispatch More: "Wrong guide? Choose another", directly under the report,
+ * set by PlayerScreen the same way (see [ProblemReportMenu]).
+ */
+internal object GuideChoiceMenu {
+    @Volatile
+    var action: ProblemReportAction? = null
+}
+
 @Composable
 private fun PlayerMoreMenu(
     expanded: Boolean,
@@ -1284,6 +1294,24 @@ private fun PlayerMoreMenu(
                 onClick = {
                     onDismiss()
                     report.open()
+                },
+            )
+        }
+        val guideChoice = GuideChoiceMenu.action
+        val offerGuideChoice = remember(expanded) { expanded && guideChoice?.available?.invoke() == true }
+        if (offerGuideChoice && guideChoice != null) {
+            DropdownMenuItem(
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Outlined.EventNote,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
+                },
+                text = { Text("Wrong guide? Choose another") },
+                onClick = {
+                    onDismiss()
+                    guideChoice.open()
                 },
             )
         }

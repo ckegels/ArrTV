@@ -967,6 +967,7 @@ fun GuideScreen(
                 searchActive = searchActive,
                 onToggleSearch = { searchActive = !searchActive; if (!searchActive) viewModel.onSearchQueryChange("") },
                 extraActions = {
+                    com.aeriotv.android.feature.player.WatchTogetherAction()
                     RetainedChannelsAction(
                         viewModel = retainedVm, buttonSize = 38.dp, iconSize = 18.dp,
                         onJumpToChannel = { id -> state.channels.firstOrNull { it.id == id }?.let(onChannelClick) },
@@ -1522,6 +1523,16 @@ private fun GroupPills(
                 onClick = onManageGroups,
                 modifier = Modifier
                     .padding(start = 0.dp)
+                    .onPreviewKeyEvent { e ->
+                        if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionDown) onDown() else false
+                    },
+            )
+        }
+        // Watch together (v266): only while there is a device to join, or one joined
+        item(key = "__together__") {
+            com.aeriotv.android.feature.player.TvWatchTogetherCircle(
+                modifier = Modifier
+                    .padding(start = 8.dp)
                     .onPreviewKeyEvent { e ->
                         if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionDown) onDown() else false
                     },

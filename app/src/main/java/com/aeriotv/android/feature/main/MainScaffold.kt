@@ -44,7 +44,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.filled.FiberSmartRecord
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Cast
@@ -527,13 +527,14 @@ fun MainScaffold(
     }
 
     val settingsVm: SettingsViewModel = hiltViewModel()
-    // "ArrTV look" (rail item above Settings / top bar circle): everything in
-    // one press, with a short confirmation.
-    val lookContext = androidx.compose.ui.platform.LocalContext.current
-    val applyArrTvLook: () -> Unit = {
-        settingsVm.applyArrTvLook()
-        android.widget.Toast.makeText(lookContext, lookContext.getString(R.string.main_arrtv_look_applied), android.widget.Toast.LENGTH_SHORT).show()
-    }
+    // Watch together (rail item above Settings / top bar circle), in reach from the guide
+    // whenever the server has it on; the ArrTV look button that stood there went, since the
+    // look is applied at the first start anyway (the user, 2026-10-18)
+    val togetherStatus by com.aeriotv.android.core.network.WatchTogether.status.collectAsStateWithLifecycle()
+    val openWatchTogether: (() -> Unit)? =
+        if (togetherStatus != null) ({ com.aeriotv.android.core.network.WatchTogether.openSheet() }) else null
+    val togetherHighlight by com.aeriotv.android.core.network.WatchTogether.highlight.collectAsStateWithLifecycle()
+    val togetherLinked by com.aeriotv.android.core.network.WatchTogether.linked.collectAsStateWithLifecycle()
     val defaultTabPref by settingsVm.defaultTab.collectAsStateWithLifecycle(initialValue = "")
 
     var selectedTab by rememberSaveable { mutableStateOf(AppTab.LiveTV) }
@@ -1003,7 +1004,8 @@ fun MainScaffold(
                         .onFocusChanged { barHasFocus = it.hasFocus; topNavHasFocusState.value = it.hasFocus },
                 ) {
                     TvTopTabBar(
-                        onApplyLook = applyArrTvLook,
+                        onWatchTogether = openWatchTogether,
+                        watchTogetherHighlighted = togetherHighlight || togetherLinked,
                         retainedCount = retainedList.size,
                         onRetainedClick = { showRetainedDialog = true },
                         onRefresh = { viewModel.refreshPlaylist() },
@@ -1097,7 +1099,8 @@ fun MainScaffold(
                             }
                         },
                         onFocusChanged = { topNavHasFocusState.value = it },
-                        onApplyLook = applyArrTvLook,
+                        onWatchTogether = openWatchTogether,
+                        watchTogetherHighlighted = togetherHighlight || togetherLinked,
                         onUpdate = if (updateVm.isEnabled) ({ updateVm.manualCheck() }) else null,
                         modifier = Modifier
                             .align(Alignment.TopStart)
@@ -1966,9 +1969,11 @@ private fun TvTopTabBar(
      *  up without a trip through Settings > playlist. */
     onRefresh: () -> Unit = {},
     refreshing: Boolean = false,
-    /** "ArrTV look": applies the fork's theme, text sizes and layouts in one
-     *  press (a round button beside Refresh / Search, also on Settings). */
-    onApplyLook: (() -> Unit)? = null,
+    /** "Watch together": the list of who to join and who is joined (a round button beside
+     *  Refresh / Search, also on Settings); null hides it. */
+    onWatchTogether: (() -> Unit)? = null,
+    /** Watch together stands out (the start card is up, or someone is joined). */
+    watchTogetherHighlighted: Boolean = false,
     /** Reports the leftmost pixel the bar actually occupies (the action
      *  circles when shown, otherwise the centered capsule) so the top-left
      *  gesture hints can size themselves to the real gutter instead of a
@@ -2055,8 +2060,8 @@ private fun TvTopTabBar(
     // The action circles hide on Settings (Logan 2026-08-06: they belong to
     // the content tabs - Live TV / DVR / On Demand). They stay while the
     // Search screen itself is up so its circle can show the selected fill.
-    // The ArrTV look button is wanted on every tab, Settings included.
-    val showActionCircles = selected != AppTab.Settings || onApplyLook != null
+    // Watch together is wanted on every tab, Settings included.
+    val showActionCircles = selected != AppTab.Settings || onWatchTogether != null
     // Cold start: TV initial focus falls on the LEFTMOST focusable, which is
     // now the Refresh circle - pull it onto the selected pill (the
     // pre-circle behavior, and an accidental OK there refreshed instead of
@@ -2160,11 +2165,12 @@ private fun TvTopTabBar(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (onApplyLook != null) {
+                    if (onWatchTogether != null) {
                         TvBarCircleButton(
-                            icon = Icons.Filled.AutoAwesome,
-                            contentDescription = stringResource(R.string.main_apply_arrtv_look),
-                            onClick = onApplyLook,
+                            icon = Icons.Outlined.Groups,
+                            contentDescription = stringResource(R.string.watch_together_title),
+                            onClick = onWatchTogether,
+                            selected = watchTogetherHighlighted,
                         )
                     }
                     // Refresh (TV's pull-to-refresh stand-in), then Search -

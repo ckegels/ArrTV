@@ -28,7 +28,6 @@
     <string name="main_tab_tv_shows">Séries</string>
 
     <!-- TvNavRail.kt -->
-    <string name="main_rail_arrtv_look">Style ArrTV</string>
     <string name="main_rail_update">Mise à jour</string>
 
     <!-- SplashScreen.kt -->
@@ -127,6 +126,21 @@
     <string name="main_update_error_title">Problème de mise à jour</string>
     <string name="main_update_try_again">Réessayer</string>
     <string name="main_update_percent">%1$d %%</string>
+    <string name="main_update_err_publishing">Une nouvelle version est en cours de publication. Réessayez dans une minute.</string>
+    <string name="main_update_err_check">La recherche de mise à jour a échoué : %1$s</string>
+    <string name="main_update_err_space">Pas assez d\'espace libre pour télécharger la mise à jour.</string>
+    <string name="main_update_err_download">Le téléchargement a échoué : %1$s</string>
+    <string name="main_update_err_recording">Un enregistrement est en cours. Attendez qu\'il se termine ou arrêtez-le, puis installez la mise à jour.</string>
+    <string name="main_update_err_missing">La mise à jour téléchargée est introuvable. Téléchargez-la à nouveau.</string>
+    <string name="main_update_err_install">L\'installation a échoué : %1$s</string>
+    <string name="main_update_err_install_status">L\'installation a échoué (code %1$d)</string>
+    <string name="main_update_err_incomplete">Le téléchargement est incomplet (taille différente). Réessayez.</string>
+    <string name="main_update_err_not_apk">Le fichier téléchargé n\'est pas un APK lisible.</string>
+    <string name="main_update_err_wrong_app">L\'APK téléchargé n\'est pas AerioTV (%1$s).</string>
+    <string name="main_update_err_not_newer">Le numéro de version de cette version (%1$d) n\'est pas plus récent que celui installé (%2$d) : Android la refuserait.</string>
+    <string name="main_update_err_no_signature">Impossible de lire le certificat de signature de l\'APK.</string>
+    <string name="main_update_err_wrong_signature">Le certificat de signature de l\'APK ne correspond pas à cette application. Installation refusée.</string>
+    <string name="main_update_err_permission">Ouvrez Paramètres &gt; Applications &gt; Sécurité, autorisez AerioTV à installer des applications, puis réessayez.</string>
 
     <!-- ConfigureSourceScreen.kt -->
     <string name="main_configure_title">Configuration</string>
@@ -188,10 +202,8 @@
     <string name="main_drive_not_set_up">La synchronisation Drive n\'est pas encore configurée</string>
     <string name="main_drive_not_configured_text">Cette version d\'AerioTV n\'intègre pas d\'identifiant client Web OAuth Google Cloud. Ajoutez GOOGLE_DRIVE_WEB_CLIENT_ID à local.properties (et enregistrez le SHA-1 du certificat de signature de cet APK dans le même projet Cloud) pour que Se connecter avec Google fonctionne.</string>
     <string name="main_episode_fallback">Épisode</string>
-    <string name="main_arrtv_look_applied">Apparence ArrTV appliquée</string>
     <string name="main_control_a_tv">Contrôler une TV</string>
     <string name="main_show_tab_bar">Afficher la barre d\'onglets, %1$s</string>
-    <string name="main_apply_arrtv_look">Appliquer l\'apparence ArrTV</string>
     <string name="main_refresh_channels_guide">Actualiser les chaînes et le guide</string>
     <string name="main_close_app_title">Voulez-vous fermer AerioTV ?</string>
     <string name="main_close_app">Fermer AerioTV</string>

@@ -35,7 +35,13 @@ fun ConnectionLimitCard(
     isTv: Boolean,
     onRetry: () -> Unit,
     compact: Boolean = false,
+    /** Watch together: join the device that took over (another-device notice only). */
+    onJoin: (() -> Unit)? = null,
+    /** On a TV, which button the remote is on (0 = the first, 1 = Join): OK presses it. */
+    choice: Int = 0,
 ) {
+    val joinable = onJoin != null && notice.kind == DispatcharrConnectionLimit.Kind.OTHER_DEVICE &&
+        notice.byDevice != null
     val retryFocus = remember { FocusRequester() }
     if (isTv && !compact) {
         LaunchedEffect(notice) {
@@ -66,13 +72,39 @@ fun ConnectionLimitCard(
             textAlign = TextAlign.Center,
             maxLines = if (compact) 3 else Int.MAX_VALUE,
         )
-        Button(
-            onClick = onRetry,
-            modifier = Modifier.focusRequester(retryFocus),
-        ) {
-            Text(stringResource(R.string.player_retry))
+        androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            // On a TV the player handles the remote (Left / Right, OK): the chosen button
+            // is drawn filled, the other outlined
+            val filled = androidx.compose.material3.ButtonDefaults.buttonColors()
+            val outlined = androidx.compose.material3.ButtonDefaults.outlinedButtonColors()
+            val colors = { index: Int -> if (!isTv || !joinable || choice == index) filled else outlined }
+            Button(
+                onClick = onRetry,
+                modifier = Modifier.focusRequester(retryFocus),
+                colors = colors(0),
+            ) {
+                // Another TV took this login's stream: pressing takes it back
+                Text(
+                    stringResource(
+                        if (notice.kind == DispatcharrConnectionLimit.Kind.OTHER_DEVICE) {
+                            R.string.player_watch_here
+                        } else {
+                            R.string.player_retry
+                        },
+                    ),
+                )
+            }
+            if (joinable) {
+                // Watch together: follow that device's channel from now on
+                Button(onClick = { onJoin?.invoke() }, colors = colors(1)) {
+                    Text(stringResource(R.string.player_join_other_device))
+                }
+            }
         }
-        if (!compact && notice.kind != DispatcharrConnectionLimit.Kind.STREAM_ENDED) {
+        if (!compact &&
+            notice.kind != DispatcharrConnectionLimit.Kind.STREAM_ENDED &&
+            notice.kind != DispatcharrConnectionLimit.Kind.OTHER_DEVICE
+        ) {
             Text(
                 text = stringResource(R.string.player_close_another_stream),
                 style = MaterialTheme.typography.bodySmall,

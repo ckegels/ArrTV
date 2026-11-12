@@ -40,6 +40,8 @@ ArrTV it adds:
 | **Instant updates** | New channels, Show Groups (channels grouped by what is on, like Cooking or Movies) and guide changes appear within seconds. |
 | **Ad breaks skipped in recordings** | Breaks the server marks are skipped while you watch; the recording is never cut. |
 | **Recordings that start** | On a Linux Dispatcharr install, stock Dispatcharr never starts a recording; Dispatch More fixes that. |
+| **Watch together** | A second TV on the same login can join the first (Join on the notice, or the offer when ArrTV starts): from then on, whichever changes channel, the other follows. Stop it from the player's options. |
+| **One TV at a time** | For the logins the server admin chooses: starting live TV on a second TV stops the first, which shows which TV took over and a **Watch here** button to take it back. |
 
 Each of these has a switch in ArrTV (Settings › General › arrTV optimizations) and on the server.
 Without Dispatch More, ArrTV works like any Dispatcharr app and simply leaves these out.

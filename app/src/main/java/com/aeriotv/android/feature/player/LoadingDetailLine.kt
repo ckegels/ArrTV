@@ -255,7 +255,22 @@ fun LiveFailoverStatusOverlay(
     // Retry and nothing else (no spinner, no status line).
     val connectionLimit by exoHolder.connectionLimit.collectAsStateWithLifecycle()
     connectionLimit?.let { notice ->
-        ConnectionLimitCard(notice = notice, isTv = isTv, onRetry = { exoHolder.retryConnectionLimit() })
+        // Watch together: Join the device that took over, beside Watch here
+        val together = com.aeriotv.android.core.network.WatchTogether
+        val choice by together.noticeChoice.collectAsStateWithLifecycle()
+        LaunchedEffect(notice) { together.noticeChoice.value = 0 }
+        ConnectionLimitCard(
+            notice = notice,
+            isTv = isTv,
+            onRetry = { exoHolder.retryConnectionLimit() },
+            // Only where the server offers it (its Watch together switch is on)
+            onJoin = if (together.joiner != null && com.aeriotv.android.core.network.DispatchMore.linkDevicesOffered()) {
+                { notice.byDevice?.let(together::join) }
+            } else {
+                null
+            },
+            choice = choice,
+        )
         return
     }
     val statusText by exoHolder.liveStatusText.collectAsStateWithLifecycle()

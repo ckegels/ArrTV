@@ -12,6 +12,7 @@ import android.provider.Settings
 import android.util.Log
 import androidx.core.content.pm.PackageInfoCompat
 import com.aeriotv.android.BuildConfig
+import com.aeriotv.android.core.locale.AppText
 import com.aeriotv.android.core.preferences.AppPreferences
 import com.aeriotv.android.feature.dvr.LocalRecordingService
 import dagger.hilt.EntryPoint
@@ -127,11 +128,11 @@ class GithubUpdateManager @Inject constructor(
             // time so the next foreground retries soon.
             UpdateChecker.Outcome.NotReady -> if (manual) {
                 _state.value = UpdateState.Error(
-                    "A new release is being published. Try again in a minute.", null,
+                    AppText.get(com.aeriotv.android.R.string.main_update_err_publishing), null,
                 )
             }
             is UpdateChecker.Outcome.Failed -> if (manual) {
-                _state.value = UpdateState.Error("Update check failed: ${outcome.message}", null)
+                _state.value = UpdateState.Error(AppText.get(com.aeriotv.android.R.string.main_update_err_check, outcome.message.toString()), null)
             } else {
                 Log.i(TAG, "auto-check failed silently: ${outcome.message}")
             }
@@ -149,7 +150,7 @@ class GithubUpdateManager @Inject constructor(
                 val target = File(dir, "AerioTV-${info.versionName}.apk")
                 if (dir.usableSpace < info.apkSizeBytes + FREE_SPACE_HEADROOM_BYTES) {
                     _state.value = UpdateState.Error(
-                        "Not enough free space to download the update.", info,
+                        AppText.get(com.aeriotv.android.R.string.main_update_err_space), info,
                     )
                     return@launch
                 }
@@ -171,7 +172,7 @@ class GithubUpdateManager @Inject constructor(
             } catch (t: Throwable) {
                 Log.w(TAG, "download failed", t)
                 _state.value = UpdateState.Error(
-                    "Download failed: ${t.message ?: t::class.simpleName}", info,
+                    AppText.get(com.aeriotv.android.R.string.main_update_err_download, (t.message ?: t::class.simpleName).toString()), info,
                 )
             }
         }
@@ -190,7 +191,7 @@ class GithubUpdateManager @Inject constructor(
             // reaped). Hard-refuse rather than risk a silent recording loss.
             if (LocalRecordingService.isActive) {
                 _state.value = UpdateState.Error(
-                    "A recording is in progress. Finish or stop it, then install the update.",
+                    AppText.get(com.aeriotv.android.R.string.main_update_err_recording),
                     info,
                 )
                 return@launch
@@ -199,7 +200,7 @@ class GithubUpdateManager @Inject constructor(
             val staged = pending?.let { File(it.apkPath) }
             if (pending == null || staged == null || !staged.isFile) {
                 _state.value = UpdateState.Error(
-                    "The downloaded update is missing. Download it again.", info,
+                    AppText.get(com.aeriotv.android.R.string.main_update_err_missing), info,
                 )
                 appPreferences.setUpdatePendingJson("")
                 return@launch
@@ -221,7 +222,7 @@ class GithubUpdateManager @Inject constructor(
             } catch (t: Throwable) {
                 Log.w(TAG, "install commit failed", t)
                 _state.value = UpdateState.Error(
-                    "Install failed: ${t.message ?: t::class.simpleName}", info,
+                    AppText.get(com.aeriotv.android.R.string.main_update_err_install, (t.message ?: t::class.simpleName).toString()), info,
                 )
             }
         }
@@ -314,7 +315,7 @@ class GithubUpdateManager @Inject constructor(
                 }
                 runCatching { commitSession(retryApk, null) }.onFailure { t ->
                     _state.value = UpdateState.Error(
-                        "Install failed: ${t.message ?: t::class.simpleName}", info,
+                        AppText.get(com.aeriotv.android.R.string.main_update_err_install, (t.message ?: t::class.simpleName).toString()), info,
                     )
                 }
             }
@@ -327,7 +328,8 @@ class GithubUpdateManager @Inject constructor(
                 info?.let { _state.value = UpdateState.ReadyToInstall(it) }
             }
             else -> _state.value = UpdateState.Error(
-                message ?: "Install failed (status $status)", info,
+                message?.let { AppText.get(com.aeriotv.android.R.string.main_update_err_install, it) }
+                    ?: AppText.get(com.aeriotv.android.R.string.main_update_err_install_status, status), info,
             )
         }
     }
@@ -431,32 +433,36 @@ class GithubUpdateManager @Inject constructor(
             return null
         }
         if (expectedSize != null && file.length() != expectedSize) {
-            return fail("The download is incomplete (size mismatch). Try again.")
+            return fail(AppText.get(com.aeriotv.android.R.string.main_update_err_incomplete))
         }
+        // Android 9 to 12 read a file's certificates only when GET_SIGNATURES is asked for:
+        // GET_SIGNING_CERTIFICATES alone leaves signingInfo empty, and every update on a
+        // Fire TV (Fire OS 7, Android 9) failed with "Could not read the APK's signing
+        // certificate" (2026-10-17). With both, signingInfo is filled on every version.
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            PackageManager.GET_SIGNING_CERTIFICATES
+            @Suppress("DEPRECATION")
+            (PackageManager.GET_SIGNING_CERTIFICATES or PackageManager.GET_SIGNATURES)
         } else {
             @Suppress("DEPRECATION") PackageManager.GET_SIGNATURES
         }
         val archive = context.packageManager.getPackageArchiveInfo(file.absolutePath, flags)
-            ?: return fail("The downloaded file is not a readable APK.")
+            ?: return fail(AppText.get(com.aeriotv.android.R.string.main_update_err_not_apk))
         if (archive.packageName != context.packageName) {
-            return fail("The downloaded APK is not AerioTV (${archive.packageName}).")
+            return fail(AppText.get(com.aeriotv.android.R.string.main_update_err_wrong_app, archive.packageName.toString()))
         }
         val archiveCode = PackageInfoCompat.getLongVersionCode(archive)
         val currentCode = BuildConfig.VERSION_CODE.toLong()
         if (archiveCode <= currentCode) {
             return fail(
-                "The release's version code ($archiveCode) is not newer than the installed " +
-                    "one ($currentCode), so Android would refuse it.",
+                AppText.get(com.aeriotv.android.R.string.main_update_err_not_newer, archiveCode, currentCode),
             )
         }
         val archiveSigners = signerSha256(archive)
         if (archiveSigners.isEmpty()) {
-            return fail("Could not read the APK's signing certificate.")
+            return fail(AppText.get(com.aeriotv.android.R.string.main_update_err_no_signature))
         }
         if (archiveSigners != ownSignerSha256()) {
-            return fail("The APK's signing certificate does not match this app. Refusing to install.")
+            return fail(AppText.get(com.aeriotv.android.R.string.main_update_err_wrong_signature))
         }
         return PendingUpdate(
             versionName = archive.versionName ?: "",
@@ -520,8 +526,7 @@ class GithubUpdateManager @Inject constructor(
         runCatching { context.startActivity(intent) }
             .onFailure {
                 _state.value = UpdateState.Error(
-                    "Open Settings > Apps > Security and allow AerioTV to install apps, " +
-                        "then try again.",
+                    AppText.get(com.aeriotv.android.R.string.main_update_err_permission),
                     (_state.value as? UpdateState.AwaitingInstallPermission)?.info,
                 )
             }

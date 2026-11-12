@@ -631,7 +631,12 @@ fun VODPlayerScreen(
             return@seek
         }
         val progLenMs = catchupEndMillis - catchupStartMillis
-        val target = rawTarget.coerceIn(0L, (progLenMs - 5_000L).coerceAtLeast(0L))
+        // Native: a whole minute, the finest start the provider's archive has (CatchupMinuteStep)
+        val target = if (isNativeCatchup) {
+            com.aeriotv.android.core.playback.CatchupMinuteStep.snap(catchupStartMillis, positionMs, rawTarget, progLenMs)
+        } else {
+            rawTarget.coerceIn(0L, (progLenMs - 5_000L).coerceAtLeast(0L))
+        }
         // NO in-buffer fast path: the catch-up stream reports LENGTH_UNSET
         // (UnboundedLengthDataSource) so TsExtractor emits an UNSEEKABLE
         // SeekMap and media3 collapses every seekTo into t=0 - which, with
@@ -886,7 +891,7 @@ fun VODPlayerScreen(
                 // button highlights, and no press ever reaches it or moves to
                 // Close. Reported on the Google TV Streamer, 2026-08-15.
                 // There is nothing playing behind the card to transport anyway.
-                if (playbackErrorMessage != null) return@onPreviewKeyEvent false
+                if (playbackErrorMessage != null || VodOtherDevice.notice.value != null) return@onPreviewKeyEvent false
                 if (dvrEndPromptVisible) return@onPreviewKeyEvent false
                 val handledKey = when (event.key) {
                     Key.DirectionCenter, Key.Enter, Key.NumPadEnter,
@@ -1099,12 +1104,24 @@ fun VODPlayerScreen(
                     // Send a real player UA (parity with live path); some
                     // panels reject the platform "Dalvik/..." default.
                     .setUserAgent("AerioTV/${com.aeriotv.android.BuildConfig.VERSION_NAME} (Android; ${android.os.Build.MODEL})")
-                if (httpHeaders.isNotEmpty()) {
-                    dataSourceFactory.setDefaultRequestProperties(httpHeaders)
+                // Which device this is, on a Dispatch More server: a login held to one device
+                // at a time counts movies, series and look back too (contract §5a)
+                val requestHeaders = httpHeaders +
+                    com.aeriotv.android.core.network.DispatchMore.deviceHeaders(streamUrl)
+                if (requestHeaders.isNotEmpty()) {
+                    dataSourceFactory.setDefaultRequestProperties(requestHeaders)
                     httpHeaders.entries
                         .firstOrNull { it.key.equals("User-Agent", ignoreCase = true) }
                         ?.value
                         ?.let(dataSourceFactory::setUserAgent)
+                }
+                // The viewer opened this: it is watched here, even after another device took
+                // over. Only the first request says so (and the one after Watch here); the
+                // player's own retries never take the stream back
+                com.aeriotv.android.core.network.DispatchMore.takeOver()
+                val takeOverFactory = androidx.media3.datasource.ResolvingDataSource.Factory(dataSourceFactory) { spec ->
+                    val takeOver = com.aeriotv.android.core.network.DispatchMore.takeOverHeader()
+                    if (takeOver.isEmpty()) spec else spec.withAdditionalHeaders(takeOver)
                 }
 
                 val renderersFactory =
@@ -1126,7 +1143,7 @@ fun VODPlayerScreen(
                 // auth headers. A bare DefaultHttpDataSource.Factory cannot open
                 // file://, so local recordings would otherwise fail to load.
                 val upstreamFactory: androidx.media3.datasource.DataSource.Factory =
-                    DefaultDataSource.Factory(ctx, dataSourceFactory).let { base ->
+                    DefaultDataSource.Factory(ctx, takeOverFactory).let { base ->
                         // Catch-up (task #133): a Dispatcharr /timeshift/ archive
                         // reports an estimated Content-Length and re-redirects to
                         // a fresh ?session_id on every connection, so ExoPlayer's
@@ -1144,6 +1161,8 @@ fun VODPlayerScreen(
                 val tracedFactory = tracer.wrapDataSourceFactory(upstreamFactory)
                 val mediaSourceFactory = DefaultMediaSourceFactory(ctx)
                     .setDataSourceFactory(tracedFactory)
+                    // The other-device refusal is shown, never fetched again by Media3
+                    .setLoadErrorHandlingPolicy(com.aeriotv.android.core.playback.DispatcharrConnectionLimit.LoadErrorPolicy())
 
                 // Phone mini expand (PhoneVodMini.kt): adopt the instance that
                 // kept playing in the floating mini instead of building one.
@@ -1169,6 +1188,16 @@ fun VODPlayerScreen(
 
                             override fun onPlayerError(error: PlaybackException) {
                                 Log.e(TAG, "VOD ExoPlayer error: ${error.errorCodeName}", error)
+                                // Another device of this login took over (409 device_replaced):
+                                // before the catch-up branch below, which takes a 4xx for an
+                                // expired session and would mint a new one
+                                com.aeriotv.android.core.playback.DispatcharrConnectionLimit.parse(error)
+                                    ?.takeIf { it.kind == com.aeriotv.android.core.playback.DispatcharrConnectionLimit.Kind.OTHER_DEVICE }
+                                    ?.let {
+                                        Log.w(TAG, "[LIMIT] ${it.kind} \"${it.title}\"; waiting for Watch here")
+                                        VodOtherDevice.notice.value = it
+                                        return
+                                    }
                                 // Catch-up (task #136): a provider that flags
                                 // tv_archive but serves no archive answers the
                                 // timeshift URL with 404 "Catch-up not
@@ -2110,6 +2139,9 @@ fun VODPlayerScreen(
                 }
             }
         }
+
+        // Another device of this login took over (Dispatch More §5a): over everything above
+        VodOtherDeviceOverlay(player = exoPlayer, isTv = isTvForm, onWatchHere = doErrorRetry)
 
         // ── Options sheets ───────────────────────────────────────────────
         // FormFactorModal-based (bottom sheet on touch, centered dialog on

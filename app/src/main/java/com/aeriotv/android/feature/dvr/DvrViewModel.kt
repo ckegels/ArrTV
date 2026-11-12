@@ -273,6 +273,19 @@ class DvrViewModel @Inject constructor(
      */
     private val categoryCache = java.util.concurrent.ConcurrentHashMap<String, String>()
 
+    /** What the guide said for a recording's programme ([hydrateRecordingsFromEpg]), by
+     *  recording and window; [found] false: not in the guide, asked again after
+     *  [HYDRATION_RETRY_MS]. */
+    private data class Hydration(
+        val found: Boolean,
+        val title: String = "",
+        val description: String = "",
+        val category: String = "",
+        val atMs: Long,
+    )
+
+    private val hydrationMemo = java.util.concurrent.ConcurrentHashMap<String, Hydration>()
+
     /**
      * Media-center DVR art (Apple parity, DVRArtResolver, reduced): for a
      * server recording without a poster, try TMDB by cleaned title when the
@@ -1093,30 +1106,58 @@ class DvrViewModel @Inject constructor(
         }
         val needy = recordings.filter(::needsHydration)
         if (needy.isEmpty()) return recordings
+        fun key(r: Recording) = "${r.id}|${r.dispatcharrChannelId}|${r.startMillis}|${r.endMillis}"
+        // Each recording is looked up once (again later only when the guide did not have
+        // it): the list refreshes every 30 s, and looking all of them up each time read
+        // the guide across every recording's days -- 87,000 programmes, 10 to 30 s of
+        // reading and nonstop garbage collection -- which on a Chromecast HD (2026-10-17)
+        // took playback down to a few frames a second while it ran.
+        val now = System.currentTimeMillis()
+        val toLook = needy.filter { r ->
+            val known = hydrationMemo[key(r)]
+            known == null || (!known.found && now - known.atMs > HYDRATION_RETRY_MS)
+        }
+        if (toLook.isNotEmpty()) lookUpInGuide(playlistId, toLook, now) { r, h -> hydrationMemo[key(r)] = h }
+        return recordings.map { r ->
+            if (!needsHydration(r)) return@map r
+            val h = hydrationMemo[key(r)]?.takeIf { it.found } ?: return@map r
+            val rawId = r.id.removePrefix("server-")
+            val genericTitle = r.title.isBlank() || r.title == "Recording $rawId"
+            r.copy(
+                title = if (genericTitle && h.title.isNotBlank()) h.title else r.title,
+                description = if (r.description.isBlank()) h.description else r.description,
+                category = if (r.category.isBlank()) h.category else r.category,
+            )
+        }
+    }
+
+    /** The programme airing in each recording's window, from the on-disk guide. */
+    private suspend fun lookUpInGuide(
+        playlistId: String,
+        recordings: List<Recording>,
+        now: Long,
+        answer: (Recording, Hydration) -> Unit,
+    ) {
         val tvgByChannelId = playlistRepository.loadCachedChannels(playlistId)
             .mapNotNull { c -> c.dispatcharrChannelId?.let { id -> id to c.tvgID } }
             .filter { it.second.isNotBlank() }
             .toMap()
-        if (tvgByChannelId.isEmpty()) return recordings
-        val from = needy.minOf { it.startMillis }
-        val to = needy.maxOf { it.endMillis }
-        if (from <= 0L || to <= from) return recordings
-        val epgByChannel = playlistRepository.loadCachedEpg(playlistId, from, to)
-            .groupBy { it.channelId }
-        if (epgByChannel.isEmpty()) return recordings
-        return recordings.map { r ->
-            if (!needsHydration(r)) return@map r
-            val tvg = tvgByChannelId[r.dispatcharrChannelId] ?: return@map r
-            val prog = epgByChannel[tvg]
+        val from = recordings.minOf { it.startMillis }
+        val to = recordings.maxOf { it.endMillis }
+        val epgByChannel = if (tvgByChannelId.isEmpty() || from <= 0L || to <= from) {
+            emptyMap()
+        } else {
+            playlistRepository.loadCachedEpg(playlistId, from, to).groupBy { it.channelId }
+        }
+        for (r in recordings) {
+            val prog = tvgByChannelId[r.dispatcharrChannelId]
+                ?.let { epgByChannel[it] }
                 ?.maxByOrNull { overlapMillis(it.startMillis, it.endMillis, r.startMillis, r.endMillis) }
                 ?.takeIf { overlapMillis(it.startMillis, it.endMillis, r.startMillis, r.endMillis) > 0L }
-                ?: return@map r
-            val rawId = r.id.removePrefix("server-")
-            val genericTitle = r.title.isBlank() || r.title == "Recording $rawId"
-            r.copy(
-                title = if (genericTitle && prog.title.isNotBlank()) prog.title else r.title,
-                description = if (r.description.isBlank()) prog.description else r.description,
-                category = if (r.category.isBlank()) prog.category else r.category,
+            answer(
+                r,
+                if (prog == null) Hydration(found = false, atMs = now)
+                else Hydration(true, prog.title, prog.description, prog.category, now),
             )
         }
     }
@@ -1246,6 +1287,9 @@ class DvrViewModel @Inject constructor(
 
     private companion object {
         const val TAG = "DvrViewModel"
+
+        /** A recording the guide did not have is looked up again after this long. */
+        const val HYDRATION_RETRY_MS = 30 * 60_000L
 
         /** Stable id for the synthetic row that represents the capture
          *  currently running in LocalRecordingService. Replaced by the real

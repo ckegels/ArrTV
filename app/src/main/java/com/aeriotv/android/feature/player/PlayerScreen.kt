@@ -203,6 +203,8 @@ fun PlayerScreen(
     val problemReports = remember { playerEntry.dispatchMoreReports() }
     var problemReport by remember { mutableStateOf<ProblemReportRequest?>(null) }
     val guideChoices = remember { playerEntry.dispatchMoreGuides() }
+    // Watch together: created here too, so Join works from the player (its hooks, see init)
+    remember { playerEntry.dispatchMoreLinks() }
     var guideChoice by remember { mutableStateOf<GuideChoiceRequest?>(null) }
     val exoWindowState = remember { playerEntry.exoWindowState() }
     val timeshiftController = remember { playerEntry.timeshiftController() }
@@ -655,7 +657,7 @@ fun PlayerScreen(
     // Buffered segments stay on disk until the retention reaper runs.
     DisposableEffect(Unit) {
         onDispose {
-            if (exoHolder.isTimeshifting) exoHolder.goLive()
+            if (exoHolder.isTimeshifting) exoHolder.goLive("player closed")
             timeshiftController.onFullscreenLiveStopped()
         }
     }
@@ -1315,7 +1317,7 @@ fun PlayerScreen(
         val head = w?.headWallMs ?: tsState.headWallMs
         val tail = w?.tailWallMs ?: tsState.tailWallMs
         if (target >= head - 5_000) {
-            exoHolder.goLive()
+            exoHolder.goLive("scrubbed to the live edge")
         } else {
             exoHolder.playTimeshift(target.coerceAtLeast(tail))
         }
@@ -1333,6 +1335,8 @@ fun PlayerScreen(
     LaunchedEffect(Unit) {
         if (!isCatchupMode) return@LaunchedEffect
         exoHolder.httpHeaders = httpHeaders
+        // The viewer opened this look back: on a login held to one device it is watched here
+        com.aeriotv.android.core.network.DispatchMore.takeOver()
         exoHolder.playCatchup(
             url = catchupUrl,
             title = catchupTitle.ifBlank { currentChannel?.name },
@@ -1385,6 +1389,8 @@ fun PlayerScreen(
         catchupOffsetMs = offsetMs
         catchupPositionMs = offsetMs
         catchupCurrentUrl = newUrl
+        // A move the viewer made (a scrub into another window)
+        com.aeriotv.android.core.network.DispatchMore.takeOver()
         exoHolder.playCatchup(
             url = newUrl,
             title = catchupTitle.ifBlank { currentChannel?.name },
@@ -1398,12 +1404,16 @@ fun PlayerScreen(
     val commitScrubCatchup: (Long) -> Unit = { target ->
         val clamped = target.coerceIn(0L, (catchupDurationMs - 5_000L).coerceAtLeast(0L))
         if (isNativeCatchup) {
+            // A whole minute, the finest start the provider's archive has (CatchupMinuteStep)
+            val minute = com.aeriotv.android.core.playback.CatchupMinuteStep.snap(
+                catchupStartMillis, catchupPositionMs, clamped, catchupDurationMs,
+            )
             if (nativeRemintInFlight) {
-                nativeRemintPendingMs = clamped
-                catchupPositionMs = clamped
+                nativeRemintPendingMs = minute
+                catchupPositionMs = minute
             } else scope.launch {
                 nativeRemintInFlight = true
-                var t = clamped
+                var t = minute
                 while (true) {
                     val outgoing = catchupCurrentUrl
                     val minted = onRemintCatchup(catchupChannelUuid, outgoing, catchupStartMillis + t)
@@ -1459,9 +1469,15 @@ fun PlayerScreen(
         scrubLastStepAt = now
         val mult = minOf(12, 1 + scrubAccelCount / 2)
         if (isCatchupMode) {
-            // Catch-up domain: PROGRAMME-relative ms in [0, duration].
+            // Catch-up domain: PROGRAMME-relative ms in [0, duration]. A native session moves
+            // a minute a step, the finest the provider's archive has (CatchupMinuteStep)
             val base = scrubTargetWallMs ?: catchupPositionMs
-            scrubTargetWallMs = (base + SkipIntervals.scrubDeltaMs(dir, isRepeat, mult)).coerceIn(0L, catchupDurationMs)
+            val delta = if (isNativeCatchup) {
+                dir * com.aeriotv.android.core.playback.CatchupMinuteStep.MINUTE_MS * mult
+            } else {
+                SkipIntervals.scrubDeltaMs(dir, isRepeat, mult)
+            }
+            scrubTargetWallMs = (base + delta).coerceIn(0L, catchupDurationMs)
         } else {
             val w = timeshiftController.activeWriter
             val head = w?.headWallMs ?: tsState.headWallMs
@@ -1521,6 +1537,40 @@ fun PlayerScreen(
                 // seek commits after the presses stop). Consume both
                 // actions so the release can't click anything behind.
                 val native = event.nativeKeyEvent
+                // A refusal notice (stream limit, another device took over) owns the
+                // screen, and OK is its button: the bare-video OK handling below would
+                // otherwise take the press for the info bar, and the button never got it.
+                // With Join beside Watch here (watch together), Left / Right choose.
+                val shownNotice = exoHolder.connectionLimit.value
+                if (isTvForm && shownNotice != null) {
+                    val joinable = shownNotice.kind ==
+                        com.aeriotv.android.core.playback.DispatcharrConnectionLimit.Kind.OTHER_DEVICE &&
+                        shownNotice.byDevice != null &&
+                        com.aeriotv.android.core.network.WatchTogether.joiner != null &&
+                        com.aeriotv.android.core.network.DispatchMore.linkDevicesOffered()
+                    val together = com.aeriotv.android.core.network.WatchTogether
+                    when (native.keyCode) {
+                        android.view.KeyEvent.KEYCODE_DPAD_LEFT, android.view.KeyEvent.KEYCODE_DPAD_RIGHT ->
+                            if (joinable) {
+                                if (native.action == android.view.KeyEvent.ACTION_DOWN) {
+                                    together.noticeChoice.value =
+                                        if (native.keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT) 0 else 1
+                                }
+                                return@onPreviewKeyEvent true
+                            }
+                        android.view.KeyEvent.KEYCODE_DPAD_CENTER, android.view.KeyEvent.KEYCODE_ENTER -> {
+                            if (native.action == android.view.KeyEvent.ACTION_UP && !native.isCanceled) {
+                                if (joinable && together.noticeChoice.value == 1) {
+                                    together.join(shownNotice.byDevice!!)
+                                } else {
+                                    exoHolder.retryConnectionLimit()
+                                }
+                                together.noticeChoice.value = 0
+                            }
+                            return@onPreviewKeyEvent true
+                        }
+                    }
+                }
                 // Info bar style: hold OK opens the options menu, also while
                 // the card row is up (a short press still reaches the focused
                 // card: DOWN passes through, only the hold and its release
@@ -1920,6 +1970,37 @@ fun PlayerScreen(
                 reports = problemReports,
                 onDismiss = { problemReport = null },
             )
+        }
+        // Watch together (Dispatch More v260): a channel the device this one watches
+        // together with changed to, or the one it just joined, is tuned here in place
+        DisposableEffect(Unit) {
+            com.aeriotv.android.core.network.WatchTogether.playerOpen = true
+            onDispose { com.aeriotv.android.core.network.WatchTogether.playerOpen = false }
+        }
+        val followRequest by com.aeriotv.android.core.network.WatchTogether.follow.collectAsStateWithLifecycle()
+        LaunchedEffect(followRequest) {
+            val request = followRequest ?: return@LaunchedEffect
+            com.aeriotv.android.core.network.WatchTogether.consumed(request)
+            val i = channels.indexOfFirst {
+                com.aeriotv.android.core.network.DispatchMore.channelRef(it.url) == request.channelUuid
+            }
+            if (i < 0) {
+                Log.w(TAG, "[TOGETHER] channel ${request.channelUuid} is not in this list")
+                return@LaunchedEffect
+            }
+            // The other-device notice goes; its channel plays, never as a take-over
+            val hadNotice = exoHolder.connectionLimit.value != null
+            exoHolder.clearNoticeForJoin()
+            if (i == currentIndex) {
+                // Joining: afresh, at the moment the device joined tunes afresh too
+                if (request.fresh) exoHolder.freshTuneForInStep("joining")
+                else if (hadNotice) exoHolder.retryUnavailable()
+            } else {
+                com.aeriotv.android.core.data.repository.EpgSweepGate.onTuneStart()
+                exoHolder.markTunePress(channels[i].name)
+                currentIndex = i
+            }
+            Log.i(TAG, "[TOGETHER] following to ${channels[i].name}")
         }
         // "Wrong guide? Choose another": offered when the stream's server allows it
         DisposableEffect(Unit) {
@@ -2749,8 +2830,12 @@ private fun LiveRewindChromeSection(
             timeshiftController.refreshWindow()
             tsPaused = exoHolder.isPaused()
             if (tsState.timeshifting) {
+                // Through the holder: on the server's recording the player's position counts
+                // from the start of that recording, not from where the rewind went in, and
+                // base + position put the playhead an hour past live -- so the snap below
+                // sent every server rewind back to live a moment after its first frame
                 val pos = exoHolder.player?.currentPosition ?: 0L
-                tsPositionWallMs = tsState.baseWallMs + pos
+                tsPositionWallMs = exoHolder.currentRewindWallMs() ?: (tsState.baseWallMs + pos)
                 // Cable-DVR catch-up snap: riding the write head keeps
                 // ExoPlayer in perpetual BUFFERING (it can never build
                 // its minimum buffer against a source that grows in
@@ -2760,11 +2845,17 @@ private fun LiveRewindChromeSection(
                 // meaningless positions while BUFFERING, which made
                 // the snap bounce straight back to live on entry
                 // (Streamer field test).
+                // On the server's recording the player's own window says it too: within a few
+                // seconds of its end. Never from the middle of a rewind, whatever the window's
+                // head is believed to be (the Shield went live mid-rewind, 2026-10-18)
+                val p = exoHolder.player
+                val atPlayersEnd = !exoHolder.isServerRewindPlaying() || p == null ||
+                    (p.duration != androidx.media3.common.C.TIME_UNSET && p.duration - p.currentPosition < 8_000)
                 if (!exoHolder.isPaused() &&
-                    exoHolder.player?.playbackState == androidx.media3.common.Player.STATE_READY &&
-                    tsPositionWallMs >= tsState.headWallMs - 4_000
+                    p?.playbackState == androidx.media3.common.Player.STATE_READY &&
+                    tsPositionWallMs >= tsState.headWallMs - 4_000 && atPlayersEnd
                 ) {
-                    exoHolder.goLive()
+                    exoHolder.goLive("caught up with live")
                 }
             }
             kotlinx.coroutines.delay(500)
@@ -2858,7 +2949,8 @@ private fun LiveRewindChromeSection(
         // Live TV with pause/rewind OFF: the transport comes from Live Rewind,
         // so hint that it's a setting rather than silently showing no controls.
         // Only when the channel COULD buffer (raw TS) -- not HLS/DASH live.
-        showLiveRewindHint = !isCatchupMode && !liveRewindEnabled &&
+        // Not where the server keeps the recording: rewind is on there without the setting
+        showLiveRewindHint = !isCatchupMode && !liveRewindEnabled && !tsState.buffering &&
             currentChannel?.url?.takeIf { it.isNotBlank() }
                 ?.let { exoHolder.canBufferLiveRewind(it) } == true,
         // Task #148 milestone B: catch-up transport context.
@@ -2930,12 +3022,12 @@ private fun LiveRewindChromeSection(
             val head = w?.headWallMs ?: tsState.headWallMs
             val tail = w?.tailWallMs ?: tsState.tailWallMs
             if (target >= head - 5_000) {
-                exoHolder.goLive()
+                exoHolder.goLive("skipped to the live edge")
             } else {
                 exoHolder.playTimeshift(target.coerceAtLeast(tail))
             }
         },
-        onGoLive = { exoHolder.goLive() },
+        onGoLive = { exoHolder.goLive("Live pressed") },
         scrubPreviewWallMs = scrubTargetWallMs,
         scrubHudVisible = scrubHudVisible,
         onScrubStep = scrubStep,
@@ -3353,6 +3445,7 @@ interface PlayerScreenEntryPoint {
     fun exoPlayerHolder(): com.aeriotv.android.core.playback.AerioExoPlayerHolder
     fun dispatchMoreReports(): com.aeriotv.android.core.network.DispatchMoreReports
     fun dispatchMoreGuides(): com.aeriotv.android.core.network.DispatchMoreGuides
+    fun dispatchMoreLinks(): com.aeriotv.android.core.network.DispatchMoreLinks
     fun exoWindowState(): ExoWindowState
     fun timeshiftController(): com.aeriotv.android.core.timeshift.TimeshiftController
     fun castSender(): com.aeriotv.android.core.cast.AerioCastSender

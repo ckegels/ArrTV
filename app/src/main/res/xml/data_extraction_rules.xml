@@ -9,6 +9,7 @@
         <exclude domain="database" path="aerio.db-wal"/>
         <exclude domain="file" path="datastore/aerio_prefs.preferences_pb"/>
         <exclude domain="file" path="aerio_debug_logs.txt"/>
+        <exclude domain="sharedpref" path="dispatcharr_tokens.xml"/>
     </cloud-backup>
     <device-transfer>
         <exclude domain="database" path="aerio.db"/>
@@ -16,5 +17,6 @@
         <exclude domain="database" path="aerio.db-wal"/>
         <exclude domain="file" path="datastore/aerio_prefs.preferences_pb"/>
         <exclude domain="file" path="aerio_debug_logs.txt"/>
+        <exclude domain="sharedpref" path="dispatcharr_tokens.xml"/>
     </device-transfer>
 </data-extraction-rules>

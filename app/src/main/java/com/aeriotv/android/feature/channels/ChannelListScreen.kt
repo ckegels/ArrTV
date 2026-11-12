@@ -412,6 +412,7 @@ fun ChannelListScreen(
             },
             modifier = Modifier.statusBarsPadding(),
             extraActions = {
+                com.aeriotv.android.feature.player.WatchTogetherAction()
                 com.aeriotv.android.feature.livetv.RetainedChannelsAction(
                     viewModel = retainedVm,
                     buttonSize = 38.dp,

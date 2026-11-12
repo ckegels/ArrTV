@@ -127,6 +127,9 @@ class MainActivity : ComponentActivity() {
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         // The live remote tour drives the app itself; the real remote only stops it.
         if (com.aeriotv.android.feature.tutorial.TutorialDirector.interceptRealKey(event)) return true
+        // Watch together's cards (top right): the start card -- OK opens the list, Back puts it
+        // away -- and the follow card -- OK or Back keeps this channel
+        if (com.aeriotv.android.core.network.WatchTogether.hintKey(event)) return true
         // The mini-player no longer hijacks OK. Previously, while the mini was
         // Active, EVERY D-pad Select was consumed (double-press = resume), which
         // trapped the user: a single OK on a guide cell did nothing, so they

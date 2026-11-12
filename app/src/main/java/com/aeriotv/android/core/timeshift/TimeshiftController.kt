@@ -241,6 +241,19 @@ class TimeshiftController @Inject constructor(
             // write) that can throw on a full or flaky disk; an uncaught
             // exception here killed the whole process on every tune.
             runCatching {
+                // A Dispatch More server keeping the recording decides: on for every login it does
+                // not exclude (Settings -> arrTV), whatever the TV's own Live Rewind switch says --
+                // Laurent's TV never had that switched on (the user, 2026-10-18)
+                if (serverRewind.offeredFor(streamUrl)) {
+                    if (retained.isNotEmpty()) {
+                        retained.values.forEach { releaseRetained(it) }
+                        retained.clear()
+                        publishRetained()
+                    }
+                    stopSessionInternal()
+                    startServerMode(channelId, channelName, streamUrl)
+                    return@launch
+                }
                 val enabled = prefs.liveRewindEnabled.first()
                 val keepRecent = enabled && prefs.liveRewindKeepRecent.first()
                 // Settings changed underneath live retained sessions:
@@ -250,16 +263,8 @@ class TimeshiftController @Inject constructor(
                     retained.clear()
                     publishRetained()
                 }
-                if (!enabled) {
-                    stopServerMode()
-                    return@launch
-                }
-                // A Dispatch More server keeping the recording: nothing is buffered here
-                if (serverRewind.offeredFor(streamUrl)) {
-                    startServerMode(channelId, channelName, streamUrl)
-                    return@launch
-                }
                 stopServerMode()
+                if (!enabled) return@launch
                 val depthMin = prefs.liveRewindDepthMinutes.first()
                 val keepCount = prefs.liveRewindKeepCount.first()
                 if (keepRecent) demoteCurrentSession(keepCount) else stopSessionInternal()

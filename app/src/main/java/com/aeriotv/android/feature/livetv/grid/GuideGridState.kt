@@ -35,6 +35,8 @@ class GuideGridState(
     var rows: GuideGridRows by mutableStateOf(GuideGridRows.EMPTY)
         private set
 
+    /** What an empty cell says: "No info", or "Loading…" while more days are read. */
+    var placeholderTitle: String by androidx.compose.runtime.mutableStateOf("No info")
     var viewportStartMs: Long by mutableLongStateOf(initialViewportStartMs)
         private set
 

@@ -627,14 +627,22 @@ private fun TimeHeader(
                 ),
             contentAlignment = if (modern) Alignment.CenterStart else Alignment.Center,
         ) {
-            val clock = remember(nowMs / 60_000L, clockMode, modern) {
+            // The day the timeline shows, when it is not today (scrolled back into the
+            // days kept, or ahead): the clock alone left no way to tell yesterday from today
+            val zone = java.time.ZoneId.systemDefault()
+            val viewDay = java.time.Instant.ofEpochMilli(state.anchorMs).atZone(zone).toLocalDate()
+            val today = java.time.Instant.ofEpochMilli(nowMs).atZone(zone).toLocalDate()
+            val clock = remember(nowMs / 60_000L, clockMode, modern, viewDay) {
                 val time = ClockFormat.short(clockMode).format(Date(nowMs))
                 if (modern) {
                     // "Fri, Sep 25, 10:04 PM" in the device locale.
-                    java.text.SimpleDateFormat(
+                    val day = java.text.SimpleDateFormat(
                         android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), "EEEMMMd"),
                         Locale.getDefault(),
-                    ).format(Date(nowMs)) + ", " + time
+                    )
+                    // Only the day: with the time it ran over the first half-hour label
+                    if (viewDay != today) day.format(Date(state.anchorMs))
+                    else day.format(Date(nowMs)) + ", " + time
                 } else time
             }
             if (modern && jumpLabel == null) {
@@ -1277,7 +1285,8 @@ private fun GridRow(
                             overflow = if (ellipsis) TextOverflow.Ellipsis else TextOverflow.Clip,
                             constraints = Constraints(maxWidth = textW, maxHeight = maxH.toInt().coerceAtLeast(1)),
                         )
-                        val title = measure(cell.title, if (cell.isPlaceholder) titleDimStyle else titleStyle, 20.sp.toPx())
+                        val title = measure(if (cell.isPlaceholder) state.placeholderTitle else cell.title,
+                            if (cell.isPlaceholder) titleDimStyle else titleStyle, 20.sp.toPx())
                         if (cell.isPlaceholder || !tall) CellText(title, null) else if (compact) {
                             // Channel Preview (tvOS): title, the subtitle
                             // line, then the S/E pill and flag badges on the

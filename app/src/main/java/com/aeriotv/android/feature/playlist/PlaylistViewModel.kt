@@ -124,6 +124,8 @@ class PlaylistViewModel @Inject constructor(
          *  extent has to come from the cache instead of from the catalog:
          *  Guide Days still promises every cached day is reachable. */
         val epgCachedDaysBack: Int = 0,
+        /** The guide catalog is being widened to more days (ensureGuideRange). */
+        val guideWidening: Boolean = false,
         val epgCachedDaysAhead: Int = 0,
         val searchQuery: String = "",
         val selectedGroup: String = ALL_GROUPS,
@@ -1148,6 +1150,10 @@ class PlaylistViewModel @Inject constructor(
         if (widensForward) guideForwardThroughMs = throughMs
         guideForwardJob?.cancel()
         guideForwardJob = viewModelScope.launch {
+          // While the wider guide is read, empty cells say so ("Loading…", not "No info"):
+          // reading a further day back takes 20 s on a Shield (168,000 rows, 2026-10-01)
+          _state.update { it.copy(guideWidening = true) }
+          try {
             // Logan 2026-09-11: the playlist's Guide Days setting governs the
             // default forward edge (both directions), not the old Settings >
             // Network "Guide Window" preference.
@@ -1161,6 +1167,9 @@ class PlaylistViewModel @Inject constructor(
                 guideForwardFetchedThroughMs = throughMs
             }
             rebuildGuideCatalog(playlist, "jump")
+          } finally {
+            _state.update { it.copy(guideWidening = false) }
+          }
         }
     }
 

@@ -64,6 +64,8 @@ class PlaylistViewModel @Inject constructor(
     // other sections' CACHED restores can start right behind it instead of
     // waiting out the 20 s settle delay (see AppSettleGate.awaitGuidePainted).
     private val settleGate: com.aeriotv.android.core.app.AppSettleGate,
+    // Generated captions (pollLiveCaptions / stopLiveCaptions)
+    private val dispatcharrClient: com.aeriotv.android.core.network.DispatcharrClient,
 ) : ViewModel() {
 
     enum class Phase { Bootstrapping, NeedsUrl, ChannelsReady }
@@ -1776,6 +1778,28 @@ class PlaylistViewModel @Inject constructor(
     ): Boolean {
         val active = repository.activePlaylist() ?: return true
         return catchupResolver.reportNativePosition(active, playbackUrl, positionSecs, paused)
+    }
+
+    /** Generated captions for a live Dispatcharr channel (Dispatch More v247): the lines since
+     *  [since], or null when the call failed. The server base follows the stream's host. */
+    suspend fun pollLiveCaptions(streamUrl: String, channelUuid: String, since: Long): com.aeriotv.android.core.network.LiveCaptions? {
+        val active = repository.activePlaylist() ?: return null
+        val apiKey = active.apiKey?.takeIf { it.isNotBlank() } ?: return null
+        val base = com.aeriotv.android.core.playback.CatchupUrlBuilder.dispatcharrBaseFromStreamUrl(streamUrl)
+            ?: active.urlString.trimEnd('/')
+        val lang = com.aeriotv.android.core.playback.CaptionLanguage.code(appPreferences.captionLanguage.first())
+        return dispatcharrClient.pollLiveCaptions(base, apiKey, channelUuid, since, lang)
+    }
+
+    /** The TV is done with this channel's generated captions. */
+    fun stopLiveCaptions(streamUrl: String, channelUuid: String) {
+        viewModelScope.launch {
+            val active = repository.activePlaylist() ?: return@launch
+            val apiKey = active.apiKey?.takeIf { it.isNotBlank() } ?: return@launch
+            val base = com.aeriotv.android.core.playback.CatchupUrlBuilder.dispatcharrBaseFromStreamUrl(streamUrl)
+                ?: active.urlString.trimEnd('/')
+            dispatcharrClient.stopLiveCaptions(base, apiKey, channelUuid)
+        }
     }
 
     /** Task #149: best-effort revoke of a native catch-up session when

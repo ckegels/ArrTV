@@ -26,6 +26,8 @@ import com.aeriotv.android.core.ui.SkipIntervals
 import com.aeriotv.android.ui.adaptive.LocalTabBarBottomInset
 import com.aeriotv.android.ui.adaptive.adaptiveFormWidth
 import com.aeriotv.android.ui.settings.SettingsDetailTopBar
+import androidx.compose.material.icons.outlined.Translate
+import com.aeriotv.android.ui.settings.SettingsActionRow
 import com.aeriotv.android.ui.settings.SettingsSection
 import com.aeriotv.android.ui.settings.SettingsSelectionRow
 import com.aeriotv.android.ui.settings.SettingsToggleRow
@@ -80,6 +82,8 @@ fun PlayerSettingsScreen(
     val autoRecoverFrozenStreams by viewModel.autoRecoverFrozenStreams
         .collectAsStateWithLifecycle(initialValue = true)
     val teletextSubtitles by viewModel.teletextSubtitles.collectAsStateWithLifecycle(initialValue = true)
+    val generatedCaptions by viewModel.generatedCaptions.collectAsStateWithLifecycle(initialValue = true)
+    val captionLanguage by viewModel.captionLanguage.collectAsStateWithLifecycle(initialValue = "")
     val audioPassthrough by viewModel.audioPassthroughEnabled.collectAsStateWithLifecycle(initialValue = false)
 
     val appleTVChannelFlip by viewModel.appleTVChannelFlip.collectAsStateWithLifecycle(initialValue = true)
@@ -299,6 +303,25 @@ fun PlayerSettingsScreen(
                         checked = teletextSubtitles,
                         onCheckedChange = viewModel::setTeletextSubtitles,
                     )
+                    SettingsToggleRow(
+                        title = "Generated Captions",
+                        subtitle = "On a Dispatch More server with its caption worker, Subtitles offers captions made from the sound for channels without their own. Takes effect on the next channel.",
+                        checked = generatedCaptions,
+                        onCheckedChange = viewModel::setGeneratedCaptions,
+                    )
+                    run {
+                        // Pressing steps through the choices. Always shown: hidden until
+                        // Generated Captions was on, nobody found it (2026-10-02)
+                        val choices = com.aeriotv.android.core.playback.CaptionLanguage.CHOICES
+                        val at = choices.indexOfFirst { it.first == captionLanguage }.coerceAtLeast(0)
+                        SettingsActionRow(
+                            label = "Caption Language: ${com.aeriotv.android.core.playback.CaptionLanguage.label(captionLanguage)}",
+                            leadingIcon = androidx.compose.material.icons.Icons.Outlined.Translate,
+                            onClick = { viewModel.setCaptionLanguage(choices[(at + 1) % choices.size].first) },
+                            subtitle = "Generated captions in this language, translated by the server when the programme speaks another. Original shows them as spoken." +
+                                if (generatedCaptions) "" else " Needs Generated Captions on.",
+                        )
+                    }
                 }
 
                 SettingsSection(

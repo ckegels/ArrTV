@@ -208,12 +208,25 @@ class TeletextSubtitleParserFactory(
         if (format.sampleMimeType == TELETEXT_MIME) TeletextSubtitleParser(format) else delegate.create(format)
 }
 
-/** TsExtractor as DefaultExtractorsFactory builds it (Media3 1.4.1), with teletext added. */
-fun teletextTsExtractor(): Extractor = TsExtractor(
+/** TsExtractor as DefaultExtractorsFactory builds it (Media3 1.4.1), with teletext added.
+ *  [adjuster] is passed in so the player can read the stream time it maps samples from
+ *  (generated captions are timed by it, AerioExoPlayerHolder.streamTimeNowSeconds). */
+fun teletextTsExtractor(adjuster: TimestampAdjuster = TimestampAdjuster(0)): Extractor = TsExtractor(
     TsExtractor.MODE_SINGLE_PMT,
     0, // text transcoding on, as DefaultExtractorsFactory's default
     TeletextSubtitleParserFactory(),
-    TimestampAdjuster(0),
+    adjuster,
     TeletextPayloadReaderFactory(),
+    TS_TIMESTAMP_SEARCH_BYTES,
+)
+
+/** TsExtractor exactly as DefaultExtractorsFactory builds it (Media3 1.4.1), only with the
+ *  [adjuster] given -- for generated captions with teletext subtitles switched off. */
+fun plainTsExtractor(adjuster: TimestampAdjuster): Extractor = TsExtractor(
+    TsExtractor.MODE_SINGLE_PMT,
+    0,
+    DefaultSubtitleParserFactory(),
+    adjuster,
+    DefaultTsPayloadReaderFactory(0, ImmutableList.of()),
     TS_TIMESTAMP_SEARCH_BYTES,
 )

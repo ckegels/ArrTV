@@ -1430,6 +1430,40 @@ class DispatcharrClient @Inject constructor() {
      * redirects/404s without it. Failures are swallowed; the sliding TTL
      * reaps abandoned sessions anyway.
      */
+    /**
+     * Generated captions (Dispatch More v247, fork/subtitles.md §4): the lines the server's
+     * caption worker made from the channel's sound since [since], each stamped with the stream
+     * time (PTS, seconds) it belongs to. Asking keeps the channel's job going and starts it.
+     * A server without the endpoint answers 404: state "unsupported". Null on a failed call.
+     */
+    suspend fun pollLiveCaptions(
+        baseUrl: String,
+        apiKey: String,
+        channelUuid: String,
+        since: Long,
+        lang: String? = null,
+    ): LiveCaptions? =
+        runCatching {
+            // lang (v248): the lines translated into it, same seq and times
+            val url = "${baseUrl.trimEnd('/')}/api/channels/captions/live/$channelUuid/?since=$since" +
+                (lang?.let { "&lang=$it" } ?: "")
+            val response = client.get(url) { applyAuth(apiKey) }
+            val body = response.bodyAsText()
+            // The server's own answers are JSON; a plain "Not Found" page is a server without it
+            if (response.status.value == 404 && !body.trim().startsWith("{")) {
+                LiveCaptions(state = "unsupported")
+            } else {
+                json.decodeFromString(LiveCaptions.serializer(), body)
+            }
+        }.getOrNull()
+
+    /** The TV is done with the channel's captions (changed channel, captions off, closed). */
+    suspend fun stopLiveCaptions(baseUrl: String, apiKey: String, channelUuid: String) {
+        runCatching {
+            client.delete("${baseUrl.trimEnd('/')}/api/channels/captions/live/$channelUuid/") { applyAuth(apiKey) }
+        }
+    }
+
     suspend fun deleteCatchupSession(baseUrl: String, apiKey: String, sessionId: String) {
         runCatching {
             val url = "${baseUrl.trimEnd('/')}/api/catchup/sessions/$sessionId/"
@@ -3599,3 +3633,36 @@ internal fun isSessionLevelNotFound(body: String?): Boolean {
     val text = body?.trim().orEmpty()
     return text.startsWith("{") && text.contains("\"error\"")
 }
+
+/** One generated caption line: [start]..[end] are stream times (PTS, seconds). */
+@kotlinx.serialization.Serializable
+data class LiveCaption(
+    val seq: Long = 0,
+    val start: Double = 0.0,
+    val end: Double = 0.0,
+    val text: String = "",
+)
+
+/** What the server's caption worker has for a channel now (see pollLiveCaptions). States:
+ *  "off", "not playing", "busy", "starting", "loading model", "listening", "ended", "error",
+ *  and "unsupported" for a server without generated captions. */
+@kotlinx.serialization.Serializable
+data class LiveCaptions(
+    val state: String = "",
+    val reason: String = "",
+    val error: String = "",
+    val language: String = "",
+    val behind: Double = 0.0,
+    val cues: List<LiveCaption> = emptyList(),
+    /** Asked with a language (v248): how the translation went. */
+    val translation: LiveCaptionTranslation? = null,
+)
+
+@kotlinx.serialization.Serializable
+data class LiveCaptionTranslation(
+    val to: String = "",
+    val from: String = "",
+    val state: String = "",
+    val engine: String = "",
+    val reason: String = "",
+)

@@ -370,6 +370,9 @@ fun EditPlaylistScreen(
                                             contentLabel = "password",
                                         )
                                     },
+                                    // From AerioTV 6dde44ec: a password sign-in needs an account
+                                    // that already has an API key
+                                    supportingText = { Text(stringResource(R.string.main_configure_api_key_required_note)) },
                                     modifier = Modifier.fillMaxWidth().tvFormFieldInput(
                                         horizontalFocusEscape = true,
                                         okSuppressed = { passwordReveal.controlFocused },

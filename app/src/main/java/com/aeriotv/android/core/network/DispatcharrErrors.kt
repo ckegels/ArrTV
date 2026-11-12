@@ -30,7 +30,15 @@ sealed class DispatcharrError(message: String) : Exception(message) {
     class Unauthorized(message: String) : DispatcharrError(message)
     class RefreshExpired(message: String) : DispatcharrError(message)
     class UnexpectedResponse(message: String) : DispatcharrError(message)
-    class Transport(message: String) : DispatcharrError(message)
+    open class Transport(message: String) : DispatcharrError(message)
+
+    /** HTTP 429 from the login endpoint, or a login skipped because an
+     *  earlier 429 is still parking it. A [Transport] so every existing
+     *  catch keeps handling it; the copy says to wait. */
+    class LoginThrottled(val retryAfterSeconds: Long) : Transport(
+        // ArrTV's own wording, in the app's language
+        com.aeriotv.android.core.locale.AppText.get(com.aeriotv.android.R.string.core_dispatcharr_login_rate_limited),
+    )
 
     /**
      * A 403 from an endpoint whose permission class is a CAPABILITY check

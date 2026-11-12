@@ -143,11 +143,21 @@ class AerioExoPlayerHolder @Inject constructor(
     /** Buffer floor (ms) the current player was built with; a pref flip forces
      *  a rebuild because the LoadControl is fixed at build time. */
     private var builtWithBufferFloorMs: Int? = null
-    /** Start gate (bufferForPlaybackMs) the current player was built with. Same
-     *  reason as [builtWithBufferFloorMs]: DefaultLoadControl is fixed at build
-     *  time, so a changed learned hold-back needs a player rebuild, which
-     *  [playUrl] does BEFORE priming so it never lands mid-playback. */
+    /** Start gate (bufferForPlaybackMs) the current player's load control is
+     *  set to. A changed learned hold-back switches [gateLoadControl] in place
+     *  (no rebuild), which [playUrl] does BEFORE priming so it never lands
+     *  mid-playback. */
     private var builtWithStartGateMs: Int? = null
+    /** Load control of the current player; switches the start gate in place. */
+    private var gateLoadControl: GateSwitchingLoadControl? = null
+
+    /** min = gate + 4 s keeps 4 s of real cushion above a raised start gate. */
+    private fun minBufferFor(bufferFloorMs: Int, gateMs: Int): Int =
+        maxOf(4_000, bufferFloorMs, gateMs + 4_000)
+
+    /** At least LIVE_MAX_BUFFER_FLOOR_MS so the post-stall resume gate is reachable. */
+    private fun liveMaxBufferFor(bufferFloorMs: Int, gateMs: Int): Int =
+        maxOf(minBufferFor(bufferFloorMs, gateMs) * 2, LIVE_MAX_BUFFER_FLOOR_MS)
     /** Start gate the next [acquireOrCreate] must build with, stamped by
      *  [playUrl] from the learned per-channel hold-back. */
     @Volatile private var desiredStartGateMs: Int = LIVE_START_GATE_DEFAULT_MS
@@ -415,6 +425,30 @@ class AerioExoPlayerHolder @Inject constructor(
         // rebuilt into the LoadControl), never mid-stream: a live feed only
         // delivers at about real time, so holding for an 18 s learned value
         // just buys an 18 s pause (Apple device result 2026-09-13).
+    }
+
+    /** From AerioTV d2b38f2c: a tune that applies a learned value rolls its 30 minute
+     *  TTL forward, so expiry counts from the last tune that used it -- a channel
+     *  watched for hours kept its hold-back only for the first half hour. Never
+     *  forever: an unused value still lapses 30 minutes after its last use. */
+    private val lastRestampAtMs = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    private fun restampLearnedOnUse(
+        key: String,
+        entry: com.aeriotv.android.core.preferences.LearnedStartBuffer,
+    ) {
+        val now = System.currentTimeMillis()
+        // 20 s debounce: one tune can read the value more than once (tune path plus
+        // rebuffer gate), so re-stamp and log only once.
+        val last = lastRestampAtMs[key]
+        if (last != null && now - last < RESTAMP_DEBOUNCE_MS) return
+        lastRestampAtMs[key] = now
+        Log.i(TAG, "[HOLDBACK] learned value re-stamped on use")
+        cachedLiveStartBuffers = cachedLiveStartBuffers +
+            (key to com.aeriotv.android.core.preferences.LearnedStartBuffer(entry.ms, now))
+        prefScope.launch {
+            cachedLiveStartBuffers = appPreferences.setLiveStartBufferMs(key, entry.ms, now)
+        }
     }
 
     /**
@@ -754,6 +788,33 @@ class AerioExoPlayerHolder @Inject constructor(
      *  other path (watchdog, error reload, 503 backoff) already re-primed. */
     @Volatile private var primeGeneration = 0L
 
+    /** The HTTP status of the last terminal look-back error, or null. PlayerScreen reads it
+     *  to tell a session the server no longer knows (a look back restored after the process
+     *  was killed) from an archive that is really not there. */
+    @Volatile var lastCatchupHttpCode: Int? = null
+        private set
+
+    /** Read-only view of [primeGeneration] for the follow-poller: a deferred
+     *  follow that sees it move knows the connection was reopened meanwhile. */
+    val currentPrimeGeneration: Long get() = primeGeneration
+
+    /**
+     * From AerioTV c4e82d09 (GH #117, a Shield): a kept-connection follow that lands while
+     * a 503 quick retry is pending, or right after its re-prime reopened the source (IDLE,
+     * or BUFFERING with nothing buffered), crashed ExoPlayer:Playback with
+     * IllegalStateException. True while following now is unsafe; the follow-poller defers
+     * and re-arms once this clears. Main thread.
+     */
+    fun isFollowUnsafe(): Boolean {
+        if (stoppingRetryJob?.isActive == true) return true
+        val p = player ?: return true
+        return when (p.playbackState) {
+            Player.STATE_IDLE -> true
+            Player.STATE_BUFFERING -> bufferedAheadMs(p) <= 0L
+            else -> false
+        }
+    }
+
     /** The live raw-TS source currently primed, wrapped so a stream switch can
      *  hard-switch onto the new stream on the same connection. Main thread. */
     private var switchSkipSource: SwitchSkipMediaSource? = null
@@ -932,6 +993,14 @@ class AerioExoPlayerHolder @Inject constructor(
         if (p == null || isTimeshifting) {
             Log.i(TAG, "[SWITCH] no live player to follow; nothing to do")
             return@withContext false
+        }
+        // GH #117: never request a skip on a source that a 503 quick retry is
+        // about to replace or has just reopened. The reopen already carries the
+        // new upstream, so there is no old buffer to drop.
+        if (isFollowUnsafe()) {
+            Log.i(TAG, "[SWITCH] player recovering (state=${p.playbackState}, quick retry pending=${stoppingRetryJob?.isActive == true}); no kept-connection skip")
+            switchWindowUntilMs = SystemClock.elapsedRealtime() + SWITCH_WINDOW_MS
+            return@withContext true
         }
         val startAt = SystemClock.elapsedRealtime()
         val startGen = primeGeneration
@@ -1637,6 +1706,7 @@ class AerioExoPlayerHolder @Inject constructor(
                     }
                     return
                 }
+                lastCatchupHttpCode = httpCode
                 Log.w(TAG, "[CATCHUP] terminal error ${error.errorCodeName}; staying (no live re-prime)")
                 // Task #148 milestone B: surface it - the unified TV player
                 // renders its catch-up error overlay off these (a provider
@@ -1735,6 +1805,9 @@ class AerioExoPlayerHolder @Inject constructor(
         }
 
         override fun onRenderedFirstFrame() {
+            // The stall watch's frozen-playhead clock starts at the first frame, not at
+            // whatever the previous channel or the tune left in it
+            if (!videoFrameRendered) stallProbeAdvanceAtMs = SystemClock.elapsedRealtime()
             videoFrameRendered = true
             noFrameHealAttempts = 0
             // GH #107: video that has been painting steadily for a while means
@@ -1815,13 +1888,20 @@ class AerioExoPlayerHolder @Inject constructor(
         // collector launched in init{}; no blocking read needed here.
         player?.let { existing ->
             if (builtWithPassthrough == audioPassthrough &&
-                builtWithBufferFloorMs == bufferFloorMs &&
-                builtWithStartGateMs == startGateMs
+                builtWithBufferFloorMs == bufferFloorMs
             ) {
+                // A changed learned start gate no longer rebuilds: the
+                // release + build ran on the main thread before the new
+                // stream was requested (Streamer guide tune with the mini
+                // running: playUrl=3738). The running player's load control
+                // switches gates instead, before the new source is primed.
+                if (builtWithStartGateMs != startGateMs) {
+                    Log.i(TAG, "[HOLDBACK] start gate $builtWithStartGateMs -> $startGateMs ms on the running player")
+                    gateLoadControl?.requestGate(startGateMs)
+                    builtWithStartGateMs = startGateMs
+                    builtMaxBufferMs = liveMaxBufferFor(bufferFloorMs, startGateMs)
+                }
                 return existing
-            }
-            if (builtWithStartGateMs != startGateMs) {
-                Log.i(TAG, "[HOLDBACK] rebuilding player for start gate $startGateMs ms")
             }
             Log.i(TAG, "Player build pref changed (passthrough/buffer); rebuilding player")
             destroy()
@@ -1884,27 +1964,31 @@ class AerioExoPlayerHolder @Inject constructor(
         // to stay above it: a bufferForPlaybackMs at or past minBufferMs leaves
         // the load control nothing to work with. min = gate + 4s keeps the same
         // 4 s of real cushion the tuning above describes.
-        val minBufferMs = maxOf(4_000, bufferFloorMs, startGateMs + 4_000)
+        // (Bounds computed per gate by minBufferFor / liveMaxBufferFor.)
+        val liveMaxBufferMs = liveMaxBufferFor(bufferFloorMs, startGateMs)
         // The post-stall resume gate can only hold for what the LoadControl will
         // actually keep buffered ahead (target is clamped to maxBufferMs - 1 s),
         // and minBufferMs * 2 is only ~10.4 s at the base start gate. A live
         // player therefore gets at least 14 s of max buffer so a 12 s gate is
         // reachable; the MIN bound is untouched, so steady-state behaviour and
         // the Buffer Size ladder are unchanged.
-        val liveMaxBufferMs = maxOf(minBufferMs * 2, LIVE_MAX_BUFFER_FLOOR_MS)
-        val loadControl = DefaultLoadControl.Builder()
-            .setBufferDurationsMs(
-                /* minBufferMs = */ minBufferMs,
-                // Real headroom between the bounds at EVERY rung. The old
-                // maxOf(8_000, minBufferMs) degenerated to min == max once the
-                // floor reached 8s, leaving the load control nothing to work
-                // with on precisely the setting chosen for poor networks.
-                /* maxBufferMs = */ liveMaxBufferMs,
-                /* bufferForPlaybackMs = */ startGateMs,
-                /* bufferForPlaybackAfterRebufferMs = */ 2_000,
-            )
-            .setPrioritizeTimeOverSizeThresholds(true)
-            .build()
+        val loadControl = GateSwitchingLoadControl(startGateMs) { gateMs, allocator ->
+            DefaultLoadControl.Builder()
+                .setAllocator(allocator)
+                .setBufferDurationsMs(
+                    /* minBufferMs = */ minBufferFor(bufferFloorMs, gateMs),
+                    // Real headroom between the bounds at EVERY rung. The old
+                    // maxOf(8_000, minBufferMs) degenerated to min == max once the
+                    // floor reached 8s, leaving the load control nothing to work
+                    // with on precisely the setting chosen for poor networks.
+                    /* maxBufferMs = */ liveMaxBufferFor(bufferFloorMs, gateMs),
+                    /* bufferForPlaybackMs = */ gateMs,
+                    /* bufferForPlaybackAfterRebufferMs = */ 2_000,
+                )
+                .setPrioritizeTimeOverSizeThresholds(true)
+                .build()
+        }
+        gateLoadControl = loadControl
 
         val fresh = ExoPlayer.Builder(context)
             .setRenderersFactory(renderersFactory)
@@ -2188,14 +2272,25 @@ class AerioExoPlayerHolder @Inject constructor(
             else com.aeriotv.android.core.playback.teletext.teletextTsExtractor()
         } else if (adjuster != null) {
             com.aeriotv.android.core.playback.teletext.plainTsExtractor(adjuster)
-        } else all.firstOrNull { it is TsExtractor }
+        } else if (all.any { it is TsExtractor }) {
+            // Media3's own, but a corrupt AC-3 header resyncs instead of failing the load
+            // (SafeTsExtractor.kt)
+            com.aeriotv.android.core.playback.safeTsExtractor()
+        } else null
         val fmp4: Extractor? = all.firstOrNull {
             it is androidx.media3.extractor.mp4.FragmentedMp4Extractor
         }
         if (ts == null) return@ExtractorsFactory all
+        // ContinuousTsExtractor (from AerioTV 7cee8fa8): when Dispatcharr swaps the channel's
+        // source stream on this same connection (failover, Dispatch More's stutter switch),
+        // the new provider's timestamps have nothing to do with the old ones; MODE_SINGLE_PMT
+        // only unwraps the 33-bit roll, so audio and queued video landed on different
+        // timelines -- video held as "too early" (a frozen picture while the time ran on) or
+        // a jump of half an hour. It rebases every sample onto one running timeline.
+        val continuous: Extractor = ContinuousTsExtractor(ts)
         buildList {
             fmp4?.let { add(it) }
-            add(object : Extractor by ts {
+            add(object : Extractor by continuous {
                 override fun sniff(
                     input: androidx.media3.extractor.ExtractorInput,
                 ): Boolean = true
@@ -2469,6 +2564,7 @@ class AerioExoPlayerHolder @Inject constructor(
         lastGapKey = null
         gapHops = 0
         if (!catchupRetryPass) catchupDecodeRetries = 0
+        lastCatchupHttpCode = null
         lastCatchupUrl = url
         lastCatchupTitle = title
         lastCatchupSubtitle = subtitle
@@ -2557,6 +2653,9 @@ class AerioExoPlayerHolder @Inject constructor(
             )
         }
         val learnedGateMs = if (learnedExpired) 0 else learnedEntry?.ms ?: 0
+        if (!learnedExpired && learnedEntry != null && learnedEntry.ms > 0) {
+            restampLearnedOnUse(effectiveChannelId!!, learnedEntry)
+        }
         val startGateMs = maxOf(LIVE_START_GATE_DEFAULT_MS, learnedGateMs)
             .coerceAtMost(LIVE_START_GATE_MAX_MS)
         Log.i(TAG, "[HOLDBACK] ch=${title ?: "?"} start gate $startGateMs ms (learned $learnedGateMs ms)")
@@ -3240,11 +3339,18 @@ class AerioExoPlayerHolder @Inject constructor(
                     stallProbePositionMs = probePos
                     stallProbeAdvanceAtMs = now
                 }
+                // Until the first READY of this tune: ExoPlayer draws the first frame while it
+                // is still buffering, so that buffering is the start, not an underrun, and the
+                // playhead counts as frozen only well after the first frame. Every channel
+                // start flashed "Reconnecting" for the ~150 ms between the two (Shield
+                // 2026-10-20: frame +2729 ms, READY +2887 ms, "state=2 frozen=true").
+                val frozenAfterMs =
+                    if (hasReachedPlaybackRestart) STALL_OVERLAY_FROZEN_MS else STALL_OVERLAY_START_FROZEN_MS
                 val playheadFrozen = !playheadAdvanced &&
-                    now - stallProbeAdvanceAtMs >= STALL_OVERLAY_FROZEN_MS
+                    now - stallProbeAdvanceAtMs >= frozenAfterMs
                 val bufferEmpty = bufferAheadNowMs < STALL_OVERLAY_EMPTY_BUFFER_MS && ingestSilent
                 val reallyStalled = stallWatchLive &&
-                    (underrunBuffering || playheadFrozen || bufferEmpty)
+                    ((underrunBuffering && hasReachedPlaybackRestart) || playheadFrozen || bufferEmpty)
                 if (reallyStalled) {
                     if (!ingestStallStatusShown) {
                         ingestStallStatusShown = true
@@ -4360,6 +4466,10 @@ class AerioExoPlayerHolder @Inject constructor(
          *  worth showing "Reconnecting" for. */
         const val STALL_OVERLAY_FROZEN_MS = 1_000L
 
+        /** Before the first READY of a tune: how long after the first frame a still playhead
+         *  counts as a stall (a slow box may take a few seconds from first frame to READY). */
+        const val STALL_OVERLAY_START_FROZEN_MS = 5_000L
+
         /** Playhead frozen this long after a switch = the new upstream is not
          *  flowing yet; the watch starts logging and keeps the switch window open. */
         const val SWITCH_NO_PROGRESS_MS = 6_000L
@@ -4412,6 +4522,7 @@ class AerioExoPlayerHolder @Inject constructor(
          *  and uses the base gate, so one bad session does not pin a channel
          *  (Logan 2026-09-12). A fresh learn re-arms it. */
         private const val HOLDBACK_LEARNED_TTL_MS = 30L * 60L * 1_000L
+        private const val RESTAMP_DEBOUNCE_MS = 20_000L
         /** Cushion added on top of the worst observed delivery gap so the feed
          *  has room to land the next burst before the buffer runs dry. */
         private const val RESUME_GATE_HEADROOM_MS = 2_000L

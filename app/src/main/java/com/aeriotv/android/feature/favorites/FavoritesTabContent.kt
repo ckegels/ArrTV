@@ -68,6 +68,8 @@ import com.aeriotv.android.R
 fun FavoritesTabContent(
     modifier: Modifier = Modifier,
     onChannelClick: (M3UChannel) -> Unit,
+    /** TV Favorites guide: OK / Watch from Start on an aired catch-up cell. */
+    onPlayCatchup: (String, String, String, Long, Long, String, String) -> Unit = { _, _, _, _, _, _, _ -> },
     favoritesVm: FavoritesViewModel = hiltViewModel(),
     playlistVm: PlaylistViewModel = hiltViewModel(),
     settingsVm: SettingsViewModel = hiltViewModel(),
@@ -137,6 +139,7 @@ fun FavoritesTabContent(
             canToggleViewMode = false,
             onToggleViewMode = {},
             favoritesOnly = true,
+            onPlayCatchup = onPlayCatchup,
             modifier = modifier.fillMaxSize(),
         )
         return

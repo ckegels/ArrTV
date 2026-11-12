@@ -267,18 +267,20 @@ fun PlayerChromeOverlay(
     val closeFocus = remember { androidx.compose.ui.focus.FocusRequester() }
     val retryFocus = remember { androidx.compose.ui.focus.FocusRequester() }
     val pauseFocus = remember { androidx.compose.ui.focus.FocusRequester() }
-    val hasTransportRow = (timeshiftState?.buffering == true && !catchupMode) || catchupMode
-    LaunchedEffect(chromeVisible, connectionIssue, hasTransportRow) {
+    LaunchedEffect(chromeVisible, connectionIssue) {
         if (chromeVisible) {
             kotlinx.coroutines.delay(100)
             // During a connection issue the Retry pill is the primary action,
             // so land focus there; otherwise the center Pause pill (Logan
-            // 2026-09-11), falling back to Options when there is no transport.
+            // 2026-09-11). The TV row always draws Pause (Rewind / Forward grey
+            // out without a rolling buffer, they never vanish), so Pause is the
+            // target whether or not Live Rewind is buffering: gating it on the
+            // buffer sent every reveal with Live Rewind off to Options (from
+            // AerioTV ae4af0c7).
             runCatching {
                 when {
                     connectionIssue && isTv -> retryFocus.requestFocus()
-                    isTv && hasTransportRow -> pauseFocus.requestFocus()
-                    isTv -> optionsFocus.requestFocus()
+                    isTv -> pauseFocus.requestFocus()
                     else -> closeFocus.requestFocus()
                 }
             }

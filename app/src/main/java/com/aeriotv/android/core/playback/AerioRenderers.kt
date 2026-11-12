@@ -132,6 +132,10 @@ fun aerioRenderersFactory(
                                 clockless = false,
                             ),
                         )
+                    } else if (renderer.javaClass == androidx.media3.decoder.ffmpeg.FfmpegAudioRenderer::class.java) {
+                        // A null-MIME AC-3 format after an ingest gap no longer tears the
+                        // decoder down into a crash (MimeGuardRenderer, from AerioTV 1056d9f7)
+                        out.add(MimeGuardRenderer(renderer, clockless = false))
                     } else {
                         out.add(renderer)
                     }
@@ -522,9 +526,23 @@ private class AerioMediaCodecVideoRenderer(
         newFormat: Format,
     ): DecoderReuseEvaluation {
         val evaluation = super.canReuseCodec(codecInfo, oldFormat, newFormat)
-        if (!vetoCodecReuse) return evaluation
         // Stock already vetoed reuse (a real format/config change) -- respect it.
         if (evaluation.result == DecoderReuseEvaluation.REUSE_RESULT_NO) return evaluation
+        // Android#133: a reused decoder keeps the output dataspace it was
+        // configured with (Shield OMX.Nvidia.h265.decode stayed ARBITRARY on an
+        // SDR -> HDR10 HEVC zap, washed-out picture). Any color difference, or
+        // an HEVC live zap where neither side declares color, re-inits.
+        CodecColorReuse.vetoReason(oldFormat, newFormat, liveChannelChange = vetoCodecReuse)?.let { why ->
+            android.util.Log.i("AerioPlayerDiag", "[TUNE] codec reuse vetoed: color $why (${codecInfo.name})")
+            return DecoderReuseEvaluation(
+                evaluation.decoderName,
+                oldFormat,
+                newFormat,
+                DecoderReuseEvaluation.REUSE_RESULT_NO,
+                DecoderReuseEvaluation.DISCARD_REASON_WORKAROUND,
+            )
+        }
+        if (!vetoCodecReuse) return evaluation
         // Only the decoders that actually showed the flush-and-reuse black-screen
         // (Exynos / Samsung C2 H.264, the 0.2.7 GitHub report) need the forced
         // re-init. Forcing it EVERYWHERE re-instantiates the codec against the
@@ -601,6 +619,113 @@ private class AerioMediaCodecVideoRenderer(
  * 2. [clockless] (multiview tiles only) drops the media clock, so the tile runs
  *    on ExoPlayer's standalone clock whether or not its sink is muted.
  */
+/**
+ * Wraps the bundled FFmpeg audio renderer (final, so it cannot be subclassed). From
+ * AerioTV 1056d9f7; ArrTV uses it for the main player only.
+ *
+ * 1. MIME guard. media3's Ac3Reader emits a Format with a NULL sampleMimeType
+ *    when it parses an AC-3 header with fscod '11' ("do not decode"). Garbage
+ *    bytes that happen to carry the 0x0B77 sync word after an ingest gap or a
+ *    corrupt segment produce exactly that mid-stream. DecoderAudioRenderer then
+ *    tears the decoder down and builds a new FfmpegAudioDecoder from the null
+ *    MIME without re-checking support, and the constructor throws a
+ *    NullPointerException, which surfaces as a fatal player error (Nothing
+ *    Phone log 2026-10-11 15:46:24, composite tile ESPNU HD, E-AC-3 3 ch). The
+ *    wrapper hands the renderer a SampleStream that replaces any undecodable
+ *    format with the last decodable one, so the decoder is reused and the bad
+ *    access units that follow are dropped by the decoder itself (FFmpeg's
+ *    "Invalid data" result is a decode-only skip, not an error). A real
+ *    config change (new MIME, channels, rate) still passes through and
+ *    re-initializes the decoder as before.
+ * 2. [clockless] (Multiview tiles only): never offers the media clock, so a tile
+ *    keeps running on ExoPlayer's standalone clock whichever audio renderer
+ *    claims the track.
+ */
+@OptIn(UnstableApi::class)
+private class MimeGuardRenderer(
+    private val inner: Renderer,
+    private val clockless: Boolean,
+) : Renderer by inner {
+    private var original: androidx.media3.exoplayer.source.SampleStream? = null
+
+    override fun getMediaClock(): androidx.media3.exoplayer.MediaClock? =
+        if (clockless) null else inner.mediaClock
+    override fun getDurationToProgressUs(positionUs: Long, elapsedRealtimeUs: Long): Long =
+        inner.getDurationToProgressUs(positionUs, elapsedRealtimeUs)
+    override fun setPlaybackSpeed(currentPlaybackSpeed: Float, targetPlaybackSpeed: Float) =
+        inner.setPlaybackSpeed(currentPlaybackSpeed, targetPlaybackSpeed)
+    override fun enableMayRenderStartOfStream() = inner.enableMayRenderStartOfStream()
+    override fun release() = inner.release()
+
+    override fun enable(
+        configuration: androidx.media3.exoplayer.RendererConfiguration,
+        formats: Array<out Format>,
+        stream: androidx.media3.exoplayer.source.SampleStream,
+        positionUs: Long,
+        joining: Boolean,
+        mayRenderStartOfStream: Boolean,
+        startPositionUs: Long,
+        offsetUs: Long,
+        mediaPeriodId: androidx.media3.exoplayer.source.MediaSource.MediaPeriodId,
+    ) {
+        original = stream
+        inner.enable(
+            configuration, formats, GuardedSampleStream(stream, formats.firstOrNull { it.sampleMimeType != null }),
+            positionUs, joining, mayRenderStartOfStream, startPositionUs, offsetUs, mediaPeriodId,
+        )
+    }
+
+    override fun replaceStream(
+        formats: Array<out Format>,
+        stream: androidx.media3.exoplayer.source.SampleStream,
+        startPositionUs: Long,
+        offsetUs: Long,
+        mediaPeriodId: androidx.media3.exoplayer.source.MediaSource.MediaPeriodId,
+    ) {
+        original = stream
+        inner.replaceStream(
+            formats, GuardedSampleStream(stream, formats.firstOrNull { it.sampleMimeType != null }),
+            startPositionUs, offsetUs, mediaPeriodId,
+        )
+    }
+
+    // ExoPlayerImplInternal compares getStream() with the period's own stream by
+    // identity, so report the original, never the wrapper.
+    override fun getStream(): androidx.media3.exoplayer.source.SampleStream? =
+        if (inner.stream == null) null else original
+
+    override fun disable() { inner.disable(); original = null }
+    override fun reset() { inner.reset(); original = null }
+}
+
+@OptIn(UnstableApi::class)
+private class GuardedSampleStream(
+    private val inner: androidx.media3.exoplayer.source.SampleStream,
+    private var lastGood: Format?,
+) : androidx.media3.exoplayer.source.SampleStream by inner {
+    override fun readData(
+        formatHolder: androidx.media3.exoplayer.FormatHolder,
+        buffer: androidx.media3.decoder.DecoderInputBuffer,
+        readFlags: Int,
+    ): Int {
+        val result = inner.readData(formatHolder, buffer, readFlags)
+        if (result != androidx.media3.common.C.RESULT_FORMAT_READ) return result
+        val format = formatHolder.format ?: return result
+        if (format.sampleMimeType != null) { lastGood = format; return result }
+        val keep = lastGood
+        if (keep != null) {
+            android.util.Log.w("AerioPlayer", "[FFMPEG-AUDIO] undecodable format (null MIME) dropped, keeping ${keep.sampleMimeType} ${keep.channelCount} ch")
+            formatHolder.format = keep
+            return result
+        }
+        // No decodable format seen yet: discard what is buffered and wait.
+        android.util.Log.w("AerioPlayer", "[FFMPEG-AUDIO] undecodable first format (null MIME), skipping buffered audio")
+        formatHolder.format = null
+        inner.skipData(Long.MAX_VALUE)
+        return androidx.media3.common.C.RESULT_NOTHING_READ
+    }
+}
+
 @OptIn(UnstableApi::class)
 private class AerioMediaCodecAudioRenderer(
     context: Context,
@@ -768,4 +893,50 @@ private class GatedTileAudioSink(
     private companion object {
         const val MUTED_CUSHION_US = 250_000L
     }
+}
+
+/**
+ * Android#133: decides whether a video decoder may be reused across a format
+ * change given the two formats' color metadata. Pure, unit tested.
+ */
+@OptIn(UnstableApi::class)
+internal object CodecColorReuse {
+    /** Returns "<old> -> <new>" when reuse must be vetoed, else null. */
+    fun vetoReason(oldFormat: Format, newFormat: Format, liveChannelChange: Boolean): String? {
+        val o = oldFormat.colorInfo
+        val n = newFormat.colorInfo
+        if (o != null || n != null) {
+            if (o == null || n == null ||
+                o.colorTransfer != n.colorTransfer ||
+                o.colorSpace != n.colorSpace ||
+                o.colorRange != n.colorRange ||
+                !java.util.Arrays.equals(o.hdrStaticInfo, n.hdrStaticInfo)
+            ) return "${describe(o)} -> ${describe(n)}"
+            return null
+        }
+        // Neither side declares color. On a live channel change the HDR
+        // signalling may only be in-band, so an HEVC stream that is not
+        // provably 8-bit on both sides counts as a color change.
+        if (!liveChannelChange) return null
+        if (!isHevc(oldFormat) || !isHevc(newFormat)) return null
+        if (isProvablyHevc8Bit(oldFormat) && isProvablyHevc8Bit(newFormat)) return null
+        return "unknown(${oldFormat.codecs}) -> unknown(${newFormat.codecs})"
+    }
+
+    private fun isHevc(f: Format): Boolean =
+        f.sampleMimeType == MimeTypes.VIDEO_H265 ||
+            f.codecs?.let { it.startsWith("hvc1.") || it.startsWith("hev1.") } == true
+
+    /** RFC 6381 HEVC codecs string: general_profile_idc 1 is Main (8-bit). */
+    private fun isProvablyHevc8Bit(f: Format): Boolean {
+        val c = f.codecs ?: return false
+        val parts = c.split('.')
+        if (parts.size < 2 || (parts[0] != "hvc1" && parts[0] != "hev1")) return false
+        return parts[1].trimStart('A', 'B', 'C') == "1"
+    }
+
+    private fun describe(c: androidx.media3.common.ColorInfo?): String =
+        if (c == null) "null" else
+            "space=${c.colorSpace} transfer=${c.colorTransfer} range=${c.colorRange} " +
+                "hdrStatic=${if (c.hdrStaticInfo != null) "yes" else "no"}"
 }

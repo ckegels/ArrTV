@@ -359,4 +359,6 @@
     <string name="player_player_options">Player options</string>
 
     <string name="player_switch_not_confirmed">Stream switch not confirmed; staying on current feed</string>
+    <!-- A recording still being made: its finished copy was not ready yet, so it goes back to the one being written -->
+    <string name="player_dvr_reloading">Reloading…</string>
 </resources>

@@ -163,6 +163,7 @@
     <string name="livetv_group_moving">Moving</string>
     <string name="livetv_manage_groups_hint">Check groups to show, uncheck to hide.</string>
     <string name="livetv_manage_groups_hint_manual">Drag to reorder, check to show or hide.</string>
+    <string name="livetv_guide_end_notice">End of the guide. “Guide Days” in Edit Playlist sets how far ahead it goes.</string>
     <string name="livetv_manage_groups_tv_hint">Toggle groups on or off to show or hide them.</string>
     <string name="livetv_manage_groups_tv_hint_manual">Hold OK on a group to move it, then use up and down. OK or Back to finish.</string>
     <string name="livetv_no_groups_available">No groups available</string>

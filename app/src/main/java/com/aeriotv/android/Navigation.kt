@@ -2090,7 +2090,9 @@ fun AerioTVNavHost(
             onResume = {
                 val resumed = miniPlayerVm.resumeChannel()
                 if (resumed != null) {
-                    navController.navigate(Routes.player(resumed.id))
+                    // Single top: a repeated expand must never stack a
+                    // second player route over the first.
+                    navController.navigate(Routes.player(resumed.id)) { launchSingleTop = true }
                 }
             },
             onJumpToTop = {
@@ -2119,7 +2121,7 @@ fun AerioTVNavHost(
                     "MiniPlayerResume",
                     "NavHost received resume for channel id=${channel.id}; navigating to PLAYER",
                 )
-                runCatching { navController.navigate(Routes.player(channel.id)) }
+                runCatching { navController.navigate(Routes.player(channel.id)) { launchSingleTop = true } }
                     .onFailure {
                         android.util.Log.e(
                             "MiniPlayerResume",

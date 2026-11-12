@@ -346,8 +346,11 @@ private fun ConfigureStatusAndSubmit(
             Spacer(Modifier.height(8.dp))
 
             Button(
-                onClick = { viewModel.loadPlaylist() },
-                enabled = !state.isLoading && validation == null,
+                // Stays enabled while signing in, so it keeps the focus: disabled, it lost it to
+                // the nearest focusable, the password's eye (Shield 2026-10-20), and OK there
+                // showed the password. Presses meanwhile do nothing.
+                onClick = { if (!state.isLoading) viewModel.loadPlaylist() },
+                enabled = validation == null,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 54.dp)
@@ -501,6 +504,13 @@ private fun DispatcharrLoginFields(
             )
             Text(
                 text = stringResource(R.string.main_configure_dispatcharr_password_hint),
+                style = MaterialTheme.typography.bodySmall.subtext(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            // From AerioTV 6dde44ec: sign-in with a password only works for an account that
+            // already has an API key, and nothing said so
+            Text(
+                text = stringResource(R.string.main_configure_api_key_required_note),
                 style = MaterialTheme.typography.bodySmall.subtext(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

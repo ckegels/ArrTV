@@ -43,6 +43,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.focusRequester
@@ -193,9 +196,14 @@ internal fun GroupSidebarPanel(
     // Compact modern layout: Left from the open drawer opens the navigation
     // rail (groups, then menu, as in TiviMate). Null otherwise: Left is held.
     val openNavRail = com.aeriotv.android.feature.main.LocalTvOpenNavRail.current
+    // The side menu opens over this panel and is narrower than it: the ends of long group
+    // names stuck out beside the menu (Shield 2026-10-20). Hidden while the menu is open.
+    val railOpen by com.aeriotv.android.feature.player.MiniPlayerChrome.railOpen.collectAsState()
+    val underRail = isTv && trapFocus && railOpen
     Column(
         modifier = modifier
             .then(if (hostConstrainsWidth) Modifier.fillMaxWidth() else Modifier.width(panelWidth))
+            .graphicsLayer { alpha = if (underRail) 0f else 1f }
             .onPreviewKeyEvent { event ->
                 val down = event.type == androidx.compose.ui.input.key.KeyEventType.KeyDown
                 val key = event.key
@@ -259,7 +267,8 @@ internal fun GroupSidebarPanel(
             // Groups circle (Logan 2026-09-10). Restore the default here so
             // only leaving the PANE is cancelled.
             verticalArrangement = Arrangement.spacedBy(if (isTv) 2.dp else 3.dp),
-            modifier = Modifier.fillMaxHeight().focusProperties { @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class) run { exit = { FocusRequester.Default } } },
+            // Clipped: rows scrolled up drew over the "Groups" heading
+            modifier = Modifier.fillMaxHeight().clipToBounds().focusProperties { @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class) run { exit = { FocusRequester.Default } } },
         ) {
             itemsIndexed(groups, key = { _, token -> token }) { index, token ->
                 GroupSidebarRow(

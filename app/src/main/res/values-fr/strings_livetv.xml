@@ -162,6 +162,7 @@
     <string name="livetv_group_moving">Déplacement</string>
     <string name="livetv_manage_groups_hint">Cochez les groupes à afficher, décochez pour les masquer.</string>
     <string name="livetv_manage_groups_hint_manual">Faites glisser pour réordonner, cochez pour afficher ou masquer.</string>
+    <string name="livetv_guide_end_notice">Fin du guide. « Jours de guide », dans Modifier la playlist, fixe jusqu’où il va.</string>
     <string name="livetv_manage_groups_tv_hint">Activez ou désactivez les groupes pour les afficher ou les masquer.</string>
     <string name="livetv_manage_groups_tv_hint_manual">Maintenez OK sur un groupe pour le déplacer, puis utilisez Haut et Bas. OK ou Retour pour terminer.</string>
     <string name="livetv_no_groups_available">Aucun groupe disponible</string>

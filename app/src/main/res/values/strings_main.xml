@@ -255,4 +255,5 @@
     <string name="main_choose_other_title">Other sources</string>
     <string name="main_configure_server_details">Server details</string>
     <string name="main_configure_sign_in">Sign in</string>
+    <string name="main_configure_api_key_required_note">Your Dispatcharr account must already have an API key. In Dispatcharr, open System, then Users, edit the user, and generate an API key before signing in here.</string>
 </resources>

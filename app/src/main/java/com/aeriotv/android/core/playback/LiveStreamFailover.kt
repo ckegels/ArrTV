@@ -160,6 +160,9 @@ class LiveStreamFailover(
     /** Streams already walked this tune; the walk never revisits one. */
     private val tried = mutableSetOf<Int>()
     private var activeStreamId: Int? = null
+    /** The stream /status named the last time the walk asked, to tell a move the
+     *  server made by itself from one of ours. */
+    private var serverStreamId: Int? = null
     private var steps = 0
     private var walkStartedAtMs = 0L
     /** The server's verbatim 503 reason for this tune, so the walk's own status
@@ -249,11 +252,11 @@ class LiveStreamFailover(
             deadlineJob = null
             if (h == null || !h.canSwitch(id)) {
                 Log.i(TAG, "[FAILOVER] 503 reason=\"$reason\" -> standing retry")
-                _statusText.value = AppText.get(R.string.player_status_channel_unavailable_retrying)
+                showStatus(AppText.get(R.string.player_status_channel_unavailable_retrying))
                 return@launch
             }
             Log.i(TAG, "[FAILOVER] 503 reason=\"$reason\" -> next stream")
-            _statusText.value = AppText.get(R.string.player_status_server_trying_another, reason)
+            showStatus(AppText.get(R.string.player_status_server_trying_another, reason))
             if (stepJob?.isActive == true) return@launch
             if (walkStartedAtMs == 0L) walkStartedAtMs = SystemClock.elapsedRealtime()
             stepJob = scope.launch { step(h, id) }
@@ -306,7 +309,41 @@ class LiveStreamFailover(
     /** Publish a status line the holder owns (for example the "Reconnecting..."
      *  shown while a "Channel is stopping" 503 is waited out). */
     fun publishServerStatus(text: String?) {
-        scope.launch { _statusText.value = text }
+        scope.launch { showStatus(text) }
+    }
+
+    private var statusGuardJob: Job? = null
+
+    /**
+     * Show a status line over the video, and take it away by itself once the
+     * picture has played for [STATUS_CLEARS_AFTER_PLAYING_MS]. A status line
+     * never stays over a playing picture: on 2026-11-12 the stream list request
+     * failed three seconds after the picture had come back, its "Reconnecting..."
+     * was written after everything that clears it had already run, and it stayed
+     * over a channel that played fine until the channel was changed (Shield).
+     */
+    private fun showStatus(text: String?) {
+        _statusText.value = text
+        statusGuardJob?.cancel()
+        statusGuardJob = null
+        if (text == null) return
+        statusGuardJob = scope.launch {
+            var playingSince = 0L
+            while (_statusText.value != null) {
+                delay(STATUS_GUARD_POLL_MS)
+                if (!runCatching { picturePlaying() }.getOrDefault(false)) {
+                    playingSince = 0L
+                    continue
+                }
+                val now = SystemClock.elapsedRealtime()
+                if (playingSince == 0L) playingSince = now
+                if (now - playingSince >= STATUS_CLEARS_AFTER_PLAYING_MS) {
+                    Log.i(TAG, "[FAILOVER] channel=$channelName the picture plays; status line cleared")
+                    _statusText.value = null
+                    return@launch
+                }
+            }
+        }
     }
 
     /** Teardown / pipeline stop: cancel the deadline, KEEP the tried set. */
@@ -329,6 +366,7 @@ class LiveStreamFailover(
         stepJob = null
         tried.clear()
         activeStreamId = null
+        serverStreamId = null
         steps = 0
         walkStartedAtMs = 0L
         serverReason = null
@@ -494,7 +532,7 @@ class LiveStreamFailover(
         if (h == null || !h.canSwitch(id)) {
             // Nothing to fail over TO: say the player is working on it and leave
             // the existing retry ladder exactly as it is.
-            _statusText.value = AppText.get(R.string.player_status_reconnecting)
+            showStatus(AppText.get(R.string.player_status_reconnecting))
             Log.i(
                 TAG,
                 "[FAILOVER] channel=$channelName no bytes for ${silentMs}ms " +
@@ -526,34 +564,68 @@ class LiveStreamFailover(
         val cached = if (steps == 0) null else streamCache[id]
         val ids = cached ?: runCatching { h.listStreamIds(id) }.getOrNull()
             ?.also { if (it.isNotEmpty()) streamCache[id] = it }
+        // The stream came back (or the channel changed) while the list was asked
+        // for: nothing to say and nothing to walk. Checked before any status line
+        // is written, or that line outlives the recovery that would clear it.
+        if ((firstByteSeen && !unplayableWalk) || channelId != id) return
         if (ids.isNullOrEmpty()) {
-            _statusText.value = AppText.get(R.string.player_status_reconnecting)
+            showStatus(AppText.get(R.string.player_status_reconnecting))
             Log.i(TAG, "[FAILOVER] channel=$channelName stream list unavailable; staying on the retry path")
             return
         }
-        if ((firstByteSeen && !unplayableWalk) || channelId != id) return
         if (ids.size < 2) {
-            _statusText.value = AppText.get(R.string.player_status_reconnecting)
+            showStatus(AppText.get(R.string.player_status_reconnecting))
             Log.i(TAG, "[FAILOVER] channel=$channelName single stream; staying on the retry path")
             return
         }
         // Seed "where are we" once. /status is only trustworthy before any
         // in-session switch, which is exactly where the walk reads it.
         if (activeStreamId == null) {
-            activeStreamId = withTimeoutOrNull(STATUS_READ_CAP_MS) {
+            val seen = withTimeoutOrNull(STATUS_READ_CAP_MS) {
                 runCatching { h.currentStreamId(uuid) }.getOrNull()
-            } ?: ids.first()
+            }
+            serverStreamId = seen
+            activeStreamId = seen ?: ids.first()
+        } else {
+            // The server walks a stream that fails too (its own failover, Dispatch
+            // More's fast failover): when it has moved since we last asked, the
+            // stream it moved to is given its time instead of being switched away
+            // from at once. On 2026-11-12 both walked at the same moment, every
+            // 12 s, and the app's step landed on the channel's fallback slate.
+            // Compared with the server's own last answer, never with our target:
+            // after a switch applied by another worker, /status keeps the old id.
+            val seen = withTimeoutOrNull(STATUS_READ_CAP_MS) {
+                runCatching { h.currentStreamId(uuid) }.getOrNull()
+            }
+            if (seen != null && seen != serverStreamId && seen != activeStreamId && seen in ids) {
+                serverStreamId = seen
+                activeStreamId = seen
+                tried.add(seen)
+                Log.i(TAG, "[FAILOVER] channel=$channelName the server moved to stream id=$seen itself; giving it its time")
+                if ((firstByteSeen && !unplayableWalk) || channelId != id) return
+                armDeadline(firstAttempt = false)
+                return
+            }
+            if (seen != null) serverStreamId = seen
         }
+        if ((firstByteSeen && !unplayableWalk) || channelId != id) return
         activeStreamId?.let { tried.add(it) }
         val startIndex = activeStreamId?.let { ids.indexOf(it) }?.takeIf { it >= 0 } ?: 0
         var target: Int? = null
+        // The channel's last stream is its last resort (Dispatch More channels end
+        // in a "Could Not Dispatch" slate): walking on from the end of the list
+        // took it before the streams at the top that had not been tried.
+        val lastResort = ids.size - 1
         for (offset in 1..ids.size) {
-            val candidate = ids[(startIndex + offset) % ids.size]
+            val index = (startIndex + offset) % ids.size
+            if (index == lastResort) continue
+            val candidate = ids[index]
             if (candidate !in tried) { target = candidate; break }
         }
+        if (target == null && ids[lastResort] !in tried) target = ids[lastResort]
         if (target == null) {
             Log.w(TAG, "[FAILOVER] channel=$channelName exhausted ${ids.size} streams")
-            _statusText.value = AppText.get(R.string.player_status_channel_unavailable_retrying)
+            showStatus(AppText.get(R.string.player_status_channel_unavailable_retrying))
             onExhausted?.invoke()
             return
         }
@@ -571,7 +643,7 @@ class LiveStreamFailover(
             h.changeStream(uuid, target)
         } catch (t: Throwable) {
             Log.w(TAG, "[FAILOVER] channel=$channelName change_stream to id=$target failed: ${t.message}")
-            _statusText.value = AppText.get(R.string.player_status_reconnecting)
+            showStatus(AppText.get(R.string.player_status_reconnecting))
             // Contract 8.3: 409 = this device plays the channel on a stream of
             // its own, which the server will not change under the others. Any
             // other step is refused the same way, so stop walking; a fresh
@@ -651,6 +723,10 @@ class LiveStreamFailover(
         /** How often the deadline re-checks silence. */
         private const val SILENCE_POLL_MS = 500L
         private const val STATUS_READ_CAP_MS = 3_000L
+
+        /** A status line goes once the picture has played this long. */
+        const val STATUS_CLEARS_AFTER_PLAYING_MS = 1_500L
+        private const val STATUS_GUARD_POLL_MS = 500L
 
         /** A channel's member-stream pks (priority order) for the steps of one
          *  walk; refreshed when a walk starts. An empty answer is never cached. */

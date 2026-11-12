@@ -446,13 +446,18 @@ fun GuideScreen(
     val jumpWindowStart = jumpTargetMs?.let { (it - 3 * 3_600_000L) / QUANTUM_MS * QUANTUM_MS }
     // Quantized to 15 min so re-entering the tab within that window reuses
     // the memoized rows instead of rebuilding them for a new "now".
-    val windowStartMs = remember(historyHours, jumpWindowStart) {
+    // Keyed on the 15-min "now" quantum too (from AerioTV 9188e3ab): the guide composition
+    // outlives the app going to the background (kept tabs), so a window computed once at
+    // composition stayed pinned to that hour and the viewport clamped into it -- the guide
+    // opened hours behind. (Rows reuse across the roll keeps this cheap on TV, 09b45e79.)
+    val nowQuantum = nowMs / QUANTUM_MS
+    val windowStartMs = remember(historyHours, jumpWindowStart, nowQuantum) {
         minOf(
             (System.currentTimeMillis() - historyHours * 3_600_000L) / QUANTUM_MS * QUANTUM_MS,
             jumpWindowStart ?: Long.MAX_VALUE,
         )
     }
-    val windowEndMs = remember(forwardHours, jumpWindowEnd) {
+    val windowEndMs = remember(forwardHours, jumpWindowEnd, nowQuantum) {
         maxOf(
             (System.currentTimeMillis() + forwardHours * 3_600_000L) / QUANTUM_MS * QUANTUM_MS + QUANTUM_MS,
             jumpWindowEnd ?: 0L,
@@ -463,7 +468,12 @@ fun GuideScreen(
             viewModel.ensureGuideRange(jumpWindowStart ?: 0L, jumpWindowEnd ?: 0L)
         }
     }
-    val grid = remember { GuideGridState(initialViewportStartMs = System.currentTimeMillis() - 15 * 60_000L) }
+    // Retained across the player round trip (from AerioTV 351f4365; the player route
+    // disposes the guide): a fresh state composed the grid empty and then installed the
+    // whole window, 800 to 1360 ms frames on return. The retained state is reset to what
+    // a new one holds, so focus and viewport land as before; only the rows survive.
+    val grid = remember { RetainedGuideGrid.take(favoritesOnly, System.currentTimeMillis() - 15 * 60_000L) }
+    androidx.compose.runtime.DisposableEffect(grid) { onDispose { RetainedGuideGrid.give(favoritesOnly, grid) } }
     // "Loading…" while the guide is still on its way: widening to a new range,
     // or the first download of a fresh install (no cache yet), which takes
     // ~20 s on a Chromecast HD and read as a broken guide when it said "No info".
@@ -483,17 +493,53 @@ fun GuideScreen(
     LaunchedEffect(grid.viewportStartMs, grid.viewportDurationMs) {
         viewModel.ensureGuideCovers(grid.viewportStartMs, grid.viewportStartMs + grid.viewportDurationMs)
     }
+    // Window-roll reuse (perf 2026-10-03, Streamer perf4): the window start
+    // is quantized to 15 min, so a channel played for a while comes back to a
+    // window that rolled one or more quanta, and a new rows object reinstalled
+    // all 799 rows (reused=false, 785 ms Davey). When the retained rows are
+    // for the SAME channel list (by content: the list is recomputed on entry,
+    // and again when the recents change after a play) and the same catalog,
+    // and the window stayed put or only advanced by the same amount at both
+    // ends (at most WINDOW_ROLL_REUSE_MAX_MS), keep
+    // them: they cover the new window's start (plus that much extra past),
+    // the far edge is a week out and the forward loader extends it anyway,
+    // and the retained state already took the new viewport start in
+    // resetForEntry. Anything else (new channels, new EPG, a jump, a Guide
+    // Days change, a long absence) builds new rows as before. TV only; the
+    // phone keeps building fresh rows.
+    // Plain holder, not state: written by the rows calc, read by the install log.
+    val windowRoll = remember { LongArray(1) }
     val rows = remember(displayChannels, state.epgByChannel, windowStartMs, windowEndMs) {
-        com.aeriotv.android.feature.livetv.GuideMemo.get(
-            "rows",
-            listOf(
-                com.aeriotv.android.feature.livetv.GuideMemo.Ref(displayChannels),
-                com.aeriotv.android.feature.livetv.GuideMemo.Ref(state.epgByChannel),
-                windowStartMs, windowEndMs,
-            ),
-        ) { GuideGridRows(displayChannels, state.epgByChannel as? GuideCatalog, windowStartMs, windowEndMs) }
+        val held = grid.rows
+        val roll = windowStartMs - held.windowStartMs
+        if (isTv && !held.isEmpty &&
+            held.catalog === (state.epgByChannel as? GuideCatalog) &&
+            roll >= 0L && roll <= WINDOW_ROLL_REUSE_MAX_MS &&
+            windowEndMs - held.windowEndMs == roll &&
+            (held.channels === displayChannels || held.channels == displayChannels)
+        ) {
+            windowRoll[0] = roll
+            held
+        } else {
+            windowRoll[0] = 0L
+            if (isTv && !held.isEmpty) com.aeriotv.android.ui.tv.TvFocusTrace.guide(
+                "rows-reuse miss channelsSame=${held.channels == displayChannels} " +
+                    "catalogSame=${held.catalog === (state.epgByChannel as? GuideCatalog)} roll=$roll " +
+                    "endRoll=${windowEndMs - held.windowEndMs}",
+            )
+            com.aeriotv.android.feature.livetv.GuideMemo.get(
+                "rows",
+                listOf(
+                    com.aeriotv.android.feature.livetv.GuideMemo.Ref(displayChannels),
+                    com.aeriotv.android.feature.livetv.GuideMemo.Ref(state.epgByChannel),
+                    windowStartMs, windowEndMs,
+                ),
+            ) { GuideGridRows(displayChannels, state.epgByChannel as? GuideCatalog, windowStartMs, windowEndMs) }
+        }
     }
     LaunchedEffect(rows) {
+        // Same rows object as the retained state already holds: the install
+        // only lands focus (cheap, no row invalidation).
         grid.installRows(rows)
         // Land the jump once the rows reach far enough to hold it.
         val target = jumpTargetMs
@@ -526,6 +572,50 @@ fun GuideScreen(
         }
     }
     val snapToNow: () -> Unit = { jumpTargetMs = null; pendingJumpScroll = false; grid.anchorToNow(System.currentTimeMillis()) }
+
+    // The guide always opens and resumes at now (from AerioTV 9188e3ab). The composition
+    // (and the retained grid) survives the app being backgrounded and the tab being hidden,
+    // so neither path went through resetForEntry: coming back after a long idle showed the
+    // hours-old viewport. On every foreground start and every tab re-entry, refresh the clock
+    // and anchor at now, unless a catch-up return is restoring its own timeline.
+    // guideLifecycle (above) is this screen's lifecycle owner
+    var foregroundStarts by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    androidx.compose.runtime.DisposableEffect(guideLifecycle) {
+        // Only an ON_START that follows an ON_STOP is a resume: adding the observer replays
+        // ON_START for an already started owner, and that first entry is resetForEntry's job.
+        var stopped = false
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
+            when (e) {
+                androidx.lifecycle.Lifecycle.Event.ON_STOP -> stopped = true
+                androidx.lifecycle.Lifecycle.Event.ON_START -> if (stopped) { stopped = false; foregroundStarts++ }
+                else -> Unit
+            }
+        }
+        guideLifecycle.addObserver(obs)
+        onDispose { guideLifecycle.removeObserver(obs) }
+    }
+    // Tab re-entry: a false -> true flip of tabActive after this composition was shown once
+    var tabEntries by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val lastTabActive = remember { booleanArrayOf(tabActive) }
+    LaunchedEffect(tabActive) {
+        if (tabActive && !lastTabActive[0]) tabEntries++
+        lastTabActive[0] = tabActive
+    }
+    LaunchedEffect(foregroundStarts, tabEntries) {
+        if (foregroundStarts == 0 && tabEntries == 0) return@LaunchedEffect
+        // Empty rows: the window is unset (a fresh state already sits at now)
+        if (!tabActive || GuideCatchupReturn.pending() || grid.rows.isEmpty) return@LaunchedEffect
+        val now = System.currentTimeMillis()
+        val before = grid.viewportStartMs
+        nowMs = now
+        jumpTargetMs = null
+        pendingJumpScroll = false
+        grid.anchorToNow(now)
+        com.aeriotv.android.ui.tv.TvFocusTrace.guide(
+            "anchor-at-now resumes=$foregroundStarts tabEntries=$tabEntries viewportBefore=$before " +
+                "viewportAfter=${grid.viewportStartMs} behindMin=${(now - before) / 60_000L} rows=${grid.rows.size}",
+        )
+    }
 
     val gridFocus = remember { FocusRequester() }
     val pillsFocus = remember { FocusRequester() }
@@ -570,6 +660,8 @@ fun GuideScreen(
     // only because the old guide composed first), so keep asking for about a
     // second until the grid actually holds focus.
     var gridHasFocus by remember { mutableStateOf(false) }
+    // Wall time of the last key pressed inside the guide (boundary refocus idle gate).
+    val lastGuideKeyAt = remember { longArrayOf(0L) }
     // True while ANYTHING inside the guide holds focus (grid, pills, banner,
     // sidebar pane). The stranded-focus watchdog below keys off this, not off
     // gridHasFocus, so it can never steal focus from the guide's own chrome
@@ -604,6 +696,16 @@ fun GuideScreen(
     LaunchedEffect(isTv, rows.isEmpty, tabActive) {
         if (!tabActive) return@LaunchedEffect
         if (isTv && !rows.isEmpty) {
+            // Cold launch: the top bar's one-shot pull owns first focus (the
+            // landing tab's pill). Wait for it instead of focusing row 0 first
+            // and being pulled off a frame later (the visible flash). Bounded
+            // so a pull that never runs cannot strand the guide.
+            if (com.aeriotv.android.ui.tv.TvColdStartFocus.pending) {
+                var waited = 0
+                while (com.aeriotv.android.ui.tv.TvColdStartFocus.pending && waited < 3_000) { delay(50L); waited += 50 }
+                com.aeriotv.android.ui.tv.TvFocusTrace.guide("refocus after=launch-loop waited-for-cold-start-pull ms=$waited")
+                delay(100L)
+            }
             repeat(12) { attempt ->
                 if (gridHasFocus) {
                     if (attempt > 0) com.aeriotv.android.ui.tv.TvFocusTrace.guide("refocus after=launch-loop result=success attempts=$attempt")
@@ -660,9 +762,32 @@ fun GuideScreen(
             // Let a legitimate hand-off (dialog opening, route change, the
             // bar claiming focus a frame later) settle before assuming a trap.
             delay(350L)
+            while (com.aeriotv.android.ui.tv.TvColdStartFocus.pending) delay(50L)
             if (guideHasFocus || topNavHasFocus.value) return@LaunchedEffect
             val ok = runCatching { gridFocus.requestFocus() }.getOrDefault(false)
             com.aeriotv.android.ui.tv.TvFocusTrace.guide("refocus after=stranded result=$ok ${traceGates()}")
+        }
+    }
+
+    // Idle boundary refocus (Logan 2026-10-03): when the focused program ends
+    // while the guide sits idle, focus moves to the program now airing on the
+    // same row, so Select tunes instead of opening Program Info for a show
+    // that is over. Runs on the 30 s clock tick; only the cell on the row
+    // changes (the locked Left/Right/clock model and the viewport are
+    // untouched). Skipped after a recent key, with any sheet or menu up, and
+    // whenever the grid does not hold focus.
+    if (isTv) {
+        val previousTick = remember { longArrayOf(nowMs) }
+        LaunchedEffect(nowMs) {
+            val prevTickMs = previousTick[0]
+            previousTick[0] = nowMs
+            if (!tabActive || !gridHasFocus || rows.isEmpty) return@LaunchedEffect
+            if (System.currentTimeMillis() - lastGuideKeyAt[0] < 5_000L) return@LaunchedEffect
+            if (groupSidebarOpen || showManageGroups || showJumpSheet || searchActive || menuFor != null ||
+                programInfoTarget != null || recordTarget != null || collectionPickerFor != null) return@LaunchedEffect
+            val row = grid.focusRow
+            val moved = grid.boundaryRetarget(nowMs, prevTickMs) ?: return@LaunchedEffect
+            com.aeriotv.android.ui.tv.TvFocusTrace.guide("boundary refocus row=$row from=${moved.first.title} to=${moved.second.title}")
         }
     }
 
@@ -670,10 +795,17 @@ fun GuideScreen(
     // on the channel that is still playing (now in the mini player), not
     // wherever the grid was before. Keyed on the mini's channel so it fires
     // on the fullscreen -> mini hand-off and stays quiet otherwise.
+    var miniAnchoredFor by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(miniChannelId, rows.isEmpty, tabActive) {
+        if (miniChannelId == null) miniAnchoredFor = null
         if (!tabActive) return@LaunchedEffect
         val id = miniChannelId ?: return@LaunchedEffect
         if (!isTv || rows.isEmpty) return@LaunchedEffect
+        // GH #128 (from AerioTV cc2c37c7): the guide opened from fullscreen lands on NOW
+        // as well as the playing channel (a held Left used to leave it panned back). A
+        // catch-up return restores its own timeline in the effect below.
+        if (id != miniAnchoredFor && !GuideCatchupReturn.pending()) grid.anchorToNow(System.currentTimeMillis())
+        miniAnchoredFor = id
         val found = grid.focusChannel(id)
         val requested = if (found) runCatching { gridFocus.requestFocus() }.getOrDefault(false) else false
         if (isTv) {
@@ -695,8 +827,17 @@ fun GuideScreen(
             com.aeriotv.android.ui.tv.TvFocusTrace.guide("refocus after=catchup-return channel=${ret.channelId} found=false ${traceGates()}")
             return@LaunchedEffect
         }
-        grid.scrollViewportTo(ret.viewportStartMs, animated = false)
-        grid.focusRowAt(row, ret.cellStartMs)
+        // The played programme may have aged out of the rows window (or the EPG moved):
+        // fall back to the programme airing now on that row (from AerioTV 8b50e417)
+        val playedCell = grid.rows.cellAt(row, ret.cellStartMs)
+        if (playedCell != null && playedCell.startMillis == ret.cellStartMs) {
+            grid.scrollViewportTo(ret.viewportStartMs, animated = false)
+            grid.focusRowAt(row, ret.cellStartMs)
+        } else {
+            val nowCell = grid.rows.cellAt(row, System.currentTimeMillis())
+            com.aeriotv.android.ui.tv.TvFocusTrace.guide("refocus after=catchup-return channel=${ret.channelId} played-cell-missing fallback=now")
+            grid.focusRowAt(row, nowCell?.startMillis)
+        }
         var held = 0
         var attempts = 0
         while (attempts < 20 && held < 6) {
@@ -843,6 +984,26 @@ fun GuideScreen(
         // belongs to the previous playlist and must not be put back.
         if (groupSidebarOpen) { sidebarOriginalGroup = null; groupSidebarOpen = false }
     }
+    // Android#137: double Back on the TV mini emits guideTopRequests
+    // (Navigation.kt TvMiniPlayerOverlay onJumpToTop), but the guide rebuild
+    // (fd886fab) dropped the only collector, so the request went nowhere in
+    // every Play Channels In mode. Land now + the top channel; the mini keeps
+    // playing.
+    val tuneModeVm: com.aeriotv.android.feature.settings.SettingsViewModel = hiltViewModel()
+    val tuneInMiniMode by tuneModeVm.guideTuneInMini.collectAsStateWithLifecycle(initialValue = false)
+    val tabActiveNow by androidx.compose.runtime.rememberUpdatedState(tabActive)
+    LaunchedEffect(miniPlayerVm.session) {
+        miniPlayerVm.session.guideTopRequests.collect {
+            if (!tabActiveNow) return@collect
+            android.util.Log.i(
+                "AerioTV",
+                "[GUIDE] double Back -> top channel (mode=${if (tuneInMiniMode) "mini" else "fullscreen"})",
+            )
+            // ArrTV's grid scrolls to its focused row by itself (no hoisted list state)
+            grid.back(System.currentTimeMillis())
+            runCatching { gridFocus.requestFocus() }
+        }
+    }
     BackHandler(enabled = tabActive && groupSidebarOpen) {
         restoreSidebarGroup()
         sidebarOriginalGroup = null
@@ -854,6 +1015,10 @@ fun GuideScreen(
     // exactly as the old guide: the ladder must never finish the Activity
     // while a stream is playing.
     BackHandler(enabled = tabActive && !miniActive && !groupSidebarOpen && menuFor == null && programInfoTarget == null && recordTarget == null) {
+        if (miniPlayerVm.session.expandInFlight()) {
+            android.util.Log.i("AerioTV", "[GUIDE] Back ignored: mini expand in flight")
+            return@BackHandler
+        }
         when (grid.back(nowMs)) {
             GuideGridState.BackStep.RESTORED_NOW_AND_TOP, GuideGridState.BackStep.TOP -> Unit
             GuideGridState.BackStep.NONE -> {
@@ -876,6 +1041,7 @@ fun GuideScreen(
     Box(modifier = modifier.fillMaxSize().onGloballyPositioned { guideTopPx = it.positionInRoot().y }
         .onFocusChanged { guideHasFocus = it.hasFocus }
         .onPreviewKeyEvent { e ->
+            if (e.type == KeyEventType.KeyDown) lastGuideKeyAt[0] = System.currentTimeMillis()
             // Trace only, never consumes: a D-pad key inside the guide that the
             // grid node will not see (focus is on the banner, pills, sidebar...).
             if (isTv && !gridHasFocus && e.type == KeyEventType.KeyDown) {
@@ -1568,6 +1734,8 @@ internal object GuideCatchupReturn {
     }
 
     fun consume(): Target? = pending.also { pending = null }
+
+    fun pending(): Boolean = pending != null
 }
 
 /** Share of a phone guide row (98dp) taken by secondary lines; drives Subtext Size growth. */
@@ -1588,4 +1756,27 @@ internal object GuideOpenGroups {
     }
 
     fun take(): String? = group.also { group = null }
+}
+
+/**
+ * Holds the guide's [GuideGridState] while the guide is out of composition
+ * (player route), one per guide flavour (Live TV, Favorites). [take] hands it
+ * to exactly one live composition and resets it for entry; [give] returns it
+ * on dispose.
+ */
+/** Largest window roll [GuideScreen] absorbs by keeping the retained rows. */
+private const val WINDOW_ROLL_REUSE_MAX_MS = 2 * 3_600_000L
+
+internal object RetainedGuideGrid {
+    private val held = HashMap<Boolean, GuideGridState>()
+
+    fun take(favoritesOnly: Boolean, initialViewportStartMs: Long): GuideGridState {
+        val kept = synchronized(held) { held.remove(favoritesOnly) }
+        return kept?.also { it.resetForEntry(initialViewportStartMs) }
+            ?: GuideGridState(initialViewportStartMs = initialViewportStartMs)
+    }
+
+    fun give(favoritesOnly: Boolean, state: GuideGridState) {
+        synchronized(held) { held[favoritesOnly] = state }
+    }
 }

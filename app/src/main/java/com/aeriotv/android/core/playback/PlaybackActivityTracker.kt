@@ -74,4 +74,50 @@ object PlaybackActivityTracker {
      */
     val isMultiStreamActive: Boolean
         get() = active.get() > 1
+
+    /**
+     * True while any picture is playing, the guide's corner player included: what the
+     * background refresh must not compete with on a 1.4 GB box, where its downloads froze
+     * the picture (2026-10-20). Unlike the instance count this drops when playback stops.
+     */
+    val isPlaying: Boolean
+        get() = mainPlaying || active.get() > 1
+
+    @Volatile private var tuneStartedAtMs = NONE
+    @Volatile private var firstFrameAtMs = NONE
+
+    /** A new stream is being started (PlaybackTrace.markTuneStart). */
+    fun tuneStarted() = tuneStartedAt(android.os.SystemClock.elapsedRealtime())
+
+    /** Its first frame was shown (PlaybackTrace.onFirstFrame). */
+    fun firstFrame() = firstFrameAt(android.os.SystemClock.elapsedRealtime())
+
+    internal fun tuneStartedAt(now: Long) {
+        tuneStartedAtMs = now
+        firstFrameAtMs = NONE
+    }
+
+    internal fun firstFrameAt(now: Long) {
+        firstFrameAtMs = now
+    }
+
+    /**
+     * True while a channel is starting: from the tune until [SETTLE_MS] after its first frame,
+     * and never longer than [TUNE_MAX_MS] (a tune that never shows a frame must not hold heavy
+     * work back for good). What GuideWorkGate keeps guide work away from: on a Chromecast HD a
+     * guide rebuild next to a channel start froze the first seconds of the picture (2026-10-20).
+     */
+    val starting: Boolean
+        get() = startingAt(android.os.SystemClock.elapsedRealtime())
+
+    internal fun startingAt(now: Long): Boolean {
+        val started = tuneStartedAtMs
+        if (started == NONE) return false
+        val frame = firstFrameAtMs
+        return if (frame != NONE && frame >= started) now - frame < SETTLE_MS else now - started < TUNE_MAX_MS
+    }
+
+    const val SETTLE_MS = 5_000L
+    const val TUNE_MAX_MS = 20_000L
+    private const val NONE = Long.MIN_VALUE
 }

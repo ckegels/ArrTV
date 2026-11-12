@@ -87,6 +87,12 @@ object MiniPlayerChrome {
 
     /** Width of the video left on screen while the mini is stashed. */
     val stashSliver = 32.dp
+
+    /** True while the TV side menu (TvNavRail) is open. The window is drawn
+     *  above the shell, so a mini filling the compact guide's top-left video
+     *  slot would hide the menu's items; while this is set it slides right
+     *  until it clears the rail. Published by TvNavRail. */
+    val railOpen = MutableStateFlow(false)
 }
 
 @Singleton

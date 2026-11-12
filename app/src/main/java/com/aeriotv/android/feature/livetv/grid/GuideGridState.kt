@@ -95,12 +95,40 @@ class GuideGridState(
     }
 
     /**
+     * Put the state back to what a freshly constructed one holds (focus
+     * unset, viewport at [viewportStartMs]) while KEEPING [rows]. Used when
+     * the guide re-enters composition (returning from the player) with a
+     * retained state: the next [installRows] then lands exactly as a first
+     * install would, but the grid's first frame already has its rows instead
+     * of composing empty and then installing the whole window (perf
+     * 2026-10-03: 800 to 1360 ms frames on return).
+     */
+    fun resetForEntry(viewportStartMs: Long) {
+        this.viewportStartMs = viewportStartMs
+        drawViewportStartMs = viewportStartMs
+        viewportChangeAnimated = true
+        focusRow = -1
+        focusCellStartMs = Long.MIN_VALUE
+        focusChannelId = null
+        // ArrTV's TiviMate layout lines the timeline up on the half hour when it is set
+        // (GuideScreen); a kept state would keep the flag and skip that, landing off it
+        alignToHalfHour = false
+    }
+
+    /**
      * Install a new row list. The previously focused channel keeps focus if
      * it is still listed; otherwise focus clamps to the nearest row index.
      * A first install lands on row 0 at the anchor.
      */
     fun installRows(newRows: GuideGridRows) {
         val previousId = focusChannelId
+        val previousCell = focusCellStartMs
+        // The programme itself, not only where it starts: a "No info" filler before the guide
+        // came in starts where the first real gap filler does (a day back), and keeping that
+        // left the focus off screen with nothing lit and a stale banner (Google TV, cold start)
+        val previousProgramme = if (focusRow in 0 until rows.size) {
+            rows.cells(focusRow).firstOrNull { it.startMillis == previousCell }
+        } else null
         rows = newRows
         if (newRows.isEmpty) { focusRow = -1; focusCellStartMs = Long.MIN_VALUE; return }
         val byId = previousId?.let { newRows.indexOfChannel(it) } ?: -1
@@ -110,7 +138,22 @@ class GuideGridState(
             else -> focusRow.coerceIn(0, newRows.size - 1)
         }
         clampViewport()
-        land(row)
+        // The same channel with the same programme (start and end, a real one) still there:
+        // focus stays on it. Landing
+        // on the anchor instead moved the user's programme back to the cell under the
+        // timeline's anchor on every rebuild -- a guide update, the 15-minute roll -- and
+        // with the TiviMate half-hour line-up that undid the idle programme-end refocus
+        // (a79f8a3a) half a minute later, so OK played the ended programme as look back.
+        val kept = previousProgramme?.takeIf { !it.isPlaceholder }?.let { was ->
+            newRows.cells(row).any { !it.isPlaceholder && it.startMillis == was.startMillis && it.endMillis == was.endMillis }
+        } == true
+        if (byId >= 0 && previousCell != Long.MIN_VALUE && kept) {
+            focusRow = row
+            focusChannelId = newRows.channel(row).id
+            focusCellStartMs = previousCell
+        } else {
+            land(row)
+        }
     }
 
     /** UP/DOWN by [delta] rows. Returns false at the edge so the host can move focus out of the grid. */
@@ -303,6 +346,27 @@ class GuideGridState(
         if (row < 0) return false
         land(row)
         return true
+    }
+
+    /**
+     * Idle boundary refocus: the focused program has ended on [nowMs], so move
+     * focus to the program airing now on the SAME row. Vertical-axis no-op:
+     * the row, the viewport and the anchor are untouched; only the focused
+     * cell on the row changes, and only to a cell that is on screen. Returns
+     * (ended, airing) when it moved, else null.
+     */
+    fun boundaryRetarget(nowMs: Long, previousTickMs: Long): Pair<EPGProgramme, EPGProgramme>? {
+        val cur = focusedCell() ?: return null
+        if (cur.endMillis > nowMs) return null
+        // Only a program that ENDED since the previous clock tick moves on. A
+        // program that was already over (the user stepped back onto an aired
+        // airing to play its catch-up) keeps focus, or OK would tune live.
+        if (cur.endMillis <= previousTickMs) return null
+        val next = rows.cellAt(focusRow, nowMs) ?: return null
+        if (next.startMillis == cur.startMillis) return null
+        if (next.startMillis >= viewportEndMs || next.endMillis <= viewportStartMs) return null
+        focusCellStartMs = next.startMillis
+        return cur to next
     }
 
     /** The Back ladder: away from now -> restore now and top; not at top -> top; else nothing. */

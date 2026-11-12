@@ -219,6 +219,18 @@ interface EpgProgrammeDao {
     @Query("DELETE FROM epg_programme WHERE playlistId = :playlistId")
     suspend fun deleteForPlaylist(playlistId: String)
 
+    /**
+     * Up to [limit] of a source's rows; returns how many went. A whole
+     * source in ONE statement (100K+ rows, five indexes) held the database's
+     * write connection for minutes on a Chromecast HD, and every other write
+     * queued behind it; batches let other work in between.
+     */
+    @Query(
+        "DELETE FROM epg_programme WHERE id IN " +
+            "(SELECT id FROM epg_programme WHERE playlistId = :playlistId LIMIT :limit)"
+    )
+    suspend fun deleteBatchForPlaylist(playlistId: String, limit: Int): Int
+
     /** Prune one source's programmes that ended before its retention cutoff
      *  (catch-up task #135: retention is per playlist now, so the old blanket
      *  cross-source ended-1h-ago delete is gone). Returns the row count so the

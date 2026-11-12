@@ -2210,10 +2210,28 @@ class PlaylistRepository @Inject constructor(
      * [saveEpgToCache] replaces the source's rows after a network fetch, pruning
      * programmes that have already ended.
      */
-    suspend fun loadCachedEpg(playlistId: String): List<EPGProgramme> =
-        withContext(guideReadDispatcher) {
-            epgProgrammeDao.forPlaylist(playlistId).map { it.toProgramme() }
+    /**
+     * The ids [EpgProgrammeDao.idsInWindow] selects, read in slices of end time so no single
+     * result outgrows Android's 2 MB cursor window (EpgProgrammeDao.idsEndingBetween). Same
+     * bounds: endMillis > fromMillis and < toMillis + 26 h.
+     */
+    private suspend fun idsInWindowSliced(playlistId: String, fromMillis: Long, toMillis: Long): List<Long> {
+        val until = toMillis + 93_600_000L
+        val out = ArrayList<Long>()
+        var lo = fromMillis + 1
+        while (lo < until) {
+            val hi = minOf(until, lo + EPG_ID_SLICE_MS)
+            out += epgProgrammeDao.idsEndingBetween(playlistId, lo, hi)
+            lo = hi
         }
+        return out
+    }
+
+    /** Low-memory profile (DeviceMemory): keep less of the guide in memory. */
+    val lowMemory: Boolean get() = com.aeriotv.android.core.system.DeviceMemory.isLow(context)
+
+    suspend fun loadCachedEpg(playlistId: String): List<EPGProgramme> =
+        loadCachedEpg(playlistId, Long.MIN_VALUE, Long.MAX_VALUE)
 
     /**
      * Time-windowed cached-EPG read (iOS GuideStore parity --
@@ -2232,9 +2250,40 @@ class PlaylistRepository @Inject constructor(
         toMillis: Long,
     ): List<EPGProgramme> =
         withContext(guideReadDispatcher) {
-            epgProgrammeDao
-                .forPlaylistInWindow(playlistId, fromMillis, toMillis)
-                .map { it.toProgramme() }
+            // Ids from the index, then the rows in id order: the order they
+            // lie in the file (EpgProgrammeDao.idsInWindow). In chunks, each
+            // small enough for one 2 MB cursor window: a single query for tens
+            // of thousands of rows re-runs itself for every window it fills.
+            // Returned in id order: the guide's dedup keeps the first of two
+            // rows in a slot, which has always been the lower id.
+            val startedAt = android.os.SystemClock.elapsedRealtime()
+            val ids = idsInWindowSliced(playlistId, fromMillis, toMillis).sorted()
+            val idsMs = android.os.SystemClock.elapsedRealtime() - startedAt
+            val out = ArrayList<EPGProgramme>(ids.size)
+            // One copy per distinct string for this load: every row read from
+            // Room brings its own copies, so a channel's key, a category or a
+            // rerun's title and description were stored once per programme.
+            val pool = StringPool()
+            // Where the time goes, per chunk: the query (Room's own threads,
+            // queueing included) and turning rows into programmes (here).
+            var queryMs = 0L
+            var mapMs = 0L
+            var slowest = 0L
+            for (chunk in ids.chunked(EPG_READ_ID_CHUNK)) {
+                val t0 = android.os.SystemClock.elapsedRealtime()
+                val rows = epgProgrammeDao.byIdsStartingBefore(chunk, toMillis)
+                val t1 = android.os.SystemClock.elapsedRealtime()
+                rows.mapTo(out) { it.toProgramme(pool) }
+                queryMs += t1 - t0
+                slowest = maxOf(slowest, t1 - t0)
+                mapMs += android.os.SystemClock.elapsedRealtime() - t1
+            }
+            Log.i(
+                "PlaylistRepo",
+                "[EPG] cache read: ${ids.size} ids in ${idsMs}ms, ${out.size} rows in ${queryMs}ms " +
+                    "(slowest chunk ${slowest}ms), mapped in ${mapMs}ms",
+            )
+            out
         }
 
     /**
@@ -2370,7 +2419,11 @@ class PlaylistRepository @Inject constructor(
     }
 
     suspend fun purgeEpgCache(playlistId: String) {
-        epgProgrammeDao.deleteForPlaylist(playlistId)
+        // In batches (EpgProgrammeDao.deleteBatchForPlaylist): one statement
+        // for a whole source blocked every other write for minutes.
+        while (epgProgrammeDao.deleteBatchForPlaylist(playlistId, EPG_DELETE_BATCH_ROWS) >= EPG_DELETE_BATCH_ROWS) {
+            kotlinx.coroutines.yield()
+        }
         // The grid coverage map dies WITH the rows it vouches for (the
         // cache-identity rule): a surviving coverage row would tell the next
         // incremental walk a chunk is already cached while the programmes it
@@ -2389,6 +2442,12 @@ class PlaylistRepository @Inject constructor(
          *  deletes a region this list cannot vouch for. */
         authoritative: Boolean = true,
     ) {
+        // A fetch that was already running when its playlist was deleted must
+        // not write the guide back for a playlist that no longer exists.
+        if (dao.byId(playlistId) == null) {
+            Log.i("PlaylistRepo", "saveEpgToCache: playlist ${playlistId.take(8)} is gone; not saving")
+            return
+        }
         val now = System.currentTimeMillis()
         // Dispatcharr live updates on: every writer (launch fetch, sweep,
         // background refresh, live window) writes in store order, so the
@@ -2827,22 +2886,34 @@ class PlaylistRepository @Inject constructor(
         // The VOD snapshot file is keyed by the playlist's IDENTITY, which is
         // derived from the row, so compute it BEFORE the row is gone.
         val row = dao.byId(playlistId)
-        // Guide + coverage, channel snapshot, VOD catalog (all identities),
-        // VOD snapshot metadata file. Each is best-effort: a failure to clean
-        // one store must not abort the delete itself.
-        runCatching { purgeEpgCache(playlistId) }
-            .onFailure { Log.w("PlaylistRepo", "delete: EPG purge failed", it) }
-        runCatching { channelSnapshotDao.deleteForPlaylist(playlistId) }
-            .onFailure { Log.w("PlaylistRepo", "delete: channel snapshot purge failed", it) }
-        runCatching { vodCatalogStore.deleteForPlaylistId(playlistId) }
-            .onFailure { Log.w("PlaylistRepo", "delete: VOD catalog purge failed", it) }
-        if (row != null) {
-            runCatching { vodSnapshotStore.delete(vodSnapshotStore.identity(row)) }
-                .onFailure { Log.w("PlaylistRepo", "delete: VOD snapshot purge failed", it) }
-        }
-        // Reminders, watch progress and local recordings are ON DELETE
-        // CASCADE against this row, so the DAO delete takes them with it.
+        // The row goes FIRST, so the playlist leaves the list (and the next
+        // one takes over) at once. It used to go last, after the cache purges;
+        // on a Chromecast HD the guide purge alone ran for minutes, so the
+        // Delete button looked like it did nothing. Reminders, watch progress
+        // and local recordings are ON DELETE CASCADE against this row, so the
+        // DAO delete takes them with it.
         dao.deleteById(playlistId)
+        // Guide + coverage, channel snapshot, VOD catalog (all identities),
+        // VOD snapshot metadata file: nothing reads them once the row is
+        // gone, so they are cleaned in the background, each best-effort.
+        layeringScope.launch {
+            val started = android.os.SystemClock.elapsedRealtime()
+            runCatching { purgeEpgCache(playlistId) }
+                .onFailure { Log.w("PlaylistRepo", "delete: EPG purge failed", it) }
+            runCatching { channelSnapshotDao.deleteForPlaylist(playlistId) }
+                .onFailure { Log.w("PlaylistRepo", "delete: channel snapshot purge failed", it) }
+            runCatching { vodCatalogStore.deleteForPlaylistId(playlistId) }
+                .onFailure { Log.w("PlaylistRepo", "delete: VOD catalog purge failed", it) }
+            if (row != null) {
+                runCatching { vodSnapshotStore.delete(vodSnapshotStore.identity(row)) }
+                    .onFailure { Log.w("PlaylistRepo", "delete: VOD snapshot purge failed", it) }
+            }
+            Log.i(
+                "PlaylistRepo",
+                "delete: caches of ${playlistId.take(8)} purged in " +
+                    "${android.os.SystemClock.elapsedRealtime() - started}ms",
+            )
+        }
     }
 
     /** Persist a user-chosen ordering of playlists. Sequence of ids is taken
@@ -3664,16 +3735,23 @@ private fun List<DispatcharrEpgEntry>.toProgrammes(): List<EPGProgramme> =
         )
     }
 
-/** EPG disk-cache row <-> domain model mapping. */
-private fun EpgProgrammeEntity.toProgramme(): EPGProgramme = EPGProgramme(
-    channelId = channelId,
-    title = title,
-    description = description,
+/** Keeps one copy of each distinct string during one cache read (loadCachedEpg). */
+private class StringPool {
+    private val strings = HashMap<String, String>(8192)
+    fun of(s: String): String = strings.getOrPut(s) { s }
+    fun ofOrNull(s: String?): String? = s?.let(::of)
+}
+
+/** EPG disk-cache row <-> domain model mapping; [pool] shares repeated strings. */
+private fun EpgProgrammeEntity.toProgramme(pool: StringPool? = null): EPGProgramme = EPGProgramme(
+    channelId = pool?.of(channelId) ?: channelId,
+    title = pool?.of(title) ?: title,
+    description = pool?.of(description) ?: description,
     startMillis = startMillis,
     endMillis = endMillis,
-    category = category,
+    category = pool?.of(category) ?: category,
     dispatcharrProgramId = dispatcharrProgramId,
-    subTitle = subTitle,
+    subTitle = pool?.ofOrNull(subTitle) ?: subTitle,
     season = season,
     episode = episode,
     isNew = isNew,
@@ -3681,7 +3759,7 @@ private fun EpgProgrammeEntity.toProgramme(): EPGProgramme = EPGProgramme(
     isPremiere = isPremiere,
     isFinale = isFinale,
     isRepeat = isRepeat,
-    iconUrl = iconUrl,
+    iconUrl = pool?.ofOrNull(iconUrl) ?: iconUrl,
 )
 
 private fun EPGProgramme.toCacheEntity(playlistId: String, fetchedAt: Long): EpgProgrammeEntity =
@@ -3770,3 +3848,14 @@ private const val TAG_CAPS = "AerioCaps"
 
 /** Rows per page for the live guide window's per-channel read (fits one 2 MB cursor window). */
 private const val CHANNEL_WINDOW_PAGE_ROWS = 1000
+
+/** Row ids per query of the launch guide read: under SQLite's 999 bound
+ *  parameters, and a page of rows that fits one cursor window. */
+private const val EPG_READ_ID_CHUNK = 900
+
+// The guide ids are read 12 hours of end times at a time: about 15,000 ids on 1,500 channels,
+// a third of what one 2 MB cursor window holds (idsInWindowSliced)
+private const val EPG_ID_SLICE_MS = 12L * 3_600_000L
+
+/** Rows per statement when purging a source's guide cache. */
+private const val EPG_DELETE_BATCH_ROWS = 2000

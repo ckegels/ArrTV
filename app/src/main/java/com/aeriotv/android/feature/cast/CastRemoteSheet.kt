@@ -50,6 +50,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -109,15 +111,15 @@ fun CastRemoteSheet(
     onRefreshState: () -> Unit = {},
     /** Cast glyph for Google Cast, TV glyph for the AerioTV Remote transport. */
     transportIcon: ImageVector = Icons.Filled.Cast,
-    /** "Casting to" (Cast) vs "Controlling" (LAN companion remote). */
-    statusVerb: String = "Casting to",
+    /** False: "Casting to <TV>" (Cast); true: "Controlling <TV>" (LAN companion remote). */
+    companionStatus: Boolean = false,
     /** Non-null while a web-receiver channel flip is in flight: the old media
      *  has been unloaded and the new proxy session is warming up, so the header
      *  reads "Switching to <channel>" until the receiver reports PLAYING. */
     switchingTo: String? = null,
     /** Label for the stop action: "Stop casting" for Cast, "Disconnect" for the
      *  companion transport. */
-    stopLabel: String = "Stop casting",
+    stopLabel: String = stringResource(R.string.player_cast_stop_casting),
     /** Google Cast transport (Logan 2026-09-13): the skip back / skip forward 30 s
      *  buttons were only ever drawn for the AerioTV Remote transport, because
      *  the Cast receivers do not report a rewind window on the control channel.
@@ -158,8 +160,8 @@ fun CastRemoteSheet(
             )
             Spacer(Modifier.height(10.dp))
             Text(
-                text = switchingTo?.let { "Switching to $it" }
-                    ?: channelTitle.ifBlank { "Nothing playing" },
+                text = switchingTo?.let { stringResource(R.string.player_cast_switching_to, it) }
+                    ?: channelTitle.ifBlank { stringResource(R.string.player_cast_nothing_playing) },
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.SemiBold,
@@ -178,7 +180,13 @@ fun CastRemoteSheet(
             }
             Spacer(Modifier.height(6.dp))
             Text(
-                text = "$statusVerb ${deviceName ?: "your TV"}",
+                text = when {
+                    companionStatus && deviceName != null ->
+                        stringResource(R.string.player_cast_controlling_device, deviceName)
+                    companionStatus -> stringResource(R.string.player_cast_controlling_your_tv)
+                    deviceName != null -> stringResource(R.string.player_cast_casting_to, deviceName)
+                    else -> stringResource(R.string.player_cast_casting_to_your_tv)
+                },
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.textAccent,
             )
@@ -235,9 +243,9 @@ fun CastRemoteSheet(
                         )
                         Text(
                             text = if (position.isLive && dragFraction == null) {
-                                "LIVE"
+                                stringResource(R.string.player_live_badge)
                             } else {
-                                "-${formatBehindLive(behindMs)} behind live"
+                                stringResource(R.string.player_behind_live, formatBehindLive(behindMs))
                             },
                             style = MaterialTheme.typography.labelMedium.subtext(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -270,7 +278,7 @@ fun CastRemoteSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (canChangeChannel) {
-                    RemoteButton(Icons.Filled.KeyboardArrowDown, "Channel down", onChannelDown)
+                    RemoteButton(Icons.Filled.KeyboardArrowDown, stringResource(R.string.player_channel_down), onChannelDown)
                 }
                 // Only when the dedicated rewind row above is absent, so the two
                 // transports never draw the skips twice.
@@ -285,7 +293,7 @@ fun CastRemoteSheet(
                 }
                 RemoteButton(
                     icon = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    desc = if (isPlaying) "Pause" else "Play",
+                    desc = stringResource(if (isPlaying) R.string.common_pause else R.string.common_play),
                     onClick = onTogglePlayPause,
                     emphasized = true,
                 )
@@ -298,10 +306,10 @@ fun CastRemoteSheet(
                     )
                 }
                 if (canChangeChannel) {
-                    RemoteButton(Icons.Filled.KeyboardArrowUp, "Channel up", onChannelUp)
+                    RemoteButton(Icons.Filled.KeyboardArrowUp, stringResource(R.string.player_channel_up), onChannelUp)
                 }
                 Spacer(Modifier.width(6.dp))
-                RemoteButton(Icons.Filled.Tune, "Options", {
+                RemoteButton(Icons.Filled.Tune, stringResource(R.string.player_options), {
                     onRefreshState()
                     optionsOpen = true
                 })
@@ -319,48 +327,61 @@ fun CastRemoteSheet(
                     .verticalScroll(rememberScrollState()),
             ) {
                 Text(
-                    text = "Options",
+                    text = stringResource(R.string.player_options),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 )
                 if (canSwitchStream) {
-                    OptionRow(Icons.Filled.SwapHoriz, "Switch Stream", null) {
+                    OptionRow(Icons.Filled.SwapHoriz, stringResource(R.string.player_switch_stream), null) {
                         optionsOpen = false
                         onSwitchStream()
                     }
                 }
-                OptionRow(Icons.Outlined.MusicNote, "Audio Track", remoteState.audio.firstOrNull { it.selected }?.label) {
+                OptionRow(Icons.Outlined.MusicNote, stringResource(R.string.player_audio_track), remoteState.audio.firstOrNull { it.selected }?.label) {
                     optionsOpen = false
                     audioOpen = true
                 }
-                OptionRow(Icons.Filled.Subtitles, "Subtitles", if (remoteState.textOff) "Off" else remoteState.text.firstOrNull { it.selected }?.label ?: "On") {
+                OptionRow(
+                    Icons.Filled.Subtitles,
+                    stringResource(R.string.player_subtitles),
+                    if (remoteState.textOff) stringResource(R.string.common_off)
+                    else remoteState.text.firstOrNull { it.selected }?.label ?: stringResource(R.string.common_on),
+                ) {
                     optionsOpen = false
                     subsOpen = true
                 }
-                OptionRow(Icons.Filled.Speed, "Playback Speed", speedLabel(remoteState.speed)) {
+                OptionRow(Icons.Filled.Speed, stringResource(R.string.player_playback_speed), speedLabel(remoteState.speed)) {
                     optionsOpen = false
                     speedOpen = true
                 }
-                OptionRow(Icons.Outlined.AspectRatio, "Video Scale", remoteState.aspect.label) {
+                OptionRow(Icons.Outlined.AspectRatio, stringResource(R.string.player_video_scale), stringResource(remoteState.aspect.labelRes)) {
                     onSetAspect(remoteState.aspect.next())
                 }
-                OptionRow(Icons.Filled.Timer, "Sleep Timer", null) {
+                OptionRow(Icons.Filled.Timer, stringResource(R.string.player_sleep_timer), null) {
                     optionsOpen = false
                     sleepOpen = true
                 }
-                OptionRow(Icons.Filled.Info, "Stream Info", null) {
+                OptionRow(Icons.Filled.Info, stringResource(R.string.player_stream_info), null) {
                     optionsOpen = false
                     infoOpen = true
                 }
-                OptionRow(Icons.Filled.VideocamOff, "Audio Only", if (remoteState.audioOnly) "On" else "Off") {
+                OptionRow(
+                    Icons.Filled.VideocamOff,
+                    stringResource(R.string.player_audio_only),
+                    stringResource(if (remoteState.audioOnly) R.string.common_on else R.string.common_off),
+                ) {
                     onSetAudioOnly(!remoteState.audioOnly)
                 }
                 // Companion only: the X above stops the TV, this one just lets go
                 // of the remote. Both hide the card.
                 onDisconnect?.let { disconnect ->
-                    OptionRow(Icons.Filled.LinkOff, "Disconnect", "Leaves the TV playing") {
+                    OptionRow(
+                        Icons.Filled.LinkOff,
+                        stringResource(R.string.player_cast_disconnect),
+                        stringResource(R.string.player_cast_disconnect_desc),
+                    ) {
                         optionsOpen = false
                         disconnect()
                     }
@@ -373,13 +394,19 @@ fun CastRemoteSheet(
         com.aeriotv.android.ui.FormFactorModal(onDismiss = { sleepOpen = false }) {
             Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) {
                 Text(
-                    text = "Sleep Timer",
+                    text = stringResource(R.string.player_sleep_timer),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(Modifier.height(12.dp))
-                listOf(0 to "Off", 30 to "30 minutes", 60 to "1 hour", 90 to "1.5 hours", 120 to "2 hours")
+                listOf(
+                    0 to stringResource(R.string.common_off),
+                    30 to stringResource(R.string.player_sleep_30_min),
+                    60 to stringResource(R.string.player_sleep_1_hour),
+                    90 to stringResource(R.string.player_sleep_90_min),
+                    120 to stringResource(R.string.player_sleep_2_hours),
+                )
                     .forEach { (minutes, label) ->
                         Text(
                             text = label,
@@ -403,14 +430,14 @@ fun CastRemoteSheet(
         com.aeriotv.android.ui.FormFactorModal(onDismiss = { infoOpen = false }) {
             Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
                 Text(
-                    text = "Stream Info",
+                    text = stringResource(R.string.player_stream_info),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    text = remoteState.streamInfo.ifBlank { "No stream details available" },
+                    text = remoteState.streamInfo.ifBlank { stringResource(R.string.player_no_stream_details) },
                     style = MaterialTheme.typography.bodyMedium.subtext(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -459,8 +486,9 @@ private fun CastControl.Track.toAudioTrack(): AudioTrack =
 private fun CastControl.Track.toSubtitleTrack(): SubtitleTrack =
     SubtitleTrack(id = id.toIntOrNull() ?: id.hashCode(), title = label, lang = "")
 
+@Composable
 private fun speedLabel(speed: Float): String =
-    if (kotlin.math.abs(speed - 1f) < 0.01f) "Normal" else "${speed}x"
+    if (kotlin.math.abs(speed - 1f) < 0.01f) stringResource(R.string.player_speed_normal) else "${speed}x"
 
 @Composable
 private fun RemoteButton(
@@ -518,7 +546,7 @@ private fun GoLivePill(onClick: () -> Unit) {
                 .background(Color.White),
         )
         Text(
-            text = "LIVE",
+            text = stringResource(R.string.player_live_badge),
             color = Color.White,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,

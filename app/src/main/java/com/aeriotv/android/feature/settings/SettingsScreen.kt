@@ -62,6 +62,10 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.aeriotv.android.core.data.db.entity.PlaylistEntity
@@ -116,10 +120,14 @@ import java.util.Date
  * panes are this same screen filtered down, so the copy, ordering, and row
  * behavior are literally the phone's.
  */
-enum class SettingsRootContent(val title: String) {
-    Full("Settings"),
-    PlaylistsOnly("Playlists"),
-    AboutOnly("About"),
+enum class SettingsRootContent(@StringRes val titleRes: Int) {
+    Full(R.string.common_settings),
+    PlaylistsOnly(R.string.settings2_playlists),
+    AboutOnly(R.string.settings2_about),
+    ;
+
+    val title: String
+        @Composable get() = stringResource(titleRes)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -175,6 +183,9 @@ fun SettingsScreen(
     val isTv = rememberIsTvDevice()
     var qrLink by remember { mutableStateOf<TvQrLink?>(null) }
     var showWhatsNew by remember { mutableStateOf(false) }
+    val qrCaption = stringResource(R.string.settings2_qr_scan_caption)
+    val websiteTitle = stringResource(R.string.settings2_developer_website)
+    val reportIssueTitle = stringResource(R.string.settings2_report_issue)
 
     Column(modifier = Modifier.fillMaxSize()) {
         CenterAlignedTopAppBar(
@@ -193,7 +204,7 @@ fun SettingsScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.common_back),
                             tint = MaterialTheme.colorScheme.primary,
                         )
                     }
@@ -272,7 +283,7 @@ fun SettingsScreen(
                     key = { it.key },
                 ) { group ->
                     SettingsSectionGroup(
-                        header = group.header,
+                        header = group.header?.let { stringResource(it) }.orEmpty(),
                         rows = group.sections,
                         onClick = onSectionClick,
                         footer = group.footer,
@@ -308,7 +319,7 @@ fun SettingsScreen(
                         cm?.setPrimaryClip(android.content.ClipData.newPlainText("AerioTV diagnostics", text))
                         android.widget.Toast.makeText(
                             context,
-                            "Copied diagnostics to clipboard.",
+                            context.getString(R.string.settings2_copied_diagnostics),
                             android.widget.Toast.LENGTH_SHORT,
                         ).show()
                     },
@@ -316,8 +327,8 @@ fun SettingsScreen(
                         val url = "https://github.com/jonzey231/AerioTV-Android"
                         if (isTv) {
                             qrLink = TvQrLink(
-                                title = "Developer Website",
-                                caption = "Scan with your phone to open this page.",
+                                title = websiteTitle,
+                                caption = qrCaption,
                                 url = url,
                             )
                         } else {
@@ -329,8 +340,8 @@ fun SettingsScreen(
                         val url = "https://github.com/jonzey231/AerioTV-Android/issues/new"
                         if (isTv) {
                             qrLink = TvQrLink(
-                                title = "Report an Issue",
-                                caption = "Scan with your phone to open this page.",
+                                title = reportIssueTitle,
+                                caption = qrCaption,
                                 url = url,
                             )
                         } else {
@@ -371,7 +382,7 @@ private fun PlaylistsSection(
 ) {
     Column {
         if (showHeader) {
-            SectionHeader("Playlists")
+            SectionHeader(stringResource(R.string.settings2_playlists))
             Spacer(Modifier.height(6.dp))
         }
         Column(
@@ -388,7 +399,7 @@ private fun PlaylistsSection(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "No playlists added",
+                        text = stringResource(R.string.settings2_no_playlists),
                         style = settingsRowValueStyle().subtext(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -424,7 +435,7 @@ private fun PlaylistsSection(
                 )
                 Spacer(Modifier.size(10.dp))
                 Text(
-                    text = "Add Playlist",
+                    text = stringResource(R.string.settings2_add_playlist),
                     style = settingsRowValueStyle(),
                     color = MaterialTheme.colorScheme.textAccent,
                     fontWeight = FontWeight.Medium,
@@ -443,7 +454,7 @@ private fun PlaylistsSection(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Manage Playlists",
+                        text = stringResource(R.string.settings2_manage_playlists),
                         style = settingsRowValueStyle(),
                         color = MaterialTheme.colorScheme.textAccent,
                         modifier = Modifier.weight(1f),
@@ -463,14 +474,14 @@ private fun PlaylistsSection(
                 // Rail/sidebar form factors enter the detail on select, so the
                 // activate verb moved there. The phone strings below are
                 // untouched (frozen canon).
-                SectionFooter("Select a playlist to open it · Set Active lives in its Actions section")
+                SectionFooter(stringResource(R.string.settings2_playlists_footer_pane_open))
                 if (playlists.size > 1) {
-                    SectionFooter("Select Manage Playlists to reorder")
+                    SectionFooter(stringResource(R.string.settings2_playlists_footer_pane_reorder))
                 }
             } else {
-                SectionFooter("Tap ○ to set the active playlist · Tap the active playlist to edit or delete it")
+                SectionFooter(stringResource(R.string.settings2_playlists_footer_touch_active))
                 if (playlists.size > 1) {
-                    SectionFooter("Tap Manage Playlists to reorder")
+                    SectionFooter(stringResource(R.string.settings2_playlists_footer_touch_reorder))
                 }
             }
         }
@@ -502,7 +513,8 @@ private fun PlaylistRow(
             // SettingsView footer hint "Tap ○ to set the active playlist".
             Icon(
                 imageVector = if (isActive) Icons.Filled.RadioButtonChecked else Icons.Outlined.RadioButtonUnchecked,
-                contentDescription = if (isActive) "Active" else "Set active",
+                contentDescription = if (isActive) stringResource(R.string.settings2_playlist_active)
+                else stringResource(R.string.settings2_playlist_set_active),
                 tint = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp),
             )
@@ -514,8 +526,13 @@ private fun PlaylistRow(
                     color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
                 )
+                val channelsText = pluralStringResource(
+                    R.plurals.settings2_channel_count,
+                    playlist.channelCount,
+                    playlist.channelCount,
+                )
                 val subtitle = buildString {
-                    append("${playlist.channelCount} channels")
+                    append(channelsText)
                     // Shared pretty-printer (PlaylistEntity.sourceTypeDisplayLabel)
                     // keeps this subtitle in lockstep with the Playlist Detail
                     // Type row.
@@ -625,7 +642,7 @@ private fun AboutSection(
 ) {
     Column {
         if (showHeader) {
-            SectionHeader("About")
+            SectionHeader(stringResource(R.string.settings2_about))
             Spacer(Modifier.height(6.dp))
         }
         Column(
@@ -634,47 +651,56 @@ private fun AboutSection(
                 .clip(RoundedCornerShape(14.dp))
                 .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.45f)),
         ) {
-            AboutInfoRow("Device", deviceDisplayName())
+            val unknown = stringResource(R.string.common_unknown)
+            AboutInfoRow(stringResource(R.string.settings2_about_device), deviceDisplayName())
             RowDivider()
-            AboutInfoRow("System", "Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})")
+            AboutInfoRow(stringResource(R.string.common_system), "Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})")
             RowDivider()
             AboutVersionRow(
                 value = "$versionName ($versionCode)",
                 onClick = onShowWhatsNew,
             )
             RowDivider()
-            AboutInfoRow("First Installed", formatInstallTime(installedAt))
-            RowDivider()
             AboutInfoRow(
-                "Last Updated",
-                if (updatedAt > 0 && updatedAt != installedAt) formatInstallTime(updatedAt) else "Never",
+                stringResource(R.string.settings2_about_first_installed),
+                formatInstallTime(installedAt, unknown),
             )
             RowDivider()
-            AboutActionRow("Copy to Clipboard", Icons.Filled.ContentCopy, onClick = onCopy)
+            AboutInfoRow(
+                stringResource(R.string.settings2_about_last_updated),
+                if (updatedAt > 0 && updatedAt != installedAt) formatInstallTime(updatedAt, unknown)
+                else stringResource(R.string.settings2_about_never),
+            )
             RowDivider()
             AboutActionRow(
-                "Developer Website",
+                stringResource(R.string.settings2_about_copy),
+                Icons.Filled.ContentCopy,
+                onClick = onCopy,
+            )
+            RowDivider()
+            AboutActionRow(
+                stringResource(R.string.settings2_developer_website),
                 Icons.Outlined.OpenInNew,
                 onClick = onOpenWebsite,
                 external = true,
             )
             RowDivider()
             AboutActionRow(
-                "Report an Issue",
+                stringResource(R.string.settings2_report_issue),
                 Icons.Outlined.BugReport,
                 onClick = onReportIssue,
                 external = true,
             )
             RowDivider()
             AboutActionRow(
-                "Open Source Licenses",
+                stringResource(R.string.settings2_about_licenses),
                 Icons.Outlined.Description,
                 onClick = onOpenLicenses,
             )
         }
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "In loving memory of Jesse Mann aka EPG Guru",
+            text = stringResource(R.string.settings2_about_in_memory),
             style = settingsFootnoteStyle().subtext(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontStyle = FontStyle.Italic,
@@ -728,7 +754,7 @@ private fun AboutVersionRow(value: String, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "App Version",
+            text = stringResource(R.string.settings2_about_app_version),
             style = settingsRowValueStyle().subtext(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
@@ -740,7 +766,7 @@ private fun AboutVersionRow(value: String, onClick: () -> Unit) {
         )
         Spacer(Modifier.size(10.dp))
         Text(
-            text = "What's New",
+            text = stringResource(R.string.settings2_about_whats_new),
             style = settingsFootnoteStyle(),
             color = MaterialTheme.colorScheme.textAccent,
             fontWeight = FontWeight.Medium,
@@ -848,8 +874,9 @@ private fun deviceDisplayName(): String {
     }
 }
 
-private fun formatInstallTime(ms: Long): String {
-    if (ms <= 0L) return "Unknown"
+/** [unknown] is the on-screen word for a missing time; the diagnostics copy keeps English. */
+private fun formatInstallTime(ms: Long, unknown: String = "Unknown"): String {
+    if (ms <= 0L) return unknown
     return DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(ms))
 }
 
@@ -874,7 +901,7 @@ private fun openUrl(context: android.content.Context, url: String) {
         .onFailure {
             android.widget.Toast.makeText(
                 context,
-                "No browser available to open $url",
+                context.getString(R.string.settings2_no_browser, url),
                 android.widget.Toast.LENGTH_SHORT,
             ).show()
         }
@@ -885,43 +912,43 @@ private fun openUrl(context: android.content.Context, url: String) {
  * the parent [SettingsScreen] rows and a stable identifier for navigation.
  */
 enum class SettingsSection(
-    val title: String,
-    val subtitle: String?,
+    @StringRes val titleRes: Int,
+    @StringRes val subtitleRes: Int?,
     val icon: ImageVector,
 ) {
     LiveTV(
-        title = "Live TV",
-        subtitle = "Guide, groups, badges, colors",
+        titleRes = R.string.settings2_section_live_tv,
+        subtitleRes = R.string.settings2_section_live_tv_subtitle,
         icon = Icons.Filled.LiveTv,
     ),
     Player(
-        title = "Player",
-        subtitle = "Info card, rewind, gestures, multiview",
+        titleRes = R.string.settings2_section_player,
+        subtitleRes = R.string.settings2_section_player_subtitle,
         icon = Icons.Outlined.PlayCircle,
     ),
     MoviesAndTvShows(
-        title = "Movies & TV Shows",
-        subtitle = "Library refresh, posters",
+        titleRes = R.string.settings2_section_movies,
+        subtitleRes = R.string.settings2_section_movies_subtitle,
         icon = Icons.Filled.Movie,
     ),
     DvrSettings(
-        title = "DVR",
-        subtitle = "Recordings, buffers, storage",
+        titleRes = R.string.settings2_section_dvr,
+        subtitleRes = R.string.settings2_section_dvr_subtitle,
         icon = Icons.Filled.FiberManualRecord,
     ),
     Appearance(
-        title = "Appearance",
-        subtitle = "Theme, text size, time format",
+        titleRes = R.string.settings2_section_appearance,
+        subtitleRes = R.string.settings2_section_appearance_subtitle,
         icon = Icons.Filled.Palette,
     ),
     General(
-        title = "General",
-        subtitle = "Startup, refresh, network",
+        titleRes = R.string.settings2_section_general,
+        subtitleRes = R.string.settings2_section_general_subtitle,
         icon = Icons.Filled.Tune,
     ),
     RemoteControl(
-        title = "Remote Control",
-        subtitle = "Customize remote buttons",
+        titleRes = R.string.settings2_section_remote_control,
+        subtitleRes = R.string.settings2_section_remote_control_subtitle,
         icon = Icons.Filled.SettingsRemote,
     ),
     Sync(
@@ -929,25 +956,32 @@ enum class SettingsSection(
         // On / Off state instead of a description. Apple does the same, and the
         // long string truncated on the Android TV rail. The description lives on
         // the Sync page's own Drive Sync footer.
-        title = "Sync",
-        subtitle = null,
+        titleRes = R.string.settings2_section_sync,
+        subtitleRes = null,
         icon = Icons.Filled.Cloud,
     ),
     AppUpdates(
-        title = "Updates",
-        subtitle = "Check for new releases",
+        titleRes = R.string.settings2_section_updates,
+        subtitleRes = R.string.settings2_section_updates_subtitle,
         icon = Icons.Filled.SystemUpdate,
     ),
     Developer(
-        title = "Developer",
-        subtitle = "Debug logging & diagnostics",
+        titleRes = R.string.settings2_section_developer,
+        subtitleRes = R.string.settings2_section_developer_subtitle,
         icon = Icons.Outlined.BugReport,
     ),
     About(
-        title = "About",
-        subtitle = null,
+        titleRes = R.string.settings2_about,
+        subtitleRes = null,
         icon = Icons.Outlined.Info,
     ),
+    ;
+
+    val title: String
+        @Composable get() = stringResource(titleRes)
+
+    val subtitle: String?
+        @Composable get() = subtitleRes?.let { stringResource(it) }
 }
 
 /**
@@ -955,9 +989,10 @@ enum class SettingsSection(
  * rail. Everything but Sync uses its static enum subtitle; Sync reports whether
  * Drive sync is currently on.
  */
+@Composable
 fun settingsSectionSubtitle(section: SettingsSection, syncEnabled: Boolean): String? =
     if (section == SettingsSection.Sync) {
-        if (syncEnabled) "On" else "Off"
+        stringResource(if (syncEnabled) R.string.common_on else R.string.common_off)
     } else {
         section.subtitle
     }

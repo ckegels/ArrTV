@@ -167,10 +167,14 @@ object CastControl {
      * what videoScaleFromCastAspectKey already maps them to. Only the labels
      * and the cycle order changed, so old receivers stay compatible.
      */
-    enum class AspectMode(val key: String, val label: String) {
-        FIT("fit", "Fit"),
-        ZOOM("zoom", "Fill"),
-        FILL("fill", "Stretch");
+    enum class AspectMode(
+        val key: String,
+        val label: String,
+        @androidx.annotation.StringRes val labelRes: Int,
+    ) {
+        FIT("fit", "Fit", com.aeriotv.android.R.string.player_scale_fit),
+        ZOOM("zoom", "Fill", com.aeriotv.android.R.string.player_scale_fill),
+        FILL("fill", "Stretch", com.aeriotv.android.R.string.player_scale_stretch);
 
         fun next(): AspectMode = entries[(ordinal + 1) % entries.size]
 

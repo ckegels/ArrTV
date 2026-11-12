@@ -1,5 +1,8 @@
 package com.aeriotv.android.feature.main
 
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.aeriotv.android.R
 import com.aeriotv.android.ui.theme.textAccent
 import com.aeriotv.android.core.data.db.entity.dispatcharrCanViewDvr
 import com.aeriotv.android.core.data.db.entity.dispatcharrCanViewVod
@@ -529,7 +532,7 @@ fun MainScaffold(
     val lookContext = androidx.compose.ui.platform.LocalContext.current
     val applyArrTvLook: () -> Unit = {
         settingsVm.applyArrTvLook()
-        android.widget.Toast.makeText(lookContext, "ArrTV look applied", android.widget.Toast.LENGTH_SHORT).show()
+        android.widget.Toast.makeText(lookContext, lookContext.getString(R.string.main_arrtv_look_applied), android.widget.Toast.LENGTH_SHORT).show()
     }
     val defaultTabPref by settingsVm.defaultTab.collectAsStateWithLifecycle(initialValue = "")
 
@@ -1606,7 +1609,7 @@ private fun CompanionControlFab(onClick: () -> Unit) {
             // Google's Cast glyph (Logan 2026-09-09): the Tv glyph doubled
             // as the TV Shows tab icon.
             imageVector = Icons.Filled.Cast,
-            contentDescription = "Control a TV",
+            contentDescription = stringResource(R.string.main_control_a_tv),
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(22.dp),
         )
@@ -1655,7 +1658,7 @@ private fun TabletTopTabBar(
         tabs.forEach { tab ->
             val isSel = tab == selected
             Text(
-                text = tab.label,
+                text = tab.displayLabel(),
                 fontSize = 17.sp * scale,
                 fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Medium,
                 // iPad: the selected tab is a LIGHTER neutral fill with accent
@@ -1725,13 +1728,13 @@ private fun FloatingTabBar(
             ) {
                 Icon(
                     imageVector = if (isSel) tab.iconSelected else tab.iconUnselected,
-                    contentDescription = tab.label,
+                    contentDescription = tab.displayLabel(),
                     tint = if (isSel) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(22.dp),
                 )
                 Text(
-                    text = tab.label,
+                    text = tab.displayLabel(),
                     fontSize = 10.sp,
                     lineHeight = 12.sp,
                     // One line at every Text Size: the bar grows taller with
@@ -1773,7 +1776,7 @@ private fun MinimizedTabPill(
         ) {
             Icon(
                 imageVector = tab.iconSelected,
-                contentDescription = "Show tab bar, ${tab.label}",
+                contentDescription = stringResource(R.string.main_show_tab_bar, tab.displayLabel()),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(22.dp),
             )
@@ -2160,7 +2163,7 @@ private fun TvTopTabBar(
                     if (onApplyLook != null) {
                         TvBarCircleButton(
                             icon = Icons.Filled.AutoAwesome,
-                            contentDescription = "Apply the ArrTV look",
+                            contentDescription = stringResource(R.string.main_apply_arrtv_look),
                             onClick = onApplyLook,
                         )
                     }
@@ -2169,14 +2172,14 @@ private fun TvTopTabBar(
                     // Left press away. Not on Settings.
                     if (selected != AppTab.Settings) TvBarCircleButton(
                         icon = Icons.Filled.Refresh,
-                        contentDescription = "Refresh channels and guide",
+                        contentDescription = stringResource(R.string.main_refresh_channels_guide),
                         onClick = onRefresh,
                         spinning = refreshing,
                     )
                     if (retainedCount > 0) {
                         TvBarCircleButton(
                             icon = Icons.Filled.FiberSmartRecord,
-                            contentDescription = "$retainedCount channels kept live",
+                            contentDescription = pluralStringResource(R.plurals.livetv_channels_kept_live, retainedCount, retainedCount),
                             onClick = onRetainedClick,
                         )
                     }
@@ -2317,7 +2320,7 @@ private fun TvTab(
             modifier = Modifier.size(14.dp),
         )
         Text(
-            text = tab.label,
+            text = tab.displayLabel(),
             color = foreground,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,

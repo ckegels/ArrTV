@@ -1,5 +1,8 @@
 package com.aeriotv.android.feature.movies
 
+import com.aeriotv.android.core.locale.AppText
+import com.aeriotv.android.R
+import androidx.compose.ui.res.stringResource
 import com.aeriotv.android.ui.scale.subtext
 import com.aeriotv.android.ui.theme.textAccent
 import androidx.compose.foundation.background
@@ -70,7 +73,7 @@ data class MediaHeroPage(
     val remainingLabel: String? get() {
         if (durationMs <= 0L || positionMs <= 0L) return null
         val mins = ((durationMs - positionMs) / 60_000L).coerceAtLeast(0L)
-        return if (mins >= 60) "${mins / 60} h ${mins % 60} min left" else "$mins min left"
+        return if (mins >= 60) AppText.get(R.string.media_time_left_h_min, mins / 60, mins % 60) else AppText.get(R.string.media_time_left_min, mins)
     }
 }
 
@@ -93,7 +96,7 @@ fun MediaHeroCard(
     /** Long-press menu: Add to / Remove from Watchlist (Apple parity). */
     isOnWatchlist: Boolean = false,
     onToggleWatchlist: (() -> Unit)? = null,
-    removeLabel: String = "Remove from Continue Watching",
+    removeLabel: String = stringResource(R.string.media_remove_from_continue_watching),
     /** Hide / Unhide the title (Logan 2026-09-14); null leaves the row out. */
     isHidden: Boolean = false,
     onToggleHidden: (() -> Unit)? = null,
@@ -153,10 +156,14 @@ fun MediaHeroCard(
                 page.title, fontSize = 28.sp, fontWeight = FontWeight.Bold, lineHeight = 32.sp,
                 color = MaterialTheme.colorScheme.onBackground, maxLines = 2, overflow = TextOverflow.Ellipsis,
             )
+            val seLabel = if ((page.season ?: 0) > 0) stringResource(R.string.media_season_episode_short, page.season ?: 0, page.episode ?: 0) else null
+            val durationLabel = page.durationSecs?.takeIf { it > 0 }?.let { s ->
+                if (s >= 3600) stringResource(R.string.media_duration_h_min, s / 3600, (s % 3600) / 60) else stringResource(R.string.media_duration_min, s / 60)
+            }
             val meta = buildList {
                 page.year?.let { add(it.toString()) }
-                if ((page.season ?: 0) > 0) add("S${page.season} E${page.episode ?: 0}")
-                page.durationSecs?.takeIf { it > 0 }?.let { s -> add(if (s >= 3600) "${s / 3600} h ${(s % 3600) / 60} min" else "${s / 60} min") }
+                seLabel?.let { add(it) }
+                durationLabel?.let { add(it) }
                 page.genre?.split(',', '/', '|')?.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() }?.let { add(it) }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -184,25 +191,25 @@ fun MediaHeroCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
-                    Text(if (page.hasProgress) "Resume" else "Play", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onPrimary)
+                    Text(if (page.hasProgress) stringResource(R.string.media_resume) else stringResource(R.string.common_play), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onPrimary)
                 }
-                if (page.hasProgress) HeroIconButton(Icons.Filled.Replay, "Play from Beginning", onPlayFromStart)
-                HeroIconButton(Icons.Outlined.Info, "Details", onDetails)
+                if (page.hasProgress) HeroIconButton(Icons.Filled.Replay, stringResource(R.string.media_play_from_beginning), onPlayFromStart)
+                HeroIconButton(Icons.Outlined.Info, stringResource(R.string.media_details), onDetails)
                 // The hero menu is the right-most options circle, not a long
                 // press on Resume (Logan 2026-09-10, all platforms).
                 if (onRemove != null || onToggleWatchlist != null || onToggleHidden != null) Box {
-                    HeroIconButton(Icons.Filled.MoreHoriz, "Options") { menu = true }
+                    HeroIconButton(Icons.Filled.MoreHoriz, stringResource(R.string.media_options)) { menu = true }
                     run {
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                             if (onToggleWatchlist != null) {
                                 DropdownMenuItem(
-                                    text = { Text(if (isOnWatchlist) "Remove from Watchlist" else "Add to Watchlist") },
+                                    text = { Text(if (isOnWatchlist) stringResource(R.string.media_remove_from_watchlist) else stringResource(R.string.media_add_to_watchlist)) },
                                     onClick = { menu = false; onToggleWatchlist() },
                                 )
                             }
                             if (onToggleHidden != null) {
                                 DropdownMenuItem(
-                                    text = { Text(if (isHidden) "Unhide" else "Hide") },
+                                    text = { Text(if (isHidden) stringResource(R.string.media_unhide) else stringResource(R.string.media_hide)) },
                                     onClick = { menu = false; onToggleHidden() },
                                 )
                             }

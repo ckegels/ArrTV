@@ -1,5 +1,8 @@
 package com.aeriotv.android.core.playback
 
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
+
 /**
  * The language generated captions are asked in (Dispatch More v248 translates them, its
  * fork/subtitles.md §9 step 4). "" = as spoken (no translation), "tv" = this TV's own language,
@@ -17,9 +20,17 @@ object CaptionLanguage {
         "es" to "Spanish",
     )
 
+    /** The choice's name in the app's language (the English names in [CHOICES]
+     *  are what an English device shows). */
     fun label(value: String): String {
-        val name = CHOICES.firstOrNull { it.first == value }?.second ?: value
-        return if (value == "tv") "$name (${java.util.Locale.getDefault().displayLanguage})" else name
+        if (CHOICES.none { it.first == value }) return value
+        val locale = java.util.Locale.getDefault()
+        return when (value) {
+            "" -> AppText.get(R.string.player_caption_language_original)
+            "tv" -> AppText.get(R.string.player_caption_language_tv, locale.displayLanguage)
+            else -> java.util.Locale(value).getDisplayLanguage(locale)
+                .replaceFirstChar { it.titlecase(locale) }
+        }
     }
 
     /** What the poll sends: null for the original, else two letters. */

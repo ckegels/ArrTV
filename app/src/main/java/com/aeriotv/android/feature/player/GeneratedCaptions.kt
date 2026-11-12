@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.player
 
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -79,14 +81,14 @@ fun captionLineAt(cues: List<LiveCaption>, now: Double?): String {
 /** What to say instead of captions, or "" while captions come. */
 fun captionStatusLine(answer: LiveCaptions?): String = when (answer?.state) {
     null, "listening" -> ""
-    "starting" -> "Captions: starting…"
-    "loading model" -> "Captions: loading the speech model…"
-    "busy" -> answer.reason.ifBlank { "Captions: the server is captioning as many channels as it can." }
+    "starting" -> AppText.get(R.string.player_captions_starting)
+    "loading model" -> AppText.get(R.string.player_captions_loading_model)
+    "busy" -> answer.reason.ifBlank { AppText.get(R.string.player_captions_busy) }
     "not playing" -> ""
-    "ended" -> "Captions: the channel stopped."
-    "unsupported" -> "Captions: this server cannot make captions (Dispatch More v247 or later)."
-    "off" -> answer.reason.ifBlank { "Captions are switched off on the server." }
-    else -> "Captions: " + (answer.error.ifBlank { answer.reason }.ifBlank { answer.state })
+    "ended" -> AppText.get(R.string.player_captions_ended)
+    "unsupported" -> AppText.get(R.string.player_captions_unsupported)
+    "off" -> answer.reason.ifBlank { AppText.get(R.string.player_captions_off) }
+    else -> AppText.get(R.string.player_captions_other, answer.error.ifBlank { answer.reason }.ifBlank { answer.state })
 }
 
 @Composable
@@ -111,7 +113,7 @@ fun GeneratedCaptionsOverlay(
         var since = 0L
         var cues = emptyList<LiveCaption>()
         try {
-            status = "Captions: starting…"
+            status = AppText.get(R.string.player_captions_starting)
             while (true) {
                 val answer = poll(url, channelUuid, since)
                 if (answer != null) {

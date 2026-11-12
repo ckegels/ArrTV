@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.settings
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import com.aeriotv.android.ui.scale.subtext
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,7 +42,7 @@ fun SettingsSubScreenPlaceholder(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.common_back),
                         )
                     }
                 }

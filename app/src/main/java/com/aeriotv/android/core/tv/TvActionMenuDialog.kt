@@ -36,6 +36,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.aeriotv.android.ui.scale.Dialog
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * One row of a [TvActionMenuDialog]. [icon] is nullable because some menus
@@ -110,7 +112,7 @@ fun TvActionMenuDialog(
                     )
                 }
                 TvMenuCapsule(
-                    label = "Cancel",
+                    label = stringResource(R.string.common_cancel),
                     enabled = true,
                     destructive = false,
                     accent = accent,

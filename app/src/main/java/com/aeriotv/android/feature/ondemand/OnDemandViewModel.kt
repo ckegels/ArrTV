@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.ondemand
 
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -1296,7 +1298,7 @@ class OnDemandViewModel @Inject constructor(
             for (a in accounts.sortedBy { it.id }) {
                 if (a.locked == true || a.isActive == false) continue
                 if (a.name?.trim()?.lowercase() == "custom") continue
-                map[a.id] = a.name?.takeIf { it.isNotBlank() } ?: "Provider ${a.id}"
+                map[a.id] = a.name?.takeIf { it.isNotBlank() } ?: AppText.get(R.string.media_provider_n, a.id)
             }
             _state.update { it.copy(providerNames = map) }
         }
@@ -1914,7 +1916,7 @@ class OnDemandViewModel @Inject constructor(
         // Nothing stored and the walk did not finish: say so instead of an
         // empty "No Movies" grid (the old first-page failure path did too).
         val failure = if (!complete && catalogStore.count(identity, kind) == 0) {
-            if (aborted) "Dispatcharr rejected the API key." else "Couldn't load $label from Dispatcharr."
+            if (aborted) AppText.get(R.string.ondemand_api_key_rejected) else AppText.get(if (isMovie) R.string.ondemand_load_movies_dispatcharr_failed else R.string.ondemand_load_series_dispatcharr_failed)
         } else null
         _state.update {
             if (isMovie) it.copy(isLoading = false, error = failure, moviesNextCursor = null, movieGroupNames = groups.ifEmpty { it.movieGroupNames })
@@ -2932,7 +2934,7 @@ class OnDemandViewModel @Inject constructor(
                     // GH #87: an ART allocation dump is not a user message.
                     val oom = generateSequence(t as Throwable?) { it.cause }.any { it is OutOfMemoryError } ||
                         t.message?.contains("Failed to allocate", ignoreCase = true) == true
-                    val message = if (oom) "This series is too large to load on this device."
+                    val message = if (oom) AppText.get(R.string.ondemand_series_too_large)
                     else (t.message ?: t::class.simpleName.orEmpty())
                     _state.update { st ->
                         st.copy(
@@ -2948,7 +2950,7 @@ class OnDemandViewModel @Inject constructor(
     /** Same pattern as resolveMovieUrl but for an episode proxy URL. */
     suspend fun resolveEpisodeUrl(episodeUuid: String, streamId: Int?): Result<ResolvedVod> {
         val playlist = playlistRepository.activePlaylist()
-            ?: return Result.failure(IllegalStateException("No playlist loaded."))
+            ?: return Result.failure(IllegalStateException(AppText.get(R.string.media_err_no_playlist)))
         // Xtream episodes carry a deterministic URL encoded in the sentinel
         // uuid ("xc-ep-<id>-<ext>"); no network round-trip needed.
         if (episodeUuid.startsWith(XC_EP_PREFIX)) {
@@ -2957,7 +2959,7 @@ class OnDemandViewModel @Inject constructor(
             }.map { ResolvedVod(it, authSafe = true) }
         }
         if (playlist.apiKey.isNullOrBlank()) {
-            return Result.failure(IllegalStateException("Active source is not Dispatcharr-backed."))
+            return Result.failure(IllegalStateException(AppText.get(R.string.media_err_not_dispatcharr)))
         }
         // Version pinning: when the user picked a provider copy for the parent
         // series, pin the episode to that account (episodes have no per-copy
@@ -2988,7 +2990,7 @@ class OnDemandViewModel @Inject constructor(
      */
     suspend fun resolveMovieUrl(movieUuid: String): Result<ResolvedVod> {
         val playlist = playlistRepository.activePlaylist()
-            ?: return Result.failure(IllegalStateException("No playlist loaded."))
+            ?: return Result.failure(IllegalStateException(AppText.get(R.string.media_err_no_playlist)))
         // Xtream movies carry a deterministic URL encoded in the sentinel
         // uuid ("xc-movie-<id>-<ext>"); build it directly.
         if (movieUuid.startsWith(XC_MOVIE_PREFIX)) {
@@ -2997,7 +2999,7 @@ class OnDemandViewModel @Inject constructor(
             }.map { ResolvedVod(it, authSafe = true) }
         }
         if (playlist.apiKey.isNullOrBlank()) {
-            return Result.failure(IllegalStateException("Active source is not Dispatcharr-backed."))
+            return Result.failure(IllegalStateException(AppText.get(R.string.media_err_not_dispatcharr)))
         }
         // A row that carried a reassigned uuid was mapped to the live movie by
         // resolveMovie; play through the live uuid, not the stale one.
@@ -3367,7 +3369,7 @@ class OnDemandViewModel @Inject constructor(
         val user = playlist.username
         val pass = playlist.password
         if (user.isNullOrBlank() || pass == null) {
-            return Result.failure(IllegalStateException("Xtream credentials missing."))
+            return Result.failure(IllegalStateException(AppText.get(R.string.ondemand_xtream_credentials_missing)))
         }
         val payload = uuid.removePrefix(prefix)
         val id = payload.substringBefore('-').toIntOrNull()

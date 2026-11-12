@@ -1,5 +1,7 @@
 package com.aeriotv.android.core.data.capability
 
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -277,35 +279,19 @@ object CapabilityNotices {
 }
 
 /** User-facing copy for a denied capability. Kept here so every surface agrees. */
-fun Capability.deniedMessage(): String = when (this) {
-    Capability.CanManageDvr ->
-        "Your Dispatcharr account can view recordings but not manage them. " +
-            "Ask your server administrator for DVR manage access."
-    Capability.CanViewDvr ->
-        "Your Dispatcharr account does not have DVR access. " +
-            "Ask your server administrator to enable it."
-    Capability.CanViewVod ->
-        "Your Dispatcharr account does not have access to movies. " +
-            "Ask your server administrator to enable it."
-    Capability.CanViewSeries ->
-        "Your Dispatcharr account does not have access to TV shows. " +
-            "Ask your server administrator to enable it."
-    Capability.CanUseCatchup ->
-        "Catch-up is not enabled for your Dispatcharr account. " +
-            "Ask your server administrator to enable it."
-    Capability.CanSwitchStream ->
-        "Switching streams needs a Dispatcharr administrator account. " +
-            "Ask your server administrator for access."
-    Capability.CanManagePlaylists ->
-        "Your Dispatcharr account cannot change server playlists. " +
-            "Ask your server administrator for access."
-    Capability.CanReadServerSettings ->
-        "Your Dispatcharr account cannot read server settings. " +
-            "Ask your server administrator for access."
-}
+fun Capability.deniedMessage(): String = AppText.get(
+    when (this) {
+        Capability.CanManageDvr -> R.string.core_capability_denied_manage_dvr
+        Capability.CanViewDvr -> R.string.core_capability_denied_view_dvr
+        Capability.CanViewVod -> R.string.core_capability_denied_view_vod
+        Capability.CanViewSeries -> R.string.core_capability_denied_view_series
+        Capability.CanUseCatchup -> R.string.core_capability_denied_catchup
+        Capability.CanSwitchStream -> R.string.core_capability_denied_switch_stream
+        Capability.CanManagePlaylists -> R.string.core_capability_denied_manage_playlists
+        Capability.CanReadServerSettings -> R.string.core_capability_denied_read_server_settings
+    },
+)
 
 /** Copy for a 403 on something the account's permissions say it SHOULD be able to do. */
 fun Capability.networkRestrictionMessage(): String =
-    "The server refused this even though your Dispatcharr account has permission. " +
-        "This usually means a network restriction on the account (allowed networks). " +
-        "Ask your server administrator to allow this device's network."
+    AppText.get(R.string.core_capability_network_restricted)

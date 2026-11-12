@@ -73,6 +73,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aeriotv.android.core.data.ChannelCollection
 import com.aeriotv.android.feature.playlist.SortMode
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.aeriotv.android.R
 
 /**
  * GH #57 (Logan 2026-08-10): the TV Guide's round Manage Groups control.
@@ -115,8 +118,8 @@ internal fun TvManageGroupsCircle(
     ) {
         Icon(
             imageVector = Icons.Outlined.Tune,
-            contentDescription = if (hiddenGroupsCount == 0) "Manage groups"
-            else "Manage groups ($hiddenGroupsCount hidden)",
+            contentDescription = if (hiddenGroupsCount == 0) stringResource(R.string.livetv_manage_groups_short)
+            else pluralStringResource(R.plurals.livetv_manage_groups_short_hidden, hiddenGroupsCount, hiddenGroupsCount),
             tint = if (focused) Color.White else colors.primary,
             modifier = Modifier.size(14.dp),
         )
@@ -146,7 +149,7 @@ internal fun TvRetainedChannelsCircle(
 ) {
     com.aeriotv.android.ui.tv.TvActionCircle(
         icon = Icons.Filled.FiberSmartRecord,
-        contentDescription = "$count channels kept live",
+        contentDescription = pluralStringResource(R.plurals.livetv_channels_kept_live, count, count),
         onClick = onClick,
         modifier = modifier,
         accentGlyph = true,
@@ -188,11 +191,12 @@ fun LiveTvTopBar(
         val titleLarge = MaterialTheme.typography.titleLarge
         val titleMedium = MaterialTheme.typography.titleMedium
         val barWidth = maxWidth
-        val fit = remember(barWidth, actionCount, titleLarge, titleMedium, density) {
+        val liveTvTitle = stringResource(R.string.livetv_title)
+        val fit = remember(barWidth, actionCount, titleLarge, titleMedium, density, liveTvTitle) {
             fun tryFit(style: TextStyle): Pair<TextStyle, Dp>? {
                 val titleWidth = with(density) {
                     textMeasurer.measure(
-                        text = "Live TV",
+                        text = liveTvTitle,
                         style = style.copy(fontWeight = FontWeight.Bold),
                     ).size.width.toDp()
                 }
@@ -212,7 +216,7 @@ fun LiveTvTopBar(
         val (titleStyle, buttonSize) = fit
         val iconSize = (buttonSize - 14.dp).coerceIn(18.dp, 24.dp)
         Text(
-            text = "Live TV",
+            text = liveTvTitle,
             style = titleStyle,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground,
@@ -280,8 +284,8 @@ fun LiveTvPillsRow(
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Tune,
-                    contentDescription = if (hiddenGroupsCount == 0) "Manage groups"
-                    else "Manage groups ($hiddenGroupsCount hidden)",
+                    contentDescription = if (hiddenGroupsCount == 0) stringResource(R.string.livetv_manage_groups_short)
+                    else pluralStringResource(R.plurals.livetv_manage_groups_short_hidden, hiddenGroupsCount, hiddenGroupsCount),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp),
                 )
@@ -442,7 +446,7 @@ fun LiveTvPhoneHeaderRow(
         if (sidebarMode) {
             LiveTvPhoneCircle(
                 icon = Icons.Outlined.ViewSidebar,
-                contentDescription = "Channel Groups",
+                contentDescription = stringResource(R.string.livetv_channel_groups),
                 onClick = onOpenGroups,
             )
             // Name takes all the leftover width (a sibling spacer used to
@@ -470,8 +474,8 @@ fun LiveTvPhoneHeaderRow(
         } else {
             LiveTvPhoneCircle(
                 icon = Icons.Outlined.Tune,
-                contentDescription = if (hiddenGroupsCount == 0) "Manage groups"
-                else "Manage groups ($hiddenGroupsCount hidden)",
+                contentDescription = if (hiddenGroupsCount == 0) stringResource(R.string.livetv_manage_groups_short)
+                else pluralStringResource(R.plurals.livetv_manage_groups_short_hidden, hiddenGroupsCount, hiddenGroupsCount),
                 onClick = { actionsExpanded = false; onManageGroups() },
                 badgeCount = hiddenGroupsCount,
             )
@@ -508,7 +512,7 @@ fun LiveTvPhoneHeaderRow(
             }
             LiveTvPhoneCircle(
                 icon = Icons.Filled.MoreVert,
-                contentDescription = if (actionsExpanded) "Hide options" else "More options",
+                contentDescription = if (actionsExpanded) stringResource(R.string.livetv_hide_options) else stringResource(R.string.livetv_more_options),
                 onClick = { actionsExpanded = !actionsExpanded },
                 active = actionsExpanded,
             )
@@ -555,14 +559,14 @@ private fun LiveTvHeaderActions(
     var sortOpen by remember { mutableStateOf(false) }
     LiveTvPhoneCircle(
         icon = Icons.Outlined.Search,
-        contentDescription = if (searchActive) "Close search" else "Search",
+        contentDescription = if (searchActive) stringResource(R.string.livetv_close_search) else stringResource(R.string.common_search),
         onClick = { onActionTaken(); onToggleSearch() },
         active = searchActive,
     )
     Box {
         LiveTvPhoneCircle(
             icon = Icons.Filled.SwapVert,
-            contentDescription = "Sort: ${sortMode.label}",
+            contentDescription = stringResource(R.string.livetv_sort_is, stringResource(sortMode.labelRes)),
             onClick = { sortOpen = true },
             active = sortOpen,
         )
@@ -584,7 +588,7 @@ private fun LiveTvHeaderActions(
                     } else null,
                     text = {
                         Text(
-                            text = mode.label,
+                            text = stringResource(mode.labelRes),
                             color = if (mode == sortMode) MaterialTheme.colorScheme.textAccent
                             else MaterialTheme.colorScheme.onSurface,
                             fontWeight = if (mode == sortMode) FontWeight.SemiBold
@@ -601,7 +605,7 @@ private fun LiveTvHeaderActions(
     if (canToggleViewMode) {
         LiveTvPhoneCircle(
             icon = if (showingGuide) Icons.Filled.ViewList else Icons.Filled.CalendarMonth,
-            contentDescription = if (showingGuide) "Show List" else "Show Guide",
+            contentDescription = if (showingGuide) stringResource(R.string.livetv_show_list) else stringResource(R.string.livetv_show_guide),
             onClick = { onActionTaken(); onToggleViewMode() },
         )
     }

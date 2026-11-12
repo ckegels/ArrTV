@@ -7,6 +7,8 @@ import android.support.v4.media.session.MediaSessionCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import com.aeriotv.android.core.playback.AerioExoPlayerHolder
 import com.aeriotv.android.core.playback.AutoBrowseTree
 import com.aeriotv.android.core.preferences.AppPreferences
@@ -553,7 +555,7 @@ class AerioCastReceiverController @Inject constructor(
     // Compose the same one-line labels the on-device Audio Track / Subtitles
     // sheets render, so the phone's reused pickers read identically.
     private fun audioLabel(t: AudioTrack): String = buildString {
-        append(t.title.ifBlank { "Track ${t.id}" })
+        append(t.title.ifBlank { AppText.get(R.string.player_track_number, t.id) })
         val meta = buildList {
             if (t.lang.isNotBlank()) add(t.lang)
             if (t.codec.isNotBlank()) add(t.codec)
@@ -563,7 +565,7 @@ class AerioCastReceiverController @Inject constructor(
     }
 
     private fun subtitleLabel(t: SubtitleTrack): String = buildString {
-        append(t.title.ifBlank { "Track ${t.id}" })
+        append(t.title.ifBlank { AppText.get(R.string.player_track_number, t.id) })
         if (t.lang.isNotBlank()) append("  ·  ${t.lang}")
     }
 
@@ -595,7 +597,7 @@ class AerioCastReceiverController @Inject constructor(
                 if (f.sampleRate > 0) add("${f.sampleRate / 1000}kHz")
             }
         }
-        return parts.joinToString("  ·  ").ifBlank { "No stream details available" }
+        return parts.joinToString("  ·  ").ifBlank { AppText.get(R.string.player_no_stream_details) }
     }
 
     companion object {

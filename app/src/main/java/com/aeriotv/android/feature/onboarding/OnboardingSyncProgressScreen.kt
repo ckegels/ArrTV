@@ -41,6 +41,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.aeriotv.android.core.sync.DriveSyncManager
 import com.aeriotv.android.core.sync.SyncCategory
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * Onboarding restore-progress screen, shown after a successful Google sign-in
@@ -97,14 +99,14 @@ fun OnboardingSyncProgressScreen(
                 .padding(horizontal = 24.dp),
         ) {
             Text(
-                text = "Restoring Your Data",
+                text = stringResource(R.string.main_restore_title),
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                text = "Pulling your synced setup from Google Drive",
+                text = stringResource(R.string.main_restore_subtitle),
                 style = MaterialTheme.typography.bodySmall.subtext(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -119,7 +121,7 @@ fun OnboardingSyncProgressScreen(
                 displaySteps.forEach { step ->
                     RestoreRow(
                         icon = step.category.lineIcon,
-                        label = step.category.lineLabel,
+                        label = stringResource(step.category.lineLabelRes),
                         state = step.state,
                         detail = step.detail,
                     )
@@ -130,10 +132,10 @@ fun OnboardingSyncProgressScreen(
                 // no separate channels-vs-EPG signal to split on).
                 RestoreRow(
                     icon = Icons.Filled.LiveTv,
-                    label = "Channels & Guide",
+                    label = stringResource(R.string.main_restore_channels_guide),
                     state = channelsState,
                     detail = if (channelsState == DriveSyncManager.RestoreStepState.Running) {
-                        "Loading channels and guide"
+                        stringResource(R.string.main_restore_channels_guide_loading)
                     } else {
                         null
                     },
@@ -145,15 +147,15 @@ fun OnboardingSyncProgressScreen(
 
 /** Friendlier short labels than SyncCategory.displayName (which is sized for
  * the Settings toggles, e.g. "Playlists & Servers"). */
-private val SyncCategory.lineLabel: String
+private val SyncCategory.lineLabelRes: Int
     get() = when (this) {
-        SyncCategory.Playlists -> "Playlists"
-        SyncCategory.WatchProgress -> "Watch progress"
-        SyncCategory.Reminders -> "Reminders"
-        SyncCategory.Favorites -> "Favorites"
-        SyncCategory.Watchlist -> "Watchlist"
-        SyncCategory.Preferences -> "Preferences"
-        SyncCategory.Credentials -> "Credentials"
+        SyncCategory.Playlists -> R.string.main_restore_playlists
+        SyncCategory.WatchProgress -> R.string.main_restore_watch_progress
+        SyncCategory.Reminders -> R.string.main_restore_reminders
+        SyncCategory.Favorites -> R.string.main_restore_favorites
+        SyncCategory.Watchlist -> R.string.main_restore_watchlist
+        SyncCategory.Preferences -> R.string.main_restore_preferences
+        SyncCategory.Credentials -> R.string.main_restore_credentials
     }
 
 private val SyncCategory.lineIcon: ImageVector

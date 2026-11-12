@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.settings
 
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import android.app.Activity
 import android.content.Context
 import androidx.lifecycle.ViewModel
@@ -152,23 +154,23 @@ class SyncSettingsViewModel @Inject constructor(
             _pushStatus.value = ActionStatus.Running
             val token = (sync.status.value as? DriveSyncManager.Status.SignedIn)?.accessToken
             if (token == null) {
-                _pushStatus.value = ActionStatus.Failure("Not signed in to Drive")
+                _pushStatus.value = ActionStatus.Failure(AppText.get(R.string.settings2_sync_not_signed_in_to_drive))
                 return@launch
             }
             val enabled = SyncCategory.entries
                 .filter { prefs.syncCategoryEnabled(it).first() }
                 .toSet()
             if (enabled.isEmpty()) {
-                _pushStatus.value = ActionStatus.Failure("No sync categories enabled")
+                _pushStatus.value = ActionStatus.Failure(AppText.get(R.string.settings2_sync_no_categories))
                 return@launch
             }
             val pushed = sync.pushAll(token, enabled)
             val failed = pushed.count { !it.value }
             if (failed == 0) prefs.setSyncInitialPullDone(true)
             _pushStatus.value = if (failed == 0) {
-                ActionStatus.Success("Pushed ${pushed.size} ${if (pushed.size == 1) "category" else "categories"} to Drive")
+                ActionStatus.Success(AppText.plural(R.plurals.settings2_sync_pushed, pushed.size, pushed.size))
             } else {
-                ActionStatus.Failure("$failed of ${pushed.size} categories failed to push")
+                ActionStatus.Failure(AppText.get(R.string.settings2_sync_push_failed, failed, pushed.size))
             }
         }
     }
@@ -184,22 +186,22 @@ class SyncSettingsViewModel @Inject constructor(
             _pullStatus.value = ActionStatus.Running
             val token = (sync.status.value as? DriveSyncManager.Status.SignedIn)?.accessToken
             if (token == null) {
-                _pullStatus.value = ActionStatus.Failure("Not signed in to Drive")
+                _pullStatus.value = ActionStatus.Failure(AppText.get(R.string.settings2_sync_not_signed_in_to_drive))
                 return@launch
             }
             val enabled = SyncCategory.entries
                 .filter { prefs.syncCategoryEnabled(it).first() }
                 .toSet()
             if (enabled.isEmpty()) {
-                _pullStatus.value = ActionStatus.Failure("No sync categories enabled")
+                _pullStatus.value = ActionStatus.Failure(AppText.get(R.string.settings2_sync_no_categories))
                 return@launch
             }
             val pulled = sync.pullAll(token, enabled)
             val failed = pulled.count { !it.value }
             _pullStatus.value = if (failed == 0) {
-                ActionStatus.Success("Pulled ${pulled.size} ${if (pulled.size == 1) "category" else "categories"} from Drive")
+                ActionStatus.Success(AppText.plural(R.plurals.settings2_sync_pulled, pulled.size, pulled.size))
             } else {
-                ActionStatus.Failure("$failed of ${pulled.size} categories did not apply (missing in Drive or failed)")
+                ActionStatus.Failure(AppText.get(R.string.settings2_sync_pull_failed, failed, pulled.size))
             }
         }
     }
@@ -215,12 +217,12 @@ class SyncSettingsViewModel @Inject constructor(
             _clearStatus.value = ActionStatus.Running
             val token = (sync.status.value as? DriveSyncManager.Status.SignedIn)?.accessToken
             if (token == null) {
-                _clearStatus.value = ActionStatus.Failure("Not signed in to Drive")
+                _clearStatus.value = ActionStatus.Failure(AppText.get(R.string.settings2_sync_not_signed_in_to_drive))
                 return@launch
             }
             _clearStatus.value = runCatching { sync.clearRemote(token) }.fold(
-                onSuccess = { ActionStatus.Success("Drive data cleared") },
-                onFailure = { ActionStatus.Failure(it.message ?: "Couldn't clear Drive data") },
+                onSuccess = { ActionStatus.Success(AppText.get(R.string.settings2_sync_drive_cleared)) },
+                onFailure = { ActionStatus.Failure(it.message ?: AppText.get(R.string.settings2_sync_clear_failed)) },
             )
         }
     }

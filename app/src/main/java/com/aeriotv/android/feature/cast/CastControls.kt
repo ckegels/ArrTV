@@ -32,6 +32,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Tv
@@ -110,7 +112,7 @@ fun CastIconButton(
         ) {
             Icon(
                 imageVector = if (connected) Icons.Filled.CastConnected else Icons.Filled.Cast,
-                contentDescription = if (connected) "Casting" else "Cast",
+                contentDescription = stringResource(if (connected) R.string.player_cast_casting else R.string.player_cast_button),
                 tint = Color.White,
             )
         }
@@ -217,13 +219,13 @@ fun CastRouteChooserDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (connected) "Casting" else "Cast to") },
+        title = { Text(stringResource(if (connected) R.string.player_cast_casting else R.string.player_cast_to_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (routes.isEmpty() && tvs.isEmpty() &&
                     companionConn !is CompanionRemoteController.Conn.NeedsPairing
                 ) {
-                    Text("Searching for devices...")
+                    Text(stringResource(R.string.player_cast_searching))
                 }
                 @Composable
                 fun routeRow(route: MediaRouter.RouteInfo) {
@@ -249,19 +251,19 @@ fun CastRouteChooserDialog(
                 }
                 if (nativeRoutes.isNotEmpty()) {
                     Text(
-                        "AerioTV on TV",
+                        stringResource(R.string.player_cast_native_section),
                         style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
                         color = androidx.compose.material3.MaterialTheme.colorScheme.textAccent,
                     )
                     Text(
-                        "Plays in the AerioTV app on the TV: no phone processing, full quality.",
+                        stringResource(R.string.player_cast_native_section_desc),
                         style = androidx.compose.material3.MaterialTheme.typography.bodySmall.subtext(),
                         color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     nativeRoutes.forEach { routeRow(it) }
                     if (otherRoutes.isNotEmpty()) {
                         Text(
-                            "Other devices",
+                            stringResource(R.string.player_cast_other_devices),
                             style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
                             color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -272,26 +274,34 @@ fun CastRouteChooserDialog(
                 // over the section with the code entry.
                 when (companionConn) {
                     is CompanionRemoteController.Conn.NeedsPairing -> {
-                        Text("Enter the code shown on ${companionConn.name ?: "the TV"}")
+                        Text(
+                            companionConn.name?.let { stringResource(R.string.player_cast_enter_code_on, it) }
+                                ?: stringResource(R.string.player_cast_enter_code_on_tv),
+                        )
                         OutlinedTextField(
                             value = pairCode,
                             onValueChange = { v ->
                                 if (v.length <= 6 && v.all { it.isDigit() }) pairCode = v
                             },
-                            label = { Text("6-digit code") },
+                            label = { Text(stringResource(R.string.player_cast_six_digit_code)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                             singleLine = true,
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(onClick = { companionRemote?.disconnect() }) { Text("Cancel") }
+                            TextButton(onClick = { companionRemote?.disconnect() }) { Text(stringResource(R.string.common_cancel)) }
                             TextButton(
                                 onClick = { companionRemote?.submitPairingCode(pairCode) },
                                 enabled = pairCode.length == 6,
-                            ) { Text("Pair") }
+                            ) { Text(stringResource(R.string.player_cast_pair)) }
                         }
                     }
                     is CompanionRemoteController.Conn.Connecting ->
-                        Text("Connecting to ${companionConn.name ?: "TV"}...")
+                        Text(
+                            stringResource(
+                                R.string.player_cast_connecting_to,
+                                companionConn.name ?: stringResource(R.string.player_cast_tv_fallback),
+                            ),
+                        )
                     else -> tvs.forEach { tv ->
                         Row(
                             modifier = Modifier
@@ -311,7 +321,7 @@ fun CastRouteChooserDialog(
                             Column {
                                 Text(tv.name)
                                 Text(
-                                    "AerioTV Remote",
+                                    stringResource(R.string.player_cast_aerio_remote),
                                     style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                                     color = androidx.compose.material3.MaterialTheme.colorScheme.textAccent,
                                 )
@@ -326,16 +336,16 @@ fun CastRouteChooserDialog(
                 connected -> TextButton(onClick = {
                     sender.stopCasting()
                     onDismiss()
-                }) { Text("Stop casting") }
+                }) { Text(stringResource(R.string.player_cast_stop_casting)) }
                 companionConn is CompanionRemoteController.Conn.Connected -> TextButton(onClick = {
                     companionRemote?.disconnect()
                     onDismiss()
-                }) { Text("Disconnect TV") }
-                else -> TextButton(onClick = onDismiss) { Text("Close") }
+                }) { Text(stringResource(R.string.player_cast_disconnect_tv)) }
+                else -> TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_close)) }
             }
         },
         dismissButton = if (connected || companionConn is CompanionRemoteController.Conn.Connected) {
-            { TextButton(onClick = onDismiss) { Text("Close") } }
+            { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_close)) } }
         } else {
             null
         },

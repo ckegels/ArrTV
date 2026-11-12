@@ -1,5 +1,9 @@
 package com.aeriotv.android.feature.settings
 
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.aeriotv.android.R
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -76,7 +80,7 @@ fun GeneralSettingsScreen(
     val maxRetries by viewModel.maxRetries.collectAsStateWithLifecycle(initialValue = 3)
 
     Column(modifier = Modifier.fillMaxSize()) {
-        SettingsDetailTopBar(title = "General", onBack = onBack)
+        SettingsDetailTopBar(title = stringResource(R.string.settings_general_title), onBack = onBack)
 
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             Column(
@@ -97,13 +101,9 @@ fun GeneralSettingsScreen(
                 // Apple phase 1 parity: Default Tab, the two launch toggles and
                 // Auto-rotate are ONE section with one combined footer.
                 SettingsSection(
-                    header = "Startup",
-                    footer = "The tab shown when the app first launches. Skip loading screen may cause brief stutter while data hydrates. Resume last channel re-opens the player on launch if the saved channel still exists in your playlist." +
-                        if (isTv) {
-                            ""
-                        } else {
-                            " The player's fullscreen button can still rotate into landscape whatever Auto-rotate says."
-                        },
+                    header = stringResource(R.string.settings_general_startup_header),
+                    footer = stringResource(R.string.settings_general_startup_footer) +
+                        if (isTv) "" else " " + stringResource(R.string.settings_general_startup_footer_rotate),
                 ) {
                     // Search is a TV-only nav tab and not a sensible launch tab;
                     // on phones it does not exist at all. On Demand and Favorites
@@ -114,20 +114,20 @@ fun GeneralSettingsScreen(
                         val selected = (defaultTab.isEmpty() && tab == AppTab.LiveTV) ||
                             defaultTab == tab.name
                         SettingsSelectionRow(
-                            label = tab.label,
+                            label = stringResource(tab.labelRes),
                             selected = selected,
                             onClick = { viewModel.setDefaultTab(tab.name) },
                         )
                     }
                     SettingsToggleRow(
-                        title = "Skip loading screen",
-                        subtitle = "Land on Live TV instantly; data hydrates in the background",
+                        title = stringResource(R.string.settings_general_skip_loading),
+                        subtitle = stringResource(R.string.settings_general_skip_loading_subtitle),
                         checked = skipLoadingScreen,
                         onCheckedChange = viewModel::setSkipLoadingScreen,
                     )
                     SettingsToggleRow(
-                        title = "Resume last channel",
-                        subtitle = "Auto-start the last-played channel on launch.",
+                        title = stringResource(R.string.settings_general_resume_last_channel),
+                        subtitle = stringResource(R.string.settings_general_resume_last_channel_subtitle),
                         checked = autoResumeLastChannel,
                         onCheckedChange = viewModel::setAutoResumeLastChannel,
                     )
@@ -138,9 +138,8 @@ fun GeneralSettingsScreen(
                         val autoRotate by viewModel.autoRotate
                             .collectAsStateWithLifecycle(initialValue = true)
                         SettingsToggleRow(
-                            title = "Auto-rotate",
-                            subtitle = "Follow the device orientation. When off, " +
-                                "AerioTV stays in its current orientation",
+                            title = stringResource(R.string.settings_general_auto_rotate),
+                            subtitle = stringResource(R.string.settings_general_auto_rotate_subtitle),
                             checked = autoRotate,
                             onCheckedChange = viewModel::setAutoRotate,
                         )
@@ -149,16 +148,12 @@ fun GeneralSettingsScreen(
 
                 // MARK: Refresh
                 SettingsSection(
-                    header = "Refresh",
-                    footer = "Refresh channels + the EPG in the background on Wi-Fi while the battery isn't low, so the guide is current the moment you open the app. " +
-                        if (isTv) {
-                            "Off here means data refreshes only when you launch AerioTV or refresh from the playlist menu."
-                        } else {
-                            "Off here means data refreshes only when you launch AerioTV or pull to refresh."
-                        },
+                    header = stringResource(R.string.settings_general_refresh_header),
+                    footer = stringResource(R.string.settings_general_refresh_footer) + " " +
+                        stringResource(if (isTv) R.string.settings_general_refresh_footer_tv else R.string.settings_general_refresh_footer_phone),
                 ) {
                     SettingsToggleRow(
-                        title = "Refresh in the background",
+                        title = stringResource(R.string.settings_general_refresh_background),
                         checked = backgroundRefreshEnabled,
                         onCheckedChange = viewModel::setBackgroundRefreshEnabled,
                     )
@@ -169,7 +164,7 @@ fun GeneralSettingsScreen(
                         // disabled worker.
                         BG_REFRESH_INTERVAL_OPTIONS.forEach { opt ->
                             SettingsSelectionRow(
-                                label = opt.label,
+                                label = stringResource(opt.labelRes),
                                 selected = opt.mins == backgroundRefreshIntervalMins,
                                 onClick = { viewModel.setBackgroundRefreshIntervalMins(opt.mins) },
                             )
@@ -184,25 +179,24 @@ fun GeneralSettingsScreen(
                 val liveAvailable = dispatcharrLiveEligibility ==
                     com.aeriotv.android.core.network.DispatcharrLiveEligibility.AVAILABLE
                 SettingsSection(
-                    header = "Live updates",
-                    footer = "While AerioTV is open, Dispatcharr tells it when a playlist or EPG refresh finishes, " +
-                        "and the channel list and guide update within seconds instead of on the next refresh.",
+                    header = stringResource(R.string.settings_general_live_updates_header),
+                    footer = stringResource(R.string.settings_general_live_updates_footer),
                 ) {
                     SettingsToggleRow(
-                        title = "Update automatically when Dispatcharr changes",
+                        title = stringResource(R.string.settings_general_live_updates_toggle),
                         checked = liveAvailable && dispatcharrLiveUpdates,
                         onCheckedChange = { if (liveAvailable) viewModel.setDispatcharrLiveUpdates(it) },
                         // Focusable while still checking; greyed out only once known unavailable.
                         enabled = dispatcharrLiveEligibility == null || liveAvailable,
                         subtitle = when (dispatcharrLiveEligibility) {
-                            null -> "Checking your playlist\u2026"
+                            null -> stringResource(R.string.settings_general_live_updates_checking)
                             com.aeriotv.android.core.network.DispatcharrLiveEligibility.AVAILABLE -> null
                             com.aeriotv.android.core.network.DispatcharrLiveEligibility.NEEDS_PASSWORD_LOGIN ->
-                                "Requires logging in to Dispatcharr with username and password (not an API key)."
+                                stringResource(R.string.settings_general_live_updates_needs_password)
                             com.aeriotv.android.core.network.DispatcharrLiveEligibility.NOT_DISPATCHARR ->
-                                "Only available for Dispatcharr playlists."
+                                stringResource(R.string.settings_general_live_updates_not_dispatcharr)
                             com.aeriotv.android.core.network.DispatcharrLiveEligibility.NO_PLAYLIST ->
-                                "Add a Dispatcharr playlist to use this."
+                                stringResource(R.string.settings_general_live_updates_no_playlist)
                         },
                     )
                 }
@@ -212,31 +206,28 @@ fun GeneralSettingsScreen(
                 // that part does nothing and the app behaves as before it, so
                 // any of them can be ruled out when something goes wrong.
                 SettingsSection(
-                    header = "arrTV optimizations",
-                    footer = "Faster, smarter playback with a Dispatch More server. Turn one off if you suspect it; " +
-                        "the others keep working.",
+                    header = stringResource(R.string.settings_general_arrtv_header),
+                    footer = stringResource(R.string.settings_general_arrtv_footer),
                 ) {
                     com.aeriotv.android.core.playback.ArrTvOptimization.entries.forEach { o ->
                         SettingsToggleRow(
-                            title = o.title,
+                            title = stringResource(o.titleRes),
                             checked = arrTvOptimizations[o] ?: true,
                             onCheckedChange = { viewModel.setArrTvOptimization(o, it) },
-                            subtitle = o.subtitle,
+                            subtitle = stringResource(o.subtitleRes),
                         )
                     }
                 }
 
                 // The waits "Leave a stream that is slow to start" uses, in seconds.
                 SettingsSection(
-                    header = "Wait for a picture",
-                    footer = "How long a stream may take to show a picture before the channel's next stream is tried: " +
-                        "the channel's usual start time scaled up, at least these, never past the longest. " +
-                        "With no other stream to go to, the stream is never left.",
+                    header = stringResource(R.string.settings_general_wait_header),
+                    footer = stringResource(R.string.settings_general_wait_footer),
                 ) {
                     com.aeriotv.android.core.playback.ArrTvWait.entries.forEach { w ->
                         val secs = arrTvWaits[w] ?: w.default
                         SecondsStepperRow(
-                            title = w.title,
+                            title = stringResource(w.titleRes),
                             seconds = secs,
                             range = w.range,
                             onChange = { viewModel.setArrTvWait(w, it) },
@@ -249,12 +240,12 @@ fun GeneralSettingsScreen(
                 // tvOS Network (s_10) presents Request Timeout as a selection list
                 // (5/10/15/30/60 seconds), not a slider: cleaner with a remote.
                 SettingsSection(
-                    header = "Network",
-                    footer = "Adjust timeouts if you have a slow or unstable connection.",
+                    header = stringResource(R.string.settings_general_network_header),
+                    footer = stringResource(R.string.settings_general_network_footer),
                 ) {
                     TIMEOUT_OPTIONS.forEach { secs ->
                         SettingsSelectionRow(
-                            label = if (secs == 1) "1 second" else "$secs seconds",
+                            label = pluralStringResource(R.plurals.settings_general_timeout_seconds, secs, secs),
                             selected = timeoutSecs.toInt() == secs,
                             onClick = { viewModel.setNetworkTimeoutSecs(secs.toDouble()) },
                         )
@@ -267,17 +258,14 @@ fun GeneralSettingsScreen(
                 var memoryMode by remember { mutableStateOf(com.aeriotv.android.core.system.DeviceMemory.mode(memContext)) }
                 val memoryDetected = remember { com.aeriotv.android.core.system.DeviceMemory.detected(memContext) }
                 SettingsSection(
-                    header = "Memory",
-                    footer = "Low-memory mode keeps a shorter stretch of the guide in memory (it loads " +
-                        "more as you scroll) and uses a smaller image cache. For devices with little " +
-                        "RAM, where everything slows down when memory runs out. Restart the app for " +
-                        "the image cache to follow.",
+                    header = stringResource(R.string.settings_general_memory_header),
+                    footer = stringResource(R.string.settings_general_memory_footer),
                 ) {
                     listOf(
                         com.aeriotv.android.core.system.DeviceMemory.AUTO to
-                            "Automatic (this device: ${if (memoryDetected) "on" else "off"})",
-                        com.aeriotv.android.core.system.DeviceMemory.ON to "Low-memory mode on",
-                        com.aeriotv.android.core.system.DeviceMemory.OFF to "Low-memory mode off",
+                            stringResource(if (memoryDetected) R.string.settings_general_memory_auto_on else R.string.settings_general_memory_auto_off),
+                        com.aeriotv.android.core.system.DeviceMemory.ON to stringResource(R.string.settings_general_memory_on),
+                        com.aeriotv.android.core.system.DeviceMemory.OFF to stringResource(R.string.settings_general_memory_off),
                     ).forEach { (mode, label) ->
                         SettingsSelectionRow(
                             label = label,
@@ -292,8 +280,8 @@ fun GeneralSettingsScreen(
 
                 // Max Retries stays a stepper (no tvOS equivalent), on a resting card.
                 SettingsSection(
-                    header = "Max Retries",
-                    footer = "Per-request retry budget (0-10).",
+                    header = stringResource(R.string.settings_general_max_retries_header),
+                    footer = stringResource(R.string.settings_general_max_retries_footer),
                 ) {
                     Row(
                         modifier = Modifier
@@ -303,7 +291,7 @@ fun GeneralSettingsScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = "Retries",
+                            text = stringResource(R.string.settings_general_retries),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onBackground,
                             fontWeight = FontWeight.Medium,
@@ -314,7 +302,7 @@ fun GeneralSettingsScreen(
                             enabled = maxRetries > 0,
                             modifier = Modifier.dpadFocusRing(CircleShape),
                         ) {
-                            Icon(Icons.Filled.Remove, contentDescription = "Decrease")
+                            Icon(Icons.Filled.Remove, contentDescription = stringResource(R.string.settings_general_decrease))
                         }
                         Text(
                             text = maxRetries.toString(),
@@ -327,7 +315,7 @@ fun GeneralSettingsScreen(
                             enabled = maxRetries < 10,
                             modifier = Modifier.dpadFocusRing(CircleShape),
                         ) {
-                            Icon(Icons.Filled.Add, contentDescription = "Increase")
+                            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.settings_general_increase))
                         }
                     }
                 }
@@ -339,17 +327,17 @@ fun GeneralSettingsScreen(
 /** tvOS Request Timeout options (s_10): 5/10/15/30/60 seconds. */
 private val TIMEOUT_OPTIONS: List<Int> = listOf(5, 10, 15, 30, 60)
 
-private data class BgRefreshIntervalOption(val mins: Int, val label: String)
+private data class BgRefreshIntervalOption(val mins: Int, @StringRes val labelRes: Int)
 
 /** iOS bgRefreshIntervalMins picker options. 360 (6h) is the default;
  *  match the iOS picker so synced preferences round-trip cleanly. */
 private val BG_REFRESH_INTERVAL_OPTIONS: List<BgRefreshIntervalOption> = listOf(
-    BgRefreshIntervalOption(60, "Every hour"),
-    BgRefreshIntervalOption(180, "Every 3 hours"),
-    BgRefreshIntervalOption(360, "Every 6 hours"),
-    BgRefreshIntervalOption(720, "Every 12 hours"),
-    BgRefreshIntervalOption(1440, "Every 24 hours"),
-    BgRefreshIntervalOption(2880, "Every 48 hours"),
+    BgRefreshIntervalOption(60, R.string.settings_general_refresh_every_hour),
+    BgRefreshIntervalOption(180, R.string.settings_general_refresh_every_3_hours),
+    BgRefreshIntervalOption(360, R.string.settings_general_refresh_every_6_hours),
+    BgRefreshIntervalOption(720, R.string.settings_general_refresh_every_12_hours),
+    BgRefreshIntervalOption(1440, R.string.settings_general_refresh_every_24_hours),
+    BgRefreshIntervalOption(2880, R.string.settings_general_refresh_every_48_hours),
 )
 
 /** A wait in whole seconds, stepped with - and + (easy with a remote), like Max Retries. */
@@ -374,7 +362,7 @@ private fun SecondsStepperRow(title: String, seconds: Int, range: IntRange, onCh
             enabled = seconds > range.first,
             modifier = Modifier.dpadFocusRing(CircleShape),
         ) {
-            Icon(Icons.Filled.Remove, contentDescription = "Shorter")
+            Icon(Icons.Filled.Remove, contentDescription = stringResource(R.string.settings_general_shorter))
         }
         Text(
             text = "$seconds s",
@@ -387,7 +375,7 @@ private fun SecondsStepperRow(title: String, seconds: Int, range: IntRange, onCh
             enabled = seconds < range.last,
             modifier = Modifier.dpadFocusRing(CircleShape),
         ) {
-            Icon(Icons.Filled.Add, contentDescription = "Longer")
+            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.settings_general_longer))
         }
     }
 }

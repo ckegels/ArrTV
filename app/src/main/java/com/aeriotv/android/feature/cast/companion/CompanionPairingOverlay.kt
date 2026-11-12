@@ -16,6 +16,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -47,13 +49,13 @@ fun CompanionPairingOverlay(code: String) {
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    "Companion Remote",
+                    stringResource(R.string.player_companion_remote_title),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    "Enter this code on your phone to control this TV",
+                    stringResource(R.string.player_companion_enter_code),
                     style = MaterialTheme.typography.bodyLarge.subtext(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,

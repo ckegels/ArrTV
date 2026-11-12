@@ -1,6 +1,8 @@
 package com.aeriotv.android.core.playback
 
 import androidx.media3.common.util.UnstableApi
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import androidx.media3.datasource.HttpDataSource
 
 /**
@@ -127,7 +129,7 @@ object Dispatcharr503 {
     private fun reasonFrom(body: String): String {
         errorField(body)?.let { return it }
         val flat = body.trim().replace(Regex("\\s+"), " ")
-        return if (flat.isNotEmpty() && flat.length <= 200) flat else "Channel unavailable"
+        return if (flat.isNotEmpty() && flat.length <= 200) flat else AppText.get(R.string.player_channel_unavailable)
     }
 
     /** The JSON `error` string of a Dispatcharr error body, or null when the

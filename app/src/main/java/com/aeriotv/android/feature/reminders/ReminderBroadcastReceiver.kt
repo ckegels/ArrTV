@@ -59,7 +59,7 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher)
             .setContentTitle(title)
-            .setContentText("Starting soon on $channelName")
+            .setContentText(context.applicationContext.getString(R.string.livetv_reminder_starting_soon_on, channelName))
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(pendingTap)
@@ -75,10 +75,10 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
         if (mgr.getNotificationChannel(CHANNEL_ID) != null) return
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Programme reminders",
+            context.applicationContext.getString(R.string.livetv_reminder_channel_name),
             NotificationManager.IMPORTANCE_DEFAULT,
         ).apply {
-            description = "Heads-up when a programme you set a reminder on is about to start."
+            description = context.applicationContext.getString(R.string.livetv_reminder_channel_description)
             setShowBadge(true)
         }
         mgr.createNotificationChannel(channel)

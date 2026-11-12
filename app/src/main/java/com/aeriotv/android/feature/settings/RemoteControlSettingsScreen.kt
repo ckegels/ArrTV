@@ -19,7 +19,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.annotation.StringRes
+import com.aeriotv.android.R
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.aeriotv.android.core.remote.GuideRemoteAction
@@ -126,78 +129,83 @@ private fun guideActionChoices(slot: RemoteSlot): List<GuideRemoteAction> = buil
     add(GuideRemoteAction.NONE)
 }
 
-private val RemoteSlot.displayName: String
+@get:StringRes
+private val RemoteSlot.labelRes: Int
     get() = when (this) {
-        RemoteSlot.OK_SHORT -> "Select"
-        RemoteSlot.OK_LONG -> "Select (Hold)"
-        RemoteSlot.UP_SHORT -> "Up"
-        RemoteSlot.UP_LONG -> "Up (hold)"
-        RemoteSlot.DOWN_SHORT -> "Down"
-        RemoteSlot.DOWN_LONG -> "Down (hold)"
-        RemoteSlot.LEFT_SHORT -> "Left"
-        RemoteSlot.LEFT_LONG -> "Left (Hold)"
-        RemoteSlot.RIGHT_SHORT -> "Right"
-        RemoteSlot.RIGHT_LONG -> "Right (Hold)"
-        RemoteSlot.PLAY_PAUSE -> "Play/Pause"
-        RemoteSlot.FFWD -> "Fast Forward"
-        RemoteSlot.REWIND -> "Rewind"
-        RemoteSlot.CHANNEL_UP -> "Channel Up"
-        RemoteSlot.CHANNEL_DOWN -> "Channel Down"
+        RemoteSlot.OK_SHORT -> R.string.settings2_remote_slot_select
+        RemoteSlot.OK_LONG -> R.string.settings2_remote_slot_select_hold
+        RemoteSlot.UP_SHORT -> R.string.settings2_remote_slot_up
+        RemoteSlot.UP_LONG -> R.string.settings2_remote_slot_up_hold
+        RemoteSlot.DOWN_SHORT -> R.string.settings2_remote_slot_down
+        RemoteSlot.DOWN_LONG -> R.string.settings2_remote_slot_down_hold
+        RemoteSlot.LEFT_SHORT -> R.string.settings2_remote_slot_left
+        RemoteSlot.LEFT_LONG -> R.string.settings2_remote_slot_left_hold
+        RemoteSlot.RIGHT_SHORT -> R.string.settings2_remote_slot_right
+        RemoteSlot.RIGHT_LONG -> R.string.settings2_remote_slot_right_hold
+        RemoteSlot.PLAY_PAUSE -> R.string.settings2_remote_slot_play_pause
+        RemoteSlot.FFWD -> R.string.settings2_remote_slot_ffwd
+        RemoteSlot.REWIND -> R.string.settings2_remote_slot_rewind
+        RemoteSlot.CHANNEL_UP -> R.string.settings2_remote_slot_channel_up
+        RemoteSlot.CHANNEL_DOWN -> R.string.settings2_remote_slot_channel_down
     }
 
-private val PlayerRemoteAction.displayName: String
+@get:StringRes
+private val PlayerRemoteAction.labelRes: Int
     get() = when (this) {
-        PlayerRemoteAction.CHANNEL_UP -> "Channel up"
-        PlayerRemoteAction.CHANNEL_DOWN -> "Channel down"
-        PlayerRemoteAction.LAST_CHANNEL -> "Previous channel"
-        PlayerRemoteAction.RECENT_CHANNELS -> "Recently watched"
+        PlayerRemoteAction.CHANNEL_UP -> R.string.settings2_remote_action_channel_up
+        PlayerRemoteAction.CHANNEL_DOWN -> R.string.settings2_remote_action_channel_down
+        PlayerRemoteAction.LAST_CHANNEL -> R.string.settings2_remote_action_last_channel
+        PlayerRemoteAction.RECENT_CHANNELS -> R.string.settings2_remote_action_recent_channels
         // Fixed hold-Back behavior; named here for completeness but never
         // offered in the choice lists (Back semantics stay hardcoded).
-        PlayerRemoteAction.STOP_PLAYBACK -> "Stop playback"
-        PlayerRemoteAction.TOGGLE_CONTROLS -> "Show/hide controls"
-        PlayerRemoteAction.SHOW_PROGRAM_INFO -> "Show program info"
-        PlayerRemoteAction.OPTIONS_MENU -> "Options menu"
-        PlayerRemoteAction.PLAY_PAUSE -> "Play/Pause"
-        PlayerRemoteAction.SEEK_FORWARD -> "Seek forward"
-        PlayerRemoteAction.SEEK_BACKWARD -> "Seek back"
-        PlayerRemoteAction.RESTART_PROGRAM -> "Restart program"
-        PlayerRemoteAction.JUMP_TO_LIVE -> "Jump to live"
-        PlayerRemoteAction.MINIMIZE_TO_GUIDE -> "Return to TV Guide"
-        PlayerRemoteAction.CHANNEL_LIST -> "Channel list"
-        PlayerRemoteAction.SUBTITLES -> "Subtitles"
-        PlayerRemoteAction.AUDIO_TRACKS -> "Audio tracks"
-        PlayerRemoteAction.ASPECT_RATIO -> "Aspect ratio"
-        PlayerRemoteAction.RECORD -> "Record"
-        PlayerRemoteAction.SLEEP_TIMER -> "Sleep timer"
-        PlayerRemoteAction.OPEN_SEARCH -> "Search"
-        PlayerRemoteAction.NONE -> "Do nothing"
+        PlayerRemoteAction.STOP_PLAYBACK -> R.string.settings2_remote_action_stop_playback
+        PlayerRemoteAction.TOGGLE_CONTROLS -> R.string.settings2_remote_action_toggle_controls
+        PlayerRemoteAction.SHOW_PROGRAM_INFO -> R.string.settings2_remote_action_show_program_info
+        PlayerRemoteAction.OPTIONS_MENU -> R.string.settings2_remote_action_options_menu
+        PlayerRemoteAction.PLAY_PAUSE -> R.string.settings2_remote_action_play_pause
+        PlayerRemoteAction.SEEK_FORWARD -> R.string.settings2_remote_action_seek_forward
+        PlayerRemoteAction.SEEK_BACKWARD -> R.string.settings2_remote_action_seek_back
+        PlayerRemoteAction.RESTART_PROGRAM -> R.string.settings2_remote_action_restart_program
+        PlayerRemoteAction.JUMP_TO_LIVE -> R.string.settings2_remote_action_jump_to_live
+        PlayerRemoteAction.MINIMIZE_TO_GUIDE -> R.string.settings2_remote_action_return_to_guide
+        PlayerRemoteAction.CHANNEL_LIST -> R.string.settings2_remote_action_channel_list
+        PlayerRemoteAction.SUBTITLES -> R.string.settings2_remote_action_subtitles
+        PlayerRemoteAction.AUDIO_TRACKS -> R.string.settings2_remote_action_audio_tracks
+        PlayerRemoteAction.ASPECT_RATIO -> R.string.settings2_remote_action_aspect_ratio
+        PlayerRemoteAction.RECORD -> R.string.settings2_remote_action_record
+        PlayerRemoteAction.SLEEP_TIMER -> R.string.settings2_remote_action_sleep_timer
+        PlayerRemoteAction.OPEN_SEARCH -> R.string.common_search
+        PlayerRemoteAction.NONE -> R.string.settings2_remote_action_do_nothing
     }
 
 /** Guide action name; the group menu is named for the selector it opens. */
-private fun GuideRemoteAction.displayName(sidebarGroups: Boolean): String = when (this) {
-    GuideRemoteAction.FOCUS_GROUP_PILLS -> if (sidebarGroups) "Open sidebar" else "Go to group pills"
-    else -> displayName
+@StringRes
+private fun GuideRemoteAction.labelRes(sidebarGroups: Boolean): Int = when (this) {
+    GuideRemoteAction.FOCUS_GROUP_PILLS ->
+        if (sidebarGroups) R.string.settings2_remote_action_open_sidebar else R.string.settings2_remote_action_group_pills
+    else -> labelRes
 }
 
-private val GuideRemoteAction.displayName: String
+@get:StringRes
+private val GuideRemoteAction.labelRes: Int
     get() = when (this) {
-        GuideRemoteAction.PAGE_UP -> "Page channels up"
-        GuideRemoteAction.PAGE_DOWN -> "Page channels down"
-        GuideRemoteAction.TIMELINE_BACK -> "Browse earlier programs"
-        GuideRemoteAction.TIMELINE_FORWARD -> "Browse later programs"
-        GuideRemoteAction.JUMP_TO_NOW -> "Jump to now"
-        GuideRemoteAction.JUMP_TO_DAY -> "Jump to a day and time"
-        GuideRemoteAction.JUMP_TO_TOP -> "Jump to top channel"
-        GuideRemoteAction.FOCUS_GROUP_PILLS -> "Go to group pills"
-        GuideRemoteAction.RESUME_PLAYER -> "Return to player"
-        GuideRemoteAction.CLOSE_MINI_PLAYER -> "Close mini player"
-        GuideRemoteAction.PROGRAM_INFO -> "Program info"
-        GuideRemoteAction.PROGRAM_MENU -> "Program menu"
-        GuideRemoteAction.RECORD -> "Record"
-        GuideRemoteAction.PLAY -> "Play"
-        GuideRemoteAction.NAVIGATE -> "Move focus"
-        GuideRemoteAction.OPEN_SEARCH -> "Search"
-        GuideRemoteAction.NONE -> "Do nothing"
+        GuideRemoteAction.PAGE_UP -> R.string.settings2_remote_action_page_up
+        GuideRemoteAction.PAGE_DOWN -> R.string.settings2_remote_action_page_down
+        GuideRemoteAction.TIMELINE_BACK -> R.string.settings2_remote_action_timeline_back
+        GuideRemoteAction.TIMELINE_FORWARD -> R.string.settings2_remote_action_timeline_forward
+        GuideRemoteAction.JUMP_TO_NOW -> R.string.settings2_remote_action_jump_to_now
+        GuideRemoteAction.JUMP_TO_DAY -> R.string.settings2_remote_action_jump_to_day
+        GuideRemoteAction.JUMP_TO_TOP -> R.string.settings2_remote_action_jump_to_top
+        GuideRemoteAction.FOCUS_GROUP_PILLS -> R.string.settings2_remote_action_group_pills
+        GuideRemoteAction.RESUME_PLAYER -> R.string.settings2_remote_action_resume_player
+        GuideRemoteAction.CLOSE_MINI_PLAYER -> R.string.settings2_remote_action_close_mini_player
+        GuideRemoteAction.PROGRAM_INFO -> R.string.settings2_remote_action_program_info
+        GuideRemoteAction.PROGRAM_MENU -> R.string.settings2_remote_action_program_menu
+        GuideRemoteAction.RECORD -> R.string.settings2_remote_action_record
+        GuideRemoteAction.PLAY -> R.string.common_play
+        GuideRemoteAction.NAVIGATE -> R.string.settings2_remote_action_move_focus
+        GuideRemoteAction.OPEN_SEARCH -> R.string.common_search
+        GuideRemoteAction.NONE -> R.string.settings2_remote_action_do_nothing
     }
 
 @Composable
@@ -228,7 +236,7 @@ fun RemoteControlSettingsScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        SettingsDetailTopBar(title = "Remote Control", onBack = onBack)
+        SettingsDetailTopBar(title = stringResource(R.string.settings2_section_remote_control), onBack = onBack)
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             Column(
                 modifier = Modifier
@@ -239,80 +247,80 @@ fun RemoteControlSettingsScreen(
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 SettingsSection(
-                    header = "Hints",
-                    footer = "The one-line key reminder under the tab bar on Live TV and at the bottom of the player controls. Turn it off once the buttons are second nature.",
+                    header = stringResource(R.string.settings2_remote_hints_header),
+                    footer = stringResource(R.string.settings2_remote_hints_footer),
                 ) {
                     SettingsToggleRow(
-                        title = "Show remote hints",
-                        subtitle = "Key reminders on Live TV and in the player",
+                        title = stringResource(R.string.settings2_remote_hints_toggle),
+                        subtitle = stringResource(R.string.settings2_remote_hints_toggle_subtitle),
                         checked = showRemoteHints,
                         onCheckedChange = { viewModel.setShowRemoteHints(it) },
                     )
                 }
 
                 SettingsSection(
-                    header = "While Watching",
-                    footer = "What each button does while a channel is playing fullscreen. Changes apply immediately. Back always navigates and cannot be reassigned.",
+                    header = stringResource(R.string.settings2_remote_watching_header),
+                    footer = stringResource(R.string.settings2_remote_watching_footer),
                 ) {
                     PLAYER_SLOTS.forEach { slot ->
                         SlotRow(
-                            slotName = slot.displayName,
-                            valueName = map.playerAction(slot).displayName,
+                            slotName = stringResource(slot.labelRes),
+                            valueName = stringResource(map.playerAction(slot).labelRes),
                             onClick = { editingPlayerSlot = slot },
                         )
                     }
                 }
 
                 SettingsSection(
-                    header = "In the TV Guide",
-                    footer = "What each button does while browsing the guide. A Left or Right set to anything other than Move focus still moves between programs, and runs its action once focus reaches the edge of the timeline (Play, Record, Program info and Program menu run on every press). Up, Down and Back always navigate.",
+                    header = stringResource(R.string.settings2_remote_guide_header),
+                    footer = stringResource(R.string.settings2_remote_guide_footer),
                 ) {
                     GUIDE_SLOTS.forEach { slot ->
                         SlotRow(
-                            slotName = slot.displayName,
-                            valueName = map.guideAction(slot, groupSelector == "sidebar").displayName(groupSelector == "sidebar"),
+                            slotName = stringResource(slot.labelRes),
+                            valueName = stringResource(map.guideAction(slot, groupSelector == "sidebar").labelRes(groupSelector == "sidebar")),
                             onClick = { editingGuideSlot = slot },
                         )
                     }
                 }
 
                 SettingsSection(
-                    header = "Additional Buttons",
-                    footer = "Applies when your remote has these buttons (many Bluetooth and Shield remotes do; the stock Google TV remote does not).",
+                    header = stringResource(R.string.settings2_remote_additional_header),
+                    footer = stringResource(R.string.settings2_remote_additional_footer),
                 ) {
                     PLAYER_EXTENDED_SLOTS.forEach { slot ->
                         SlotRow(
-                            slotName = "${slot.displayName} (watching)",
-                            valueName = map.playerAction(slot).displayName,
+                            slotName = stringResource(R.string.settings2_remote_slot_watching, stringResource(slot.labelRes)),
+                            valueName = stringResource(map.playerAction(slot).labelRes),
                             onClick = { editingPlayerSlot = slot },
                         )
                     }
                     GUIDE_EXTENDED_SLOTS.forEach { slot ->
                         SlotRow(
-                            slotName = "${slot.displayName} (guide)",
-                            valueName = map.guideAction(slot).displayName(groupSelector == "sidebar"),
+                            slotName = stringResource(R.string.settings2_remote_slot_guide, stringResource(slot.labelRes)),
+                            valueName = stringResource(map.guideAction(slot).labelRes(groupSelector == "sidebar")),
                             onClick = { editingGuideSlot = slot },
                         )
                     }
                 }
 
                 SettingsSection(
-                    header = "Tuning",
-                    footer = "Where a channel starts playing when you press OK on it in Live TV. Mini player keeps you browsing with the channel in the corner; press OK on it again (or hold Right) to go fullscreen.",
+                    header = stringResource(R.string.settings2_remote_tuning_header),
+                    footer = stringResource(R.string.settings2_remote_tuning_footer),
                 ) {
                     SlotRow(
-                        slotName = "Play Channels In",
-                        valueName = if (tuneInMini) "Mini player" else "Full screen",
+                        slotName = stringResource(R.string.settings2_remote_play_channels_in),
+                        valueName = stringResource(if (tuneInMini) R.string.settings2_remote_mini_player else R.string.settings2_remote_full_screen),
                         onClick = { editingTuneTarget = true },
                     )
                 }
 
                 SettingsSection(
-                    header = "Reset",
-                    footer = "Restore every button to the standard AerioTV scheme.",
+                    header = stringResource(R.string.settings2_remote_reset_header),
+                    footer = stringResource(R.string.settings2_remote_reset_footer),
                 ) {
                     SlotRow(
-                        slotName = "Reset to Defaults",
+                        slotName = stringResource(R.string.settings2_remote_reset_to_defaults),
                         valueName = "",
                         onClick = { showResetConfirm = true },
                     )
@@ -323,16 +331,16 @@ fun RemoteControlSettingsScreen(
 
     if (editingTuneTarget) {
         TvActionMenuDialog(
-            title = "Play Channels In",
+            title = stringResource(R.string.settings2_remote_play_channels_in),
             actions = listOf(
                 TvMenuAction(
-                    label = if (!tuneInMini) "Full screen  (current)" else "Full screen",
+                    label = markCurrent(stringResource(R.string.settings2_remote_full_screen), !tuneInMini),
                 ) {
                     viewModel.setGuideTuneInMini(false)
                     editingTuneTarget = false
                 },
                 TvMenuAction(
-                    label = if (tuneInMini) "Mini player  (current)" else "Mini player",
+                    label = markCurrent(stringResource(R.string.settings2_remote_mini_player), tuneInMini),
                 ) {
                     viewModel.setGuideTuneInMini(true)
                     editingTuneTarget = false
@@ -345,11 +353,11 @@ fun RemoteControlSettingsScreen(
 
     editingPlayerSlot?.let { slot ->
         TvActionMenuDialog(
-            title = slot.displayName,
+            title = stringResource(slot.labelRes),
             actions = PLAYER_ACTION_CHOICES.map { action ->
                 val current = map.playerAction(slot) == action
                 TvMenuAction(
-                    label = if (current) "${action.displayName}  (current)" else action.displayName,
+                    label = markCurrent(stringResource(action.labelRes), current),
                 ) {
                     saveEdited(map.copy(player = map.player + (slot to action)))
                     editingPlayerSlot = null
@@ -362,12 +370,12 @@ fun RemoteControlSettingsScreen(
 
     editingGuideSlot?.let { slot ->
         TvActionMenuDialog(
-            title = slot.displayName,
+            title = stringResource(slot.labelRes),
             actions = guideActionChoices(slot).map { action ->
                 val current = map.guideAction(slot, groupSelector == "sidebar") == action
-                val name = action.displayName(groupSelector == "sidebar")
+                val name = stringResource(action.labelRes(groupSelector == "sidebar"))
                 TvMenuAction(
-                    label = if (current) "$name  (current)" else name,
+                    label = markCurrent(name, current),
                 ) {
                     saveEdited(map.copy(guide = map.guide + (slot to action)))
                     editingGuideSlot = null
@@ -380,19 +388,24 @@ fun RemoteControlSettingsScreen(
 
     if (showResetConfirm) {
         TvActionMenuDialog(
-            title = "Lose your remote control customizations?",
+            title = stringResource(R.string.settings2_remote_reset_confirm_title),
             actions = listOf(
-                TvMenuAction(label = "Reset to Defaults", destructive = true) {
+                TvMenuAction(label = stringResource(R.string.settings2_remote_reset_to_defaults), destructive = true) {
                     viewModel.setRemoteControlMap(RemoteControlMap.DEFAULT)
                     showResetConfirm = false
                 },
-                TvMenuAction(label = "Cancel") { showResetConfirm = false },
+                TvMenuAction(label = stringResource(R.string.common_cancel)) { showResetConfirm = false },
             ),
             onDismiss = { showResetConfirm = false },
             guard = menuGuard,
         )
     }
 }
+
+/** A menu choice, marked when it is the one in use. */
+@Composable
+private fun markCurrent(label: String, isCurrent: Boolean): String =
+    if (isCurrent) stringResource(R.string.settings2_remote_current_choice, label) else label
 
 @Composable
 private fun SlotRow(

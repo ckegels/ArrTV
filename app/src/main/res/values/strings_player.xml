@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- AerioCastReceiverController.kt -->
+    <string name="player_track_number">Track %1$d</string>
+    <string name="player_no_stream_details">No stream details available</string>
+    <!-- AerioCastSender.kt -->
+    <string name="player_cast_disconnected">Casting disconnected</string>
+    <string name="player_cast_to_device_disconnected">Casting to %1$s disconnected</string>
+    <string name="player_cast_no_data_within">Dispatcharr did not send any data for this channel within %1$d seconds.</string>
+    <string name="player_cast_cannot_cast_now">Can\'t cast this channel right now</string>
+    <string name="player_cast_video_codec_unsupported">This channel\'s video is %1$s, which Google Cast receivers cannot play.</string>
+    <string name="player_cast_surround_unsupported">This receiver cannot decode this channel\'s surround audio (AC-3).</string>
+    <string name="player_cast_audio_codec_unsupported">This channel\'s audio is %1$s, which the receiver cannot decode.</string>
+    <!-- CastNotificationController.kt -->
+    <string name="player_cast_now_casting">Now casting</string>
+    <string name="player_cast_casting_to">Casting to %1$s</string>
+    <string name="player_cast_casting">Casting</string>
+    <string name="player_cast_lost_body_with_title">%1$s stopped. The connection to the TV was lost. Open AerioTV to cast again.</string>
+    <string name="player_cast_lost_body">The connection to the TV was lost. Open AerioTV to cast again.</string>
+    <string name="player_cast_channel_name">Casting</string>
+    <string name="player_cast_alert_channel_name">Casting interrupted</string>
+    <!-- CastHlsProxyService.kt -->
+    <string name="player_cast_proxy_notif_title">Streaming to Cast device</string>
+    <string name="player_cast_proxy_notif_text">AerioTV is relaying this channel to your TV</string>
+    <!-- VideoScale.kt -->
+    <string name="player_scale_fit">Fit</string>
+    <string name="player_scale_fill">Fill</string>
+    <string name="player_scale_stretch">Stretch</string>
+    <string name="player_video_scale_value">Video Scale: %1$s</string>
+    <!-- CompanionHostController.kt -->
+    <string name="player_companion_phone_connected">Phone connected</string>
+    <!-- CompanionRemotePlayer.kt -->
+    <string name="player_companion_controlling_tv">Controlling TV</string>
+    <string name="player_companion_channel_on_named_tv">%1$s on %2$s</string>
+    <string name="player_companion_channel_on_tv">%1$s on TV</string>
+    <string name="player_companion_on_named_tv">on %1$s</string>
+    <string name="player_companion_on_tv">on TV</string>
+    <!-- CompanionRemoteService.kt -->
+    <string name="player_companion_channel_name">TV remote control</string>
+    <string name="player_companion_channel_description">Controls for the TV you are controlling from this phone</string>
+    <!-- AerioMediaPlaybackService.kt -->
+    <string name="player_bg_channel_name">Background playback</string>
+    <string name="player_bg_channel_description">Ongoing notification while AerioTV plays audio in the background.</string>
+    <string name="player_live">Live</string>
+    <!-- ArrTvOptimizations.kt -->
+    <string name="player_arrtv_opt_identify_device_title">Tell Dispatch More which TV this is</string>
+    <string name="player_arrtv_opt_identify_device_subtitle">Device id and name, the channel being left, the Multiview session. Off: nothing below that needs it works.</string>
+    <string name="player_arrtv_opt_send_max_video_title">Only start streams this TV can play</string>
+    <string name="player_arrtv_opt_send_max_video_subtitle">Tells the server the tallest picture this TV decodes, so it never starts it on a 4K stream it cannot play.</string>
+    <string name="player_arrtv_opt_fast_failover_title">Faster switch to the next stream</string>
+    <string name="player_arrtv_opt_fast_failover_subtitle">Waits about 6 s instead of 28 s for a stream that sends nothing, and 6 s instead of 15 s for one it cannot play.</string>
+    <string name="player_arrtv_opt_slow_start_title">Leave a stream that is slow to start</string>
+    <string name="player_arrtv_opt_slow_start_subtitle">No picture within the wait below: the channel\'s next stream is tried. A stream that sends nothing at all is left to the server when its own faster failover is on.</string>
+    <string name="player_arrtv_opt_adaptive_wait_title">Wait less when a channel has more streams</string>
+    <string name="player_arrtv_opt_adaptive_wait_subtitle">The wait for a picture follows how many other streams the server can switch to right now (its \"Tell arrTV how many other streams a channel has\" switch). Off: the \"one other stream\" wait everywhere.</string>
+    <string name="player_arrtv_opt_skip_unplayable_title">Skip streams this TV cannot play</string>
+    <string name="player_arrtv_opt_skip_unplayable_subtitle">When data arrives but no picture comes, asks the server for the channel\'s next stream.</string>
+    <string name="player_arrtv_opt_freeze_rescue_title">Reopen a frozen stream</string>
+    <string name="player_arrtv_opt_freeze_rescue_subtitle">When the picture stops after it started while data keeps arriving, opens the channel again on a new connection.</string>
+    <string name="player_arrtv_opt_report_stalls_title">Tell the server when the picture stutters</string>
+    <string name="player_arrtv_opt_report_stalls_subtitle">So Dispatch More can move the channel to another stream at once (its own switch has to be on too).</string>
+    <string name="player_arrtv_wait_many">Wait with 2 or more other streams</string>
+    <string name="player_arrtv_wait_one">Wait with 1 other stream</string>
+    <string name="player_arrtv_wait_max">Longest wait for a slow channel</string>
+    <!-- AutoBrowseTree.kt -->
+    <string name="player_auto_favorites">Favorites</string>
+    <string name="player_auto_groups">Groups</string>
+    <string name="player_auto_min_left">%1$d min left</string>
+    <string name="player_auto_hr_left">%1$d hr left</string>
+    <string name="player_auto_hr_min_left">%1$dh %2$dm left</string>
+    <plurals name="player_auto_channel_count">
+        <item quantity="one">%d channel</item>
+        <item quantity="other">%d channels</item>
+    </plurals>
+    <string name="player_auto_no_playlist_title">No playlist configured</string>
+    <string name="player_auto_no_playlist_subtitle">Open AerioTV on your phone to add a server</string>
+    <!-- CaptionLanguage.kt -->
+    <string name="player_caption_language_original">Original</string>
+    <string name="player_caption_language_tv">This TV\'s language (%1$s)</string>
+    <!-- CatchupPlaybackResolver.kt -->
+    <string name="player_catchup_no_archive">This channel has no catch-up archive.</string>
+    <string name="player_catchup_missing_xc_password">Catch-up needs an XC password on your Dispatcharr user. Ask an admin to set one under Users in Dispatcharr.</string>
+    <string name="player_catchup_unsupported">Catch-up is available on Dispatcharr and Xtream Codes sources.</string>
+    <string name="player_catchup_busy_priorities">Unavailable due to current viewing priorities</string>
+    <string name="player_catchup_try_again_in_min">%1$s. Try again in %2$d min.</string>
+    <!-- Dispatcharr503.kt -->
+    <string name="player_channel_unavailable">Channel unavailable</string>
+    <!-- DispatcharrConnectionLimit.kt -->
+    <string name="player_limit_stream_ended_title">Stream ended</string>
+    <string name="player_limit_stream_ended_message">This stream was stopped by the server. Press Retry to start it again.</string>
+    <string name="player_limit_user_title">Too many sessions playing</string>
+    <string name="player_limit_provider_title">Server is busy</string>
+    <string name="player_limit_provider_message">All connections for this channel are in use right now. Try again in a few minutes, or contact your server administrator.</string>
+    <string name="player_limit_user_message_unknown">Your account can play a limited number of sessions at once, and they are all in use. Stop something that is playing, or contact your server administrator.</string>
+    <plurals name="player_limit_user_message">
+        <item quantity="one">Your account can play %d session at once, and they are all in use. Stop something that is playing, or contact your server administrator.</item>
+        <item quantity="other">Your account can play %d sessions at once, and they are all in use. Stop something that is playing, or contact your server administrator.</item>
+    </plurals>
+    <!-- LiveStreamFailover.kt -->
+    <string name="player_status_channel_unavailable_retrying">Channel unavailable. Retrying...</string>
+    <string name="player_status_server_trying_another">Server: %1$s. Trying another stream...</string>
+    <string name="player_status_trying_another">Trying another stream...</string>
+    <string name="player_status_reconnecting">Reconnecting...</string>
+    <!-- AerioExoPlayerHolder.kt -->
+    <string name="player_error_mpeg2_unsupported">This channel broadcasts MPEG-2 video (over-the-air TV), which this device can\'t decode. See the OTA / HDHomeRun section of the AerioTV GitHub README for a Dispatcharr Stream Profile that fixes this.</string>
+    <string name="player_error_server_reason">Server: %1$s</string>
+    <string name="player_error_no_data">No data received from the stream</string>
+    <!-- TeletextMedia3.kt -->
+    <string name="player_teletext_page">Teletext %1$s</string>
+    <!-- CastControls.kt -->
+    <string name="player_cast_button">Cast</string>
+    <string name="player_cast_to_title">Cast to</string>
+    <string name="player_cast_searching">Searching for devices...</string>
+    <string name="player_cast_native_section">AerioTV on TV</string>
+    <string name="player_cast_native_section_desc">Plays in the AerioTV app on the TV: no phone processing, full quality.</string>
+    <string name="player_cast_other_devices">Other devices</string>
+    <string name="player_cast_enter_code_on">Enter the code shown on %1$s</string>
+    <string name="player_cast_enter_code_on_tv">Enter the code shown on the TV</string>
+    <string name="player_cast_six_digit_code">6-digit code</string>
+    <string name="player_cast_pair">Pair</string>
+    <string name="player_cast_connecting_to">Connecting to %1$s...</string>
+    <string name="player_cast_tv_fallback">TV</string>
+    <string name="player_cast_aerio_remote">AerioTV Remote</string>
+    <string name="player_cast_stop_casting">Stop casting</string>
+    <string name="player_cast_disconnect_tv">Disconnect TV</string>
+    <!-- CastRemoteSheet.kt -->
+    <string name="player_cast_switching_to">Switching to %1$s</string>
+    <string name="player_cast_nothing_playing">Nothing playing</string>
+    <string name="player_cast_controlling_device">Controlling %1$s</string>
+    <string name="player_cast_controlling_your_tv">Controlling your TV</string>
+    <string name="player_cast_casting_to_your_tv">Casting to your TV</string>
+    <string name="player_live_badge">LIVE</string>
+    <string name="player_behind_live">-%1$s behind live</string>
+    <string name="player_channel_down">Channel down</string>
+    <string name="player_channel_up">Channel up</string>
+    <string name="player_options">Options</string>
+    <string name="player_switch_stream">Switch Stream</string>
+    <string name="player_audio_track">Audio Track</string>
+    <string name="player_subtitles">Subtitles</string>
+    <string name="player_playback_speed">Playback Speed</string>
+    <string name="player_video_scale">Video Scale</string>
+    <string name="player_sleep_timer">Sleep Timer</string>
+    <string name="player_stream_info">Stream Info</string>
+    <string name="player_audio_only">Audio Only</string>
+    <string name="player_cast_disconnect">Disconnect</string>
+    <string name="player_cast_disconnect_desc">Leaves the TV playing</string>
+    <string name="player_sleep_30_min">30 minutes</string>
+    <string name="player_sleep_1_hour">1 hour</string>
+    <string name="player_sleep_90_min">1.5 hours</string>
+    <string name="player_sleep_2_hours">2 hours</string>
+    <string name="player_speed_normal">Normal</string>
+    <!-- CastTransportCard.kt -->
+    <string name="player_cast_select_channel">Select a Channel</string>
+    <string name="player_cast_stop_playback">Stop playback</string>
+    <string name="player_cast_stop">Stop</string>
+    <!-- CastMiniController.kt -->
+    <string name="player_cast_tap_to_control">Tap to control</string>
+    <!-- CompanionPairingOverlay.kt -->
+    <string name="player_companion_remote_title">Companion Remote</string>
+    <string name="player_companion_enter_code">Enter this code on your phone to control this TV</string>
+    <!-- MiniPlayerRow.kt -->
+    <string name="player_mini_tap_to_resume">Tap to resume</string>
+    <string name="player_mini_resume_audio">Resume audio</string>
+    <string name="player_mini_pause_audio">Pause audio</string>
+    <string name="player_mini_return_to_player">Return to player</string>
+    <string name="player_dismiss">Dismiss</string>
+
+    <!-- PlayerChromeOverlay.kt -->
+    <string name="player_live_recording_title">%1$s live recording</string>
+    <string name="player_enable_rewind_caption">Enable Live Rewind in Settings</string>
+    <string name="player_turn_on_rewind">Turn on Live Rewind in Settings to pause &amp; rewind live TV</string>
+    <string name="player_retry">Retry</string>
+    <string name="player_record">Record</string>
+    <string name="player_rewind">Rewind</string>
+    <string name="player_forward">Forward</string>
+    <string name="player_go_live">Go Live</string>
+    <string name="player_multiview">Multiview</string>
+    <string name="player_add_multiview_tile">Add a multiview tile</string>
+    <string name="player_exit_fullscreen">Exit fullscreen</string>
+    <string name="player_fullscreen">Fullscreen</string>
+    <string name="player_more">More</string>
+    <string name="player_pip">Picture in picture</string>
+    <string name="player_add_to_multiview">Add to Multiview</string>
+    <string name="player_look_back_day">Look back · %1$s</string>
+    <string name="player_send_report">Send report</string>
+    <string name="player_wrong_guide">Wrong guide?</string>
+    <string name="player_option_audio_track">Audio track</string>
+    <string name="player_option_speed">Speed</string>
+    <string name="player_option_video_scale">Video scale</string>
+    <string name="player_option_sleep_timer">Sleep timer</string>
+    <string name="player_option_stream_info">Stream info</string>
+    <string name="player_option_switch_stream">Switch stream</string>
+    <string name="player_option_show_video">Show video</string>
+    <string name="player_option_audio_only">Audio only</string>
+    <string name="player_minutes_short">%1$d min</string>
+    <string name="player_press_left_to_close">Press ‹ to close</string>
+    <string name="player_send_report_to_server">Send a report to the server</string>
+    <string name="player_wrong_guide_choose">Wrong guide? Choose another</string>
+    <string name="player_record_current_program">Record Current Program</string>
+    <string name="player_sleep_timer_active">Sleep Timer (active)</string>
+    <string name="player_add_to_multiview_title">Add to Multiview</string>
+    <string name="player_show_video">Show Video</string>
+    <string name="player_time_left_h_min">%1$d h %2$d min remaining</string>
+    <string name="player_time_left_min">%1$d min remaining</string>
+    <string name="player_time_left_h">%1$d h remaining</string>
+    <string name="player_time_ending">ending</string>
+    <string name="player_sleep_minutes">%1$d minutes</string>
+    <string name="player_section_video">VIDEO</string>
+    <string name="player_section_audio">AUDIO</string>
+    <string name="player_section_cache">CACHE</string>
+    <string name="player_section_sync">SYNC</string>
+    <string name="player_no_subtitle_tracks">No subtitle tracks reported by the stream.</string>
+    <string name="player_no_audio_tracks">No audio tracks reported by the stream.</string>
+    <string name="player_audio_sync">Audio Sync</string>
+    <string name="player_audio_sync_hint">Positive plays audio later; negative plays it earlier.</string>
+    <string name="player_reset">Reset</string>
+    <string name="player_no_alternate_streams">No alternate streams available for this channel.</string>
+    <string name="player_speed_normal_value">Normal (1.0x)</string>
+    <string name="player_stream_n">Stream %1$s</string>
+
+    <!-- PlayerScreen.kt and the other player overlays -->
+    <string name="player_switch_failed">Stream switch failed</string>
+    <string name="player_switching_stream">Switching stream...</string>
+    <string name="player_paused_nothing_kept">Paused %1$d min; nothing was kept on the TV -- continuing live</string>
+    <string name="player_paused_kept_last">Paused %1$d min; the TV kept the last %2$d -- continuing from %3$d min ago</string>
+    <string name="player_player_not_ready">(player not ready)</string>
+    <string name="player_generated_captions_original">Generated captions (from the sound)</string>
+    <string name="player_generated_captions_translated">Generated captions -- translated to %1$s</string>
+    <string name="player_catchup_unavailable_title">Catch-up Unavailable</string>
+    <string name="player_catchup_archive_busy">The provider keeping this programme\'s archive is in use on another device. Try again when it is free.</string>
+    <string name="player_catchup_no_archive_programme">Your provider doesn\'t have an archive for this programme.</string>
+    <string name="player_catchup_archive_failed">Playback of this programme\'s archive failed.</string>
+    <string name="player_go_back">Go Back</string>
+    <string name="player_channel_unavailable_title">Channel Unavailable</string>
+    <string name="player_reconnecting_ellipsis">Reconnecting…</string>
+    <string name="player_retrying_in">Retrying in %1$ds</string>
+    <string name="player_retry_now">Retry Now</string>
+    <string name="player_retry_highlighted_hint">Retry is highlighted below - press Select. Back to exit, or D-pad up/down to change channels.</string>
+    <string name="player_back_to_exit_hint">Press Back to exit, or use the D-pad up/down to change channels.</string>
+    <string name="player_channel_not_available_title">Channel Not Available</string>
+    <string name="player_channel_not_in_playlist">This channel isn\'t in the active playlist. If you just switched playlists, go back and pick it again from the refreshed guide.</string>
+    <string name="player_no_stream_assigned_title">No Stream Assigned</string>
+    <string name="player_no_stream_assigned">This channel doesn\'t have a stream yet. Event channels usually get one shortly before air time.</string>
+    <string name="player_sleep_chip">SLEEP %1$d MIN</string>
+    <string name="player_tv_guide">TV guide</string>
+    <string name="player_history">History</string>
+    <string name="player_start">Start</string>
+    <string name="player_back">Back</string>
+    <string name="player_live_label">Live</string>
+    <string name="player_date_time">%1$s, %2$s</string>
+    <string name="player_duration_min">%1$d min</string>
+    <string name="player_duration_h_min">%1$d h %2$d min</string>
+    <string name="player_guide_unexpected_answer">Unexpected answer</string>
+    <string name="player_guide_looking_for">Looking for the guides %1$s could be on…</string>
+    <string name="player_guide_not_found">Could not find the guide</string>
+    <string name="player_guide_now_none">Guide now: none</string>
+    <string name="player_guide_now_no_info">Guide now: %1$s — no information</string>
+    <string name="player_guide_now">Guide now: %1$s — %2$s (%3$s)</string>
+    <string name="player_guide_none_other">No other guide has anything on for this channel right now.</string>
+    <string name="player_guide_loading_more">Loading more…</string>
+    <string name="player_guide_load_more">Load more</string>
+    <string name="player_guide_looking_more">Looking for more guides…</string>
+    <string name="player_guide_until">until %1$s</string>
+    <string name="player_guide_next">Next: %1$s</string>
+    <string name="player_captions_starting">Captions: starting…</string>
+    <string name="player_captions_loading_model">Captions: loading the speech model…</string>
+    <string name="player_captions_busy">Captions: the server is captioning as many channels as it can.</string>
+    <string name="player_captions_ended">Captions: the channel stopped.</string>
+    <string name="player_captions_unsupported">Captions: this server cannot make captions (Dispatch More v247 or later).</string>
+    <string name="player_captions_off">Captions are switched off on the server.</string>
+    <string name="player_captions_other">Captions: %1$s</string>
+    <string name="player_ad_skipped">Skipped an ad break (%1$s)</string>
+    <string name="player_ad_back_to_watch">◀ Back to watch it</string>
+    <string name="player_ad_skip">Skip ad ›</string>
+    <string name="player_ad_press_ok">Press OK · %1$s</string>
+    <string name="player_problem_no_load">Stream doesn\'t load</string>
+    <string name="player_problem_stutter">Picture stutters or freezes</string>
+    <string name="player_problem_sound">Sound problem</string>
+    <string name="player_problem_guide">Wrong or missing guide</string>
+    <string name="player_problem_wrong_channel">Wrong channel or picture</string>
+    <string name="player_problem_other">Something else</string>
+    <string name="player_problem_title">What went wrong?</string>
+    <string name="player_problem_about">About %1$s. The player\'s state and its log go with it.</string>
+    <string name="player_recent_title">Recently Watched</string>
+    <string name="player_recent_empty">Channels you watch will show up here.</string>
+    <string name="player_recent_watching">Watching</string>
+    <string name="player_received_kb">Received %1$d KB</string>
+    <string name="player_received_mb">Received %1$s MB</string>
+    <string name="player_received_gb">Received %1$s GB</string>
+    <string name="player_connecting_to_server">Connecting to server</string>
+    <string name="player_waiting_for_data">"Waiting for stream data  %1$d s"</string>
+    <string name="player_buffering">Buffering...</string>
+    <string name="player_no_channels_in_group">No channels in this group.</string>
+    <string name="player_starting_look_back">Starting look back</string>
+    <string name="player_close_another_stream">Close another stream, then press Retry.</string>
+    <string name="player_brightness">Brightness</string>
+    <string name="player_volume">Volume</string>
+
+    <!-- VODPlayerScreen.kt -->
+    <string name="player_catchup_session_expired">Catch-up session expired (HTTP %1$d)</string>
+    <string name="player_catchup_not_for_program">Catch-up isn\'t available for this program on your provider.</string>
+    <string name="player_resuming_from">Resuming from %1$s</string>
+    <string name="player_video_not_supported_title">Video Not Supported</string>
+    <string name="player_video_not_supported">This device cannot decode this copy\'s video format, so only the audio is playing.</string>
+    <string name="player_try_another_copy_tv">Open Options in the player controls, then Switch Version, to try another copy of this title.</string>
+    <string name="player_try_another_copy_phone">Tap here to try another copy of this title.</string>
+    <string name="player_recording_ending_title">Recording Ending</string>
+    <string name="player_recording_ending">This recording is about to reach its scheduled end.</string>
+    <string name="player_continue_on_live">Continue on Live TV</string>
+    <string name="player_back_to_dvr">Back to DVR</string>
+    <string name="player_keep_watching">Keep Watching</string>
+    <string name="player_playback_problem">Playback Problem</string>
+    <string name="player_switch_version">Switch Version</string>
+    <string name="player_player_options">Player options</string>
+
+    <string name="player_switch_not_confirmed">Stream switch not confirmed; staying on current feed</string>
+</resources>

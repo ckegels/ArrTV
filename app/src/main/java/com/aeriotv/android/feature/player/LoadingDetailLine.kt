@@ -1,5 +1,8 @@
 package com.aeriotv.android.feature.player
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import android.os.SystemClock
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,10 +58,10 @@ private const val DETAIL_TICK_MS = 250L
 
 /** KB below 1 MB, one decimal MB below 1024 MB, one decimal GB above. */
 internal fun receivedText(bytes: Long): String {
-    if (bytes < 1_048_576L) return "Received ${bytes / 1024L} KB"
+    if (bytes < 1_048_576L) return AppText.get(R.string.player_received_kb, bytes / 1024L)
     val mb = bytes.toDouble() / 1_048_576.0
-    if (mb < 1024.0) return String.format("Received %.1f MB", mb)
-    return String.format("Received %.1f GB", mb / 1024.0)
+    if (mb < 1024.0) return AppText.get(R.string.player_received_mb, String.format("%.1f", mb))
+    return AppText.get(R.string.player_received_gb, String.format("%.1f", mb / 1024.0))
 }
 
 /**
@@ -97,12 +100,12 @@ private fun loadingDetail(
             } else {
                 val s = reader.value()
                 when {
-                    !s.connected -> "Connecting to server"
+                    !s.connected -> AppText.get(R.string.player_connecting_to_server)
                     s.bytes <= 0L -> {
                         if (connectedFallbackAtMs == 0L) connectedFallbackAtMs = now
                         val base = maxOf(s.connectedAtMs, stepAtMs, connectedFallbackAtMs)
                         val secs = ((now - base) / 1000L).coerceAtLeast(0L)
-                        "Waiting for stream data  $secs s"
+                        AppText.get(R.string.player_waiting_for_data, secs)
                     }
                     else -> receivedText(s.bytes)
                 }
@@ -201,7 +204,7 @@ fun VodLoadingDetail(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         LoadingSpinner(isTv = isTv)
-        LoadingStatusText(status = "Buffering...")
+        LoadingStatusText(status = stringResource(R.string.player_buffering))
         DetailLineText(detail = detail, isTv = isTv)
     }
 }
@@ -281,7 +284,7 @@ fun LiveFailoverStatusOverlay(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         LoadingSpinner(isTv = isTv)
-        LoadingStatusText(status = statusText ?: "Buffering...")
+        LoadingStatusText(status = statusText ?: stringResource(R.string.player_buffering))
         DetailLineText(detail = detail, isTv = isTv)
     }
 }

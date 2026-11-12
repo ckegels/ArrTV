@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.ondemand
 
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import android.util.Log
 import com.aeriotv.android.core.data.db.entity.WatchProgressEntity
 import com.aeriotv.android.core.network.DispatcharrVODEpisode
@@ -41,16 +43,16 @@ fun seriesTarget(
     val index = newest?.let { row -> ordered.indexOfFirst { it.uuid == row.videoId } } ?: -1
     if (newest != null && index >= 0) {
         if (!newest.isFinished) {
-            return SeriesTarget(ordered[index], resuming = true, label = playLabel(ordered[index], "Resume"))
+            return SeriesTarget(ordered[index], resuming = true, label = playLabel(ordered[index], AppText.get(R.string.media_resume)))
                 .also { logTarget(newest.seriesId, it, "resume row pos=${newest.positionMs}") }
         }
         ordered.getOrNull(index + 1)?.let { next ->
-            return SeriesTarget(next, resuming = false, label = playLabel(next, "Play"))
+            return SeriesTarget(next, resuming = false, label = playLabel(next, AppText.get(R.string.common_play)))
                 .also { logTarget(newest.seriesId, it, "next after finished") }
         }
     }
     val first = ordered.first()
-    return SeriesTarget(first, resuming = false, label = playLabel(first, "Play"))
+    return SeriesTarget(first, resuming = false, label = playLabel(first, AppText.get(R.string.common_play)))
         .also {
             logTarget(
                 newest?.seriesId,
@@ -70,4 +72,4 @@ private fun logTarget(seriesId: String?, target: SeriesTarget, reason: String) {
 }
 
 private fun playLabel(episode: DispatcharrVODEpisode, verb: String): String =
-    "$verb S${episode.seasonNumber ?: 1} E${episode.episodeNumber ?: 1}"
+    AppText.get(R.string.ondemand_play_episode, verb, episode.seasonNumber ?: 1, episode.episodeNumber ?: 1)

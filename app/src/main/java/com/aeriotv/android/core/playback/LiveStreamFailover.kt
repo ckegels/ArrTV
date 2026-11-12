@@ -2,6 +2,8 @@ package com.aeriotv.android.core.playback
 
 import android.os.SystemClock
 import android.util.Log
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -247,11 +249,11 @@ class LiveStreamFailover(
             deadlineJob = null
             if (h == null || !h.canSwitch(id)) {
                 Log.i(TAG, "[FAILOVER] 503 reason=\"$reason\" -> standing retry")
-                _statusText.value = "Channel unavailable. Retrying..."
+                _statusText.value = AppText.get(R.string.player_status_channel_unavailable_retrying)
                 return@launch
             }
             Log.i(TAG, "[FAILOVER] 503 reason=\"$reason\" -> next stream")
-            _statusText.value = "Server: $reason. Trying another stream..."
+            _statusText.value = AppText.get(R.string.player_status_server_trying_another, reason)
             if (stepJob?.isActive == true) return@launch
             if (walkStartedAtMs == 0L) walkStartedAtMs = SystemClock.elapsedRealtime()
             stepJob = scope.launch { step(h, id) }
@@ -492,7 +494,7 @@ class LiveStreamFailover(
         if (h == null || !h.canSwitch(id)) {
             // Nothing to fail over TO: say the player is working on it and leave
             // the existing retry ladder exactly as it is.
-            _statusText.value = "Reconnecting..."
+            _statusText.value = AppText.get(R.string.player_status_reconnecting)
             Log.i(
                 TAG,
                 "[FAILOVER] channel=$channelName no bytes for ${silentMs}ms " +
@@ -525,13 +527,13 @@ class LiveStreamFailover(
         val ids = cached ?: runCatching { h.listStreamIds(id) }.getOrNull()
             ?.also { if (it.isNotEmpty()) streamCache[id] = it }
         if (ids.isNullOrEmpty()) {
-            _statusText.value = "Reconnecting..."
+            _statusText.value = AppText.get(R.string.player_status_reconnecting)
             Log.i(TAG, "[FAILOVER] channel=$channelName stream list unavailable; staying on the retry path")
             return
         }
         if ((firstByteSeen && !unplayableWalk) || channelId != id) return
         if (ids.size < 2) {
-            _statusText.value = "Reconnecting..."
+            _statusText.value = AppText.get(R.string.player_status_reconnecting)
             Log.i(TAG, "[FAILOVER] channel=$channelName single stream; staying on the retry path")
             return
         }
@@ -551,7 +553,7 @@ class LiveStreamFailover(
         }
         if (target == null) {
             Log.w(TAG, "[FAILOVER] channel=$channelName exhausted ${ids.size} streams")
-            _statusText.value = "Channel unavailable. Retrying..."
+            _statusText.value = AppText.get(R.string.player_status_channel_unavailable_retrying)
             onExhausted?.invoke()
             return
         }
@@ -569,7 +571,7 @@ class LiveStreamFailover(
             h.changeStream(uuid, target)
         } catch (t: Throwable) {
             Log.w(TAG, "[FAILOVER] channel=$channelName change_stream to id=$target failed: ${t.message}")
-            _statusText.value = "Reconnecting..."
+            _statusText.value = AppText.get(R.string.player_status_reconnecting)
             // Contract 8.3: 409 = this device plays the channel on a stream of
             // its own, which the server will not change under the others. Any
             // other step is refused the same way, so stop walking; a fresh
@@ -585,8 +587,8 @@ class LiveStreamFailover(
         // Quote the server when it told us why we are moving; otherwise this was
         // our own first-byte deadline and there is no server text to show.
         _statusText.value = serverReason
-            ?.let { "Server: $it. Trying another stream..." }
-            ?: "Trying another stream..."
+            ?.let { AppText.get(R.string.player_status_server_trying_another, it) }
+            ?: AppText.get(R.string.player_status_trying_another)
         Log.i(
             TAG,
             "[FAILOVER] channel=$channelName stream $step/${ids.size} id=$target " +

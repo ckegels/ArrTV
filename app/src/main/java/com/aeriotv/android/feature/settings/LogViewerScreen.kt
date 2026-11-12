@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.settings
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import com.aeriotv.android.ui.scale.subtext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -82,7 +84,7 @@ fun LogViewerScreen(onBack: () -> Unit) {
         CenterAlignedTopAppBar(
             title = {
                 Text(
-                    text = "Log File",
+                    text = stringResource(R.string.settings_developer_log_file),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
@@ -93,7 +95,7 @@ fun LogViewerScreen(onBack: () -> Unit) {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.common_back),
                             tint = MaterialTheme.colorScheme.primary,
                         )
                     }
@@ -103,12 +105,12 @@ fun LogViewerScreen(onBack: () -> Unit) {
                 if (rememberIsTvDevice()) {
                     // Edge IconButton has no visible D-pad focus; pill insets
                     // to the 48dp overscan margin and rings under focus.
-                    SettingsHeaderTextButton(label = "Refresh", onClick = { refreshTick++ })
+                    SettingsHeaderTextButton(label = stringResource(R.string.settings_log_viewer_refresh), onClick = { refreshTick++ })
                 } else {
                     IconButton(onClick = { refreshTick++ }) {
                         Icon(
                             imageVector = Icons.Filled.Refresh,
-                            contentDescription = "Refresh",
+                            contentDescription = stringResource(R.string.settings_log_viewer_refresh),
                             tint = MaterialTheme.colorScheme.primary,
                         )
                     }
@@ -134,15 +136,14 @@ fun LogViewerScreen(onBack: () -> Unit) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        text = "Log file is empty",
+                        text = stringResource(R.string.settings_log_viewer_empty_title),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onBackground,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        text = "Enable Debug Logging on the previous screen and reproduce " +
-                            "the issue you want to diagnose. Lines appear here as the app writes them.",
+                        text = stringResource(R.string.settings_log_viewer_empty_text),
                         style = MaterialTheme.typography.bodyMedium.subtext(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

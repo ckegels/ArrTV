@@ -334,10 +334,10 @@ class AerioMediaPlaybackService : MediaLibraryService() {
         if (mgr.getNotificationChannel(CHANNEL_ID) != null) return
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Background playback",
+            getString(R.string.player_bg_channel_name),
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
-            description = "Ongoing notification while AerioTV plays audio in the background."
+            description = getString(R.string.player_bg_channel_description)
             setShowBadge(false)
         }
         mgr.createNotificationChannel(channel)
@@ -355,9 +355,10 @@ class AerioMediaPlaybackService : MediaLibraryService() {
                 castSender.state.value as?
                     com.aeriotv.android.core.cast.AerioCastSender.State.Connected
                 )?.deviceName
-            if (!device.isNullOrBlank()) "Casting to $device" else "Casting"
+            if (!device.isNullOrBlank()) getString(R.string.player_cast_casting_to, device)
+            else getString(R.string.player_cast_casting)
         } else {
-            com.aeriotv.android.core.pip.PipState.nowPlayingSubtitle.ifBlank { "Live" }
+            com.aeriotv.android.core.pip.PipState.nowPlayingSubtitle.ifBlank { getString(R.string.player_live) }
         }
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher)

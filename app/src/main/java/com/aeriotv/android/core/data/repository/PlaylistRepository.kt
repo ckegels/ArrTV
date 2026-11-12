@@ -1,5 +1,7 @@
 package com.aeriotv.android.core.data.repository
 
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import com.aeriotv.android.core.data.EPGProgramme
 import com.aeriotv.android.core.data.M3UChannel
 import com.aeriotv.android.core.data.SourceType
@@ -310,7 +312,7 @@ class PlaylistRepository @Inject constructor(
         val sourceType = request.sourceType
         if (!sourceType.isImplemented) {
             throw UnsupportedOperationException(
-                "${sourceType.displayName} support lands in a later phase",
+                AppText.get(R.string.core_playlist_source_type_later, sourceType.displayName),
             )
         }
 
@@ -377,8 +379,8 @@ class PlaylistRepository @Inject constructor(
                     )
                     suppliedKey
                 } else {
-                    val user = u ?: throw IllegalArgumentException("Username is required")
-                    val pass = p ?: throw IllegalArgumentException("Password is required")
+                    val user = u ?: throw IllegalArgumentException(AppText.get(R.string.core_playlist_username_required))
+                    val pass = p ?: throw IllegalArgumentException(AppText.get(R.string.core_playlist_password_required))
                     val jwt = dispatcharrClient.login(normalisedBase, user, pass)
                     // Stash the JWT pair so the warmup coordinator picks up the
                     // refresh token on the next app foreground and the
@@ -2724,7 +2726,7 @@ class PlaylistRepository @Inject constructor(
     /** Switch the channel's upstream. Returns the resolved upstream URL the server
      *  swapped to (for the client re-prime gate), or null if the response omitted it. */
     suspend fun switchDispatcharrStream(channelUuid: String, streamId: Int): String? {
-        val playlist = activePlaylist() ?: error("No active playlist for stream switch")
+        val playlist = activePlaylist() ?: error(AppText.get(R.string.core_playlist_no_active_for_switch))
         val base = effectiveBaseUrl(playlist)
         return dispatcharrAuth.withApiKeyRetry(playlist.id) { key ->
             dispatcharrClient.changeStream(base, key, channelUuid, streamId)
@@ -2973,9 +2975,7 @@ class PlaylistRepository @Inject constructor(
             // fetchAndMapArray swallows transport/parse failures to an
             // empty list, so this is also where a broken panel lands.
             throw IllegalStateException(
-                "The server returned no live channels for these credentials. " +
-                    "Check the username and password, and that this device is " +
-                    "allowed to connect.",
+                AppText.get(R.string.core_playlist_xc_no_live_channels),
             )
         }
         android.util.Log.i(
@@ -3150,7 +3150,7 @@ class PlaylistRepository @Inject constructor(
             val local = java.io.File(java.net.URI(url))
             if (!local.isFile) {
                 throw java.io.FileNotFoundException(
-                    "Imported file is missing: ${local.name}. Re-import it from Edit Playlist.",
+                    AppText.get(R.string.core_playlist_imported_file_missing, local.name),
                 )
             }
             return@withContext parse(local)
@@ -3341,7 +3341,7 @@ class PlaylistRepository @Inject constructor(
         // of which auth mode originally produced it.
         SourceType.DispatcharrApiKey, SourceType.DispatcharrUserPass -> {
             val key = apiKey?.takeIf { it.isNotBlank() }
-                ?: throw IllegalArgumentException("Dispatcharr API key is required")
+                ?: throw IllegalArgumentException(AppText.get(R.string.core_playlist_api_key_required))
             val groups = dispatcharrClient.listGroups(base, key)
                 .associate { it.id to it.name }
             // Layer A: child-safety account filter (FAIL-CLOSED). When the
@@ -3453,7 +3453,7 @@ class PlaylistRepository @Inject constructor(
         }
         SourceType.XtreamCodes -> {
             val user = username?.takeIf { it.isNotBlank() }
-                ?: throw IllegalArgumentException("Xtream Codes username is required")
+                ?: throw IllegalArgumentException(AppText.get(R.string.core_playlist_xc_username_required))
             try {
                 xtreamLiveChannels(base.trimEnd('/'), user, password.orEmpty())
             } catch (e: Exception) {

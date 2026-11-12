@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.player
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import android.util.Log
 import android.view.ViewGroup
 import androidx.annotation.OptIn
@@ -1037,7 +1039,7 @@ fun VODPlayerScreen(
         if (streamUrl.isBlank() || loadingMessage != null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = loadingMessage ?: "Loading…",
+                    text = loadingMessage ?: stringResource(R.string.common_loading),
                     style = MaterialTheme.typography.titleMedium,
                     color = Color.White,
                 )
@@ -1064,7 +1066,7 @@ fun VODPlayerScreen(
                         IconButton(onClick = onClose) {
                             Icon(
                                 imageVector = Icons.Filled.Close,
-                                contentDescription = "Close",
+                                contentDescription = stringResource(R.string.common_close),
                                 tint = Color.White,
                             )
                         }
@@ -1211,7 +1213,7 @@ fun VODPlayerScreen(
                                                 // card (with its remint-aware
                                                 // Retry) takes over.
                                                 playbackErrorMessage =
-                                                    "Catch-up session expired (HTTP $status)"
+                                                    ctx.getString(R.string.player_catchup_session_expired, status)
                                                 errorReconnecting = false
                                             }
                                         }
@@ -1220,7 +1222,7 @@ fun VODPlayerScreen(
                                     if (status in 400..499 && !isNativeCatchup) {
                                         android.widget.Toast.makeText(
                                             ctx,
-                                            "Catch-up isn't available for this program on your provider.",
+                                            ctx.getString(R.string.player_catchup_not_for_program),
                                             android.widget.Toast.LENGTH_LONG,
                                         ).show()
                                         onClose()
@@ -1421,7 +1423,7 @@ fun VODPlayerScreen(
                         String.format(java.util.Locale.US, "%d:%02d", totalSecs / 60L, totalSecs % 60L)
                     }
                     android.widget.Toast.makeText(
-                        context, "Resuming from $label", android.widget.Toast.LENGTH_SHORT,
+                        context, context.getString(R.string.player_resuming_from, label), android.widget.Toast.LENGTH_SHORT,
                     ).show()
                 }
             }
@@ -1735,7 +1737,7 @@ fun VODPlayerScreen(
                             IconButton(onClick = onClose) {
                                 Icon(
                                     imageVector = Icons.Filled.Close,
-                                    contentDescription = "Close",
+                                    contentDescription = stringResource(R.string.common_close),
                                     tint = Color.White,
                                 )
                             }
@@ -1773,7 +1775,7 @@ fun VODPlayerScreen(
                                     } else {
                                         Icons.Filled.Fullscreen
                                     },
-                                    contentDescription = if (forcedLandscape) "Exit fullscreen" else "Fullscreen",
+                                    contentDescription = stringResource(if (forcedLandscape) R.string.player_exit_fullscreen else R.string.player_fullscreen),
                                     tint = Color.White,
                                 )
                             }
@@ -1793,7 +1795,7 @@ fun VODPlayerScreen(
                             IconButton(onClick = { context.findActivity()?.enterPip16x9() }) {
                                 Icon(
                                     imageVector = Icons.Filled.PictureInPicture,
-                                    contentDescription = "Picture in picture",
+                                    contentDescription = stringResource(R.string.player_pip),
                                     tint = Color.White,
                                 )
                             }
@@ -1895,13 +1897,12 @@ fun VODPlayerScreen(
                     modifier = Modifier.size(44.dp),
                 )
                 Text(
-                    text = "Video Not Supported",
+                    text = stringResource(R.string.player_video_not_supported_title),
                     style = MaterialTheme.typography.headlineSmall,
                     color = Color.White,
                 )
                 Text(
-                    text = "This device cannot decode this copy's video format, " +
-                        "so only the audio is playing.",
+                    text = stringResource(R.string.player_video_not_supported),
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.White.copy(alpha = 0.85f),
                     textAlign = TextAlign.Center,
@@ -1909,10 +1910,9 @@ fun VODPlayerScreen(
                 if (canSwitchVersion) {
                     Text(
                         text = if (isTvForm) {
-                            "Open Options in the player controls, then Switch Version, " +
-                                "to try another copy of this title."
+                            stringResource(R.string.player_try_another_copy_tv)
                         } else {
-                            "Tap here to try another copy of this title."
+                            stringResource(R.string.player_try_another_copy_phone)
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.7f),
@@ -1959,12 +1959,12 @@ fun VODPlayerScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = "Recording Ending",
+                    text = stringResource(R.string.player_recording_ending_title),
                     style = MaterialTheme.typography.headlineSmall,
                     color = Color.White,
                 )
                 Text(
-                    text = "This recording is about to reach its scheduled end.",
+                    text = stringResource(R.string.player_recording_ending),
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.White.copy(alpha = 0.85f),
                     textAlign = TextAlign.Center,
@@ -1980,7 +1980,7 @@ fun VODPlayerScreen(
                             },
                             modifier = Modifier.focusRequester(endPromptFocus),
                         ) {
-                            Text("Continue on Live TV")
+                            Text(stringResource(R.string.player_continue_on_live))
                         }
                     }
                     Button(onClick = {
@@ -1988,13 +1988,13 @@ fun VODPlayerScreen(
                         dvrEndPromptVisible = false
                         onClose()
                     }) {
-                        Text("Back to DVR")
+                        Text(stringResource(R.string.player_back_to_dvr))
                     }
                     Button(onClick = {
                         dvrEndPromptDismissed = true
                         dvrEndPromptVisible = false
                     }) {
-                        Text("Keep Watching")
+                        Text(stringResource(R.string.player_keep_watching))
                     }
                 }
                 if (isTvForm) {
@@ -2044,7 +2044,7 @@ fun VODPlayerScreen(
                     modifier = Modifier.size(44.dp),
                 )
                 Text(
-                    text = "Playback Problem",
+                    text = stringResource(R.string.player_playback_problem),
                     style = MaterialTheme.typography.headlineSmall,
                     color = Color.White,
                 )
@@ -2056,8 +2056,8 @@ fun VODPlayerScreen(
                 )
                 Text(
                     text = when {
-                        errorReconnecting -> "Reconnecting…"
-                        errorRetryCountdown > 0 -> "Retrying in ${errorRetryCountdown}s"
+                        errorReconnecting -> stringResource(R.string.player_reconnecting_ellipsis)
+                        errorRetryCountdown > 0 -> stringResource(R.string.player_retrying_in, errorRetryCountdown)
                         else -> " "
                     },
                     style = MaterialTheme.typography.bodyMedium,
@@ -2102,10 +2102,10 @@ fun VODPlayerScreen(
                         },
                         modifier = Modifier.focusRequester(errorRetryFocus),
                     ) {
-                        Text("Retry Now")
+                        Text(stringResource(R.string.player_retry_now))
                     }
                     Button(onClick = onClose) {
-                        Text("Close")
+                        Text(stringResource(R.string.common_close))
                     }
                 }
             }
@@ -2119,23 +2119,23 @@ fun VODPlayerScreen(
             com.aeriotv.android.ui.FormFactorModal(onDismiss = { showOptionsSheet = false }) {
                 Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) {
                     Text(
-                        text = "Options",
+                        text = stringResource(R.string.player_options),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onBackground,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Spacer(Modifier.height(8.dp))
                     if (versionOptions.size > 1) {
-                        PlayerOptionRow("Switch Version") {
+                        PlayerOptionRow(stringResource(R.string.player_switch_version)) {
                             showOptionsSheet = false
                             showVersionSheet = true
                         }
                     }
-                    PlayerOptionRow("Audio Track") {
+                    PlayerOptionRow(stringResource(R.string.player_audio_track)) {
                         showOptionsSheet = false
                         showAudioSheet = true
                     }
-                    PlayerOptionRow("Subtitles") {
+                    PlayerOptionRow(stringResource(R.string.player_subtitles)) {
                         showOptionsSheet = false
                         showSubtitlesSheet = true
                     }
@@ -2331,7 +2331,7 @@ private fun BottomChrome(
             ) {
                 Icon(
                     imageVector = if (isPaused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                    contentDescription = if (isPaused) "Play" else "Pause",
+                    contentDescription = stringResource(if (isPaused) R.string.common_play else R.string.common_pause),
                     tint = if (ppFocused) Color.Black else Color.White,
                     modifier = Modifier.size(if (isTvForm) 18.dp else 34.dp),
                 )
@@ -2377,7 +2377,7 @@ private fun BottomChrome(
                             ),
                     )
                     Text(
-                        text = "LIVE",
+                        text = stringResource(R.string.player_live_badge),
                         style = MaterialTheme.typography.labelMedium,
                         color = if (atLive) Color.White else Color.White.copy(alpha = 0.55f),
                         fontWeight = FontWeight.SemiBold,
@@ -2396,7 +2396,7 @@ private fun BottomChrome(
             Spacer(Modifier.width(8.dp))
             TransportIconButton(
                 icon = Icons.Outlined.Tune,
-                contentDescription = "Player options",
+                contentDescription = stringResource(R.string.player_player_options),
                 onClick = onOptions,
                 focused = isTvForm && tvFocusZone == TvVodFocusZone.Options,
                 isTvForm = isTvForm,

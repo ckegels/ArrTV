@@ -1,5 +1,7 @@
 package com.aeriotv.android.core.network
 
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import android.util.Log
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -738,10 +740,10 @@ class TMDBService @Inject constructor() {
         val directors = if (isMovie) {
             credits?.get("crew")?.jsonArray
                 ?.filter { it.jsonObject["job"]?.jsonPrimitive?.contentOrNull == "Director" }
-                ?.mapNotNull { parsePerson(it, "Director") }
+                ?.mapNotNull { parsePerson(it, AppText.get(R.string.core_tmdb_role_director)) }
                 ?: emptyList()
         } else {
-            obj["created_by"]?.jsonArray?.mapNotNull { parsePerson(it, "Creator") } ?: emptyList()
+            obj["created_by"]?.jsonArray?.mapNotNull { parsePerson(it, AppText.get(R.string.core_tmdb_role_creator)) } ?: emptyList()
         }
         TmdbCredits(cast = cast, directors = directors)
     }.getOrNull()

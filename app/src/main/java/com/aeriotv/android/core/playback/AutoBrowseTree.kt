@@ -3,6 +3,8 @@ package com.aeriotv.android.core.playback
 import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import com.aeriotv.android.core.data.EPGProgramme
 import com.aeriotv.android.core.data.M3UChannel
 import com.aeriotv.android.core.data.SourceType
@@ -86,8 +88,8 @@ class AutoBrowseTree @Inject constructor(
                 val hasFavorites = runCatching { favoriteDao.observeCount().first() }.getOrDefault(0) > 0
                 if (hasFavorites) {
                     listOf(
-                        browsable(FAVORITES_ID, "Favorites"),
-                        browsable(GROUPS_ID, "Groups"),
+                        browsable(FAVORITES_ID, AppText.get(R.string.player_auto_favorites)),
+                        browsable(GROUPS_ID, AppText.get(R.string.player_auto_groups)),
                     )
                 } else {
                     // No favorites: a single "Groups" tab. Its contents (one
@@ -95,7 +97,7 @@ class AutoBrowseTree @Inject constructor(
                     // so the groups are a scrollable Group > Channel drill-down
                     // rather than becoming the top tabs themselves. CarPlay
                     // parity: with no favorites, Groups is the whole experience.
-                    listOf(browsable(GROUPS_ID, "Groups"))
+                    listOf(browsable(GROUPS_ID, AppText.get(R.string.player_auto_groups)))
                 }
             }
             parentId == FAVORITES_ID -> {
@@ -117,8 +119,8 @@ class AutoBrowseTree @Inject constructor(
     /** A single item by id (node or channel). */
     suspend fun item(mediaId: String): MediaItem? {
         if (mediaId == ROOT_ID) return rootItem()
-        if (mediaId == FAVORITES_ID) return browsable(FAVORITES_ID, "Favorites")
-        if (mediaId == GROUPS_ID) return browsable(GROUPS_ID, "Groups")
+        if (mediaId == FAVORITES_ID) return browsable(FAVORITES_ID, AppText.get(R.string.player_auto_favorites))
+        if (mediaId == GROUPS_ID) return browsable(GROUPS_ID, AppText.get(R.string.player_auto_groups))
         if (mediaId.startsWith(GROUP_PREFIX)) {
             return browsable(mediaId, mediaId.removePrefix(GROUP_PREFIX))
         }
@@ -222,10 +224,11 @@ class AutoBrowseTree @Inject constructor(
         val secondsLeft = (endMillis - now) / 1000.0
         if (secondsLeft <= 30) return null
         val minutesLeft = (secondsLeft / 60.0).roundToInt()
-        if (minutesLeft < 60) return "$minutesLeft min left"
+        if (minutesLeft < 60) return AppText.get(R.string.player_auto_min_left, minutesLeft)
         val hours = minutesLeft / 60
         val mins = minutesLeft % 60
-        return if (mins == 0) "$hours hr left" else "${hours}h ${mins}m left"
+        return if (mins == 0) AppText.get(R.string.player_auto_hr_left, hours)
+        else AppText.get(R.string.player_auto_hr_min_left, hours, mins)
     }
 
     private fun groupNodes(channels: List<M3UChannel>): List<MediaItem> =
@@ -238,7 +241,7 @@ class AutoBrowseTree @Inject constructor(
                 browsable(
                     id = GROUP_PREFIX + group,
                     title = group,
-                    subtitle = if (count == 1) "1 channel" else "$count channels",
+                    subtitle = AppText.plural(R.plurals.player_auto_channel_count, count, count),
                 )
             }
             .toList()
@@ -246,8 +249,8 @@ class AutoBrowseTree @Inject constructor(
     /** Non-playable, non-browsable row shown when the car has no source yet. */
     private fun emptyStateItem(): MediaItem {
         val meta = MediaMetadata.Builder()
-            .setTitle("No playlist configured")
-            .setSubtitle("Open AerioTV on your phone to add a server")
+            .setTitle(AppText.get(R.string.player_auto_no_playlist_title))
+            .setSubtitle(AppText.get(R.string.player_auto_no_playlist_subtitle))
             .setIsBrowsable(false)
             .setIsPlayable(false)
             .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)

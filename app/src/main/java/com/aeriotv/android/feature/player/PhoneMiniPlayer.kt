@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.player
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import androidx.activity.ComponentActivity
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
@@ -447,7 +449,7 @@ fun BoxScope.PhoneMiniControls(
     ) {
         Icon(
             imageVector = Icons.Filled.Close,
-            contentDescription = "Close",
+            contentDescription = stringResource(R.string.common_close),
             tint = Color.White,
             modifier = Modifier.size(18.dp),
         )

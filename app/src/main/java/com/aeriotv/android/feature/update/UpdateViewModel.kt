@@ -51,7 +51,7 @@ class UpdateViewModel @Inject constructor(
                 manager.check(manual = true)
                 when (val after = manager.state.value) {
                     is UpdateState.Available -> manager.startDownload()
-                    is UpdateState.UpToDate -> notice("ArrTV is up to date")
+                    is UpdateState.UpToDate -> notice(context.getString(com.aeriotv.android.R.string.main_update_up_to_date))
                     is UpdateState.Error -> if (after.info == null) notice(after.message)
                     else -> Unit
                 }

@@ -40,7 +40,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.aeriotv.android.R
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.aeriotv.android.core.data.SourceType
@@ -167,7 +170,7 @@ fun EditPlaylistScreen(
         CenterAlignedTopAppBar(
             title = {
                 Text(
-                    text = "Edit Playlist",
+                    text = stringResource(R.string.settings2_edit_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
@@ -177,7 +180,7 @@ fun EditPlaylistScreen(
                 // discards and pops the screen. Phones/tablets keep Cancel.
                 if (!isTv) {
                     TextButton(onClick = onBack) {
-                        Text("Cancel", color = MaterialTheme.colorScheme.textAccent)
+                        Text(stringResource(R.string.common_cancel), color = MaterialTheme.colorScheme.textAccent)
                     }
                 }
             },
@@ -186,7 +189,7 @@ fun EditPlaylistScreen(
                 // action is off the natural D-pad path through the fields).
                 if (!isTv) {
                     SettingsHeaderTextButton(
-                        label = "Save",
+                        label = stringResource(R.string.common_save),
                         enabled = canSave,
                         onClick = performSave,
                     )
@@ -200,7 +203,7 @@ fun EditPlaylistScreen(
 
         if (playlist == null) {
             Text(
-                "No playlist loaded",
+                stringResource(R.string.settings2_edit_no_playlist),
                 modifier = Modifier.padding(24.dp),
                 style = MaterialTheme.typography.bodyMedium.subtext(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -234,12 +237,12 @@ fun EditPlaylistScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
-                Section(header = "Connection") {
+                Section(header = stringResource(R.string.settings2_edit_connection)) {
                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                         OutlinedTextField(
                             value = name,
                             onValueChange = { name = it },
-                            label = { Text("Name") },
+                            label = { Text(stringResource(R.string.settings2_edit_name)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth().tvFormFieldInput(),
                             keyboardOptions = aerioTextFieldKeyboardOptions(
@@ -254,10 +257,10 @@ fun EditPlaylistScreen(
                             label = {
                                 Text(
                                     when (sourceType) {
-                                        SourceType.M3uUrl -> "Playlist URL"
+                                        SourceType.M3uUrl -> stringResource(R.string.settings2_edit_playlist_url)
                                         SourceType.DispatcharrApiKey,
-                                        SourceType.DispatcharrUserPass -> "Server URL"
-                                        SourceType.XtreamCodes -> "Server URL"
+                                        SourceType.DispatcharrUserPass -> stringResource(R.string.settings2_edit_server_url)
+                                        SourceType.XtreamCodes -> stringResource(R.string.settings2_edit_server_url)
                                     },
                                 )
                             },
@@ -270,7 +273,7 @@ fun EditPlaylistScreen(
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "Type: ${sourceType.displayName}. To switch types, use Change Playlist.",
+                            text = stringResource(R.string.settings2_edit_type_hint, sourceType.displayName),
                             style = MaterialTheme.typography.bodySmall.subtext(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -283,16 +286,14 @@ fun EditPlaylistScreen(
             // explaining the automatic LAN/WAN switch.
             item {
                 Section(
-                    header = "Local Network",
-                    footer = "Used automatically whenever the server answers at this address " +
-                        "(checked at launch, on network changes, and after edits). Leave blank " +
-                        "to always use the server URL.",
+                    header = stringResource(R.string.settings2_edit_local_network),
+                    footer = stringResource(R.string.settings2_edit_local_network_footer),
                 ) {
                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                         OutlinedTextField(
                             value = lanUrl,
                             onValueChange = { lanUrl = it },
-                            label = { Text("Local URL (optional)") },
+                            label = { Text(stringResource(R.string.settings2_edit_local_url)) },
                             placeholder = { Text("http://192.168.1.10:9191") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth().tvFormFieldInput(),
@@ -307,13 +308,13 @@ fun EditPlaylistScreen(
 
             when (sourceType) {
                 SourceType.DispatcharrApiKey -> item {
-                    Section(header = "Authentication") {
+                    Section(header = stringResource(R.string.settings2_edit_authentication)) {
                         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                             val apiKeyReveal = rememberSecretRevealState()
                             OutlinedTextField(
                                 value = apiKey,
                                 onValueChange = { apiKey = it },
-                                label = { Text("API Key") },
+                                label = { Text(stringResource(R.string.settings2_edit_api_key)) },
                                 singleLine = true,
                                 visualTransformation = apiKeyReveal.transformation,
                                 trailingIcon = {
@@ -334,13 +335,13 @@ fun EditPlaylistScreen(
                     }
                 }
                 SourceType.DispatcharrUserPass -> item {
-                    Section(header = "Authentication") {
+                    Section(header = stringResource(R.string.settings2_edit_authentication)) {
                         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                             val passwordReveal = rememberSecretRevealState()
                             val apiKeyReveal = rememberSecretRevealState()
                             SegmentedToggle(
-                                left = "Username & Password",
-                                right = "API Key",
+                                left = stringResource(R.string.settings2_edit_username_password),
+                                right = stringResource(R.string.settings2_edit_api_key),
                                 selected = dispatcharrMode,
                                 onSelect = { dispatcharrMode = it },
                             )
@@ -349,7 +350,7 @@ fun EditPlaylistScreen(
                                 OutlinedTextField(
                                     value = username,
                                     onValueChange = { username = it },
-                                    label = { Text("Username") },
+                                    label = { Text(stringResource(R.string.settings2_edit_username)) },
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth().tvFormFieldInput(),
                                     keyboardOptions = aerioTextFieldKeyboardOptions(
@@ -360,7 +361,7 @@ fun EditPlaylistScreen(
                                 OutlinedTextField(
                                     value = password,
                                     onValueChange = { password = it },
-                                    label = { Text("Password") },
+                                    label = { Text(stringResource(R.string.settings2_edit_password)) },
                                     singleLine = true,
                                     visualTransformation = passwordReveal.transformation,
                                     trailingIcon = {
@@ -381,7 +382,7 @@ fun EditPlaylistScreen(
                                 OutlinedTextField(
                                     value = apiKey,
                                     onValueChange = { apiKey = it },
-                                    label = { Text("API Key") },
+                                    label = { Text(stringResource(R.string.settings2_edit_api_key)) },
                                     singleLine = true,
                                     visualTransformation = apiKeyReveal.transformation,
                                     trailingIcon = {
@@ -400,12 +401,12 @@ fun EditPlaylistScreen(
                     }
                 }
                 SourceType.XtreamCodes -> item {
-                    Section(header = "Authentication") {
+                    Section(header = stringResource(R.string.settings2_edit_authentication)) {
                         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                             OutlinedTextField(
                                 value = username,
                                 onValueChange = { username = it },
-                                label = { Text("Username") },
+                                label = { Text(stringResource(R.string.settings2_edit_username)) },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth().tvFormFieldInput(),
                                 keyboardOptions = aerioTextFieldKeyboardOptions(
@@ -417,7 +418,7 @@ fun EditPlaylistScreen(
                             OutlinedTextField(
                                 value = password,
                                 onValueChange = { password = it },
-                                label = { Text("Password") },
+                                label = { Text(stringResource(R.string.settings2_edit_password)) },
                                 singleLine = true,
                                 visualTransformation = passwordReveal.transformation,
                                 trailingIcon = {
@@ -448,8 +449,8 @@ fun EditPlaylistScreen(
             if (sourceType.supportsVOD) {
                 item {
                     Section(
-                        header = "On Demand",
-                        footer = "When off, this playlist's movies and TV shows aren't loaded into On Demand. Useful if you only want Live TV from this server, or if you have a second playlist that already provides On Demand.",
+                        header = stringResource(R.string.settings2_edit_on_demand),
+                        footer = stringResource(R.string.settings2_edit_on_demand_footer),
                     ) {
                         // Whole row is the focus/toggle target so D-pad focus is
                         // visible; the Switch is display-only.
@@ -465,7 +466,7 @@ fun EditPlaylistScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = "Fetch On Demand from this playlist",
+                                text = stringResource(R.string.settings2_edit_fetch_on_demand),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onBackground,
                                 fontWeight = FontWeight.Medium,
@@ -490,9 +491,8 @@ fun EditPlaylistScreen(
             // guide browsable into the past.
             item {
                 Section(
-                    header = "Guide Days",
-                    footer = "How many days of guide data to load, back and ahead. " +
-                        "Dispatcharr only; other sources show what their guide carries.",
+                    header = stringResource(R.string.settings2_edit_guide_days),
+                    footer = stringResource(R.string.settings2_edit_guide_days_footer),
                 ) {
                     Column(modifier = Modifier.padding(vertical = 4.dp)) {
                         // 0 = All Available (Logan 2026-09-11); a stored 30
@@ -500,11 +500,14 @@ fun EditPlaylistScreen(
                         listOf(1, 3, 7, 14, 0).forEach { days ->
                             ProfileRow(
                                 label = when (days) {
-                                    0 -> "All Available"
-                                    1 -> "1 Day"
-                                    else -> "$days Days"
+                                    0 -> stringResource(R.string.settings2_edit_all_available)
+                                    else -> pluralStringResource(
+                                        R.plurals.settings2_edit_guide_days_count,
+                                        days,
+                                        days,
+                                    )
                                 },
-                                detail = if (days == 7) "Default" else null,
+                                detail = if (days == 7) stringResource(R.string.common_default) else null,
                                 selected = sanitizeGuideDays(epgRetentionDays) == days,
                                 onClick = { epgRetentionDays = days },
                             )
@@ -516,9 +519,8 @@ fun EditPlaylistScreen(
             if (isDispatcharr) {
                 item {
                     Section(
-                        header = "Channel Profile",
-                        footer = "Limit this playlist to the channels in a Dispatcharr profile. " +
-                            "\"All Channels\" shows everything on the server.",
+                        header = stringResource(R.string.settings2_edit_channel_profile),
+                        footer = stringResource(R.string.settings2_edit_channel_profile_footer),
                     ) {
                         Column(modifier = Modifier.padding(vertical = 4.dp)) {
                             if (state.profilesLoading && state.availableProfiles.isEmpty()) {
@@ -534,14 +536,14 @@ fun EditPlaylistScreen(
                                     )
                                     Spacer(Modifier.width(12.dp))
                                     Text(
-                                        "Loading profiles...",
+                                        stringResource(R.string.settings2_edit_loading_profiles),
                                         style = MaterialTheme.typography.bodyMedium.subtext(),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             } else {
                                 ProfileRow(
-                                    label = "All Channels",
+                                    label = stringResource(R.string.settings2_edit_all_channels),
                                     detail = null,
                                     selected = selectedProfileId == null,
                                     onClick = { selectedProfileId = null },
@@ -549,7 +551,11 @@ fun EditPlaylistScreen(
                                 state.availableProfiles.forEach { profile ->
                                     ProfileRow(
                                         label = profile.name,
-                                        detail = "${profile.channelCount} channels",
+                                        detail = pluralStringResource(
+                                            R.plurals.settings2_channel_count,
+                                            profile.channelCount,
+                                            profile.channelCount,
+                                        ),
                                         selected = selectedProfileId == profile.id,
                                         onClick = { selectedProfileId = profile.id },
                                     )
@@ -563,19 +569,19 @@ fun EditPlaylistScreen(
             if (sourceType == SourceType.M3uUrl || sourceType == SourceType.XtreamCodes) {
                 item {
                     val footerText = if (sourceType == SourceType.M3uUrl) {
-                        "Optional XMLTV URL. Leave empty if your M3U doesn't ship with a separate EPG."
+                        stringResource(R.string.settings2_edit_epg_footer_m3u)
                     } else {
-                        "Optional override. When set, AerioTV pulls the guide from this XMLTV URL instead of the server's xmltv.php. Useful when an external provider supplies richer category tags."
+                        stringResource(R.string.settings2_edit_epg_footer_xtream)
                     }
                     Section(
-                        header = "EPG Source",
+                        header = stringResource(R.string.settings2_edit_epg_source),
                         footer = footerText,
                     ) {
                         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                             OutlinedTextField(
                                 value = epgUrl,
                                 onValueChange = { epgUrl = it },
-                                label = { Text("XMLTV URL") },
+                                label = { Text(stringResource(R.string.settings2_edit_xmltv_url)) },
                                 singleLine = true,
                                 placeholder = { Text("https://example.com/xmltv.xml") },
                                 modifier = Modifier.fillMaxWidth().tvFormFieldInput(),
@@ -593,11 +599,11 @@ fun EditPlaylistScreen(
             if (isTv) {
                 item {
                     SettingsActionRow(
-                        label = "Save Changes",
+                        label = stringResource(R.string.settings2_edit_save_changes),
                         leadingIcon = Icons.Filled.Check,
                         onClick = performSave,
                         enabled = canSave,
-                        subtitle = if (canSave) null else "Name and Server URL are required",
+                        subtitle = if (canSave) null else stringResource(R.string.settings2_edit_required),
                     )
                 }
             }
@@ -648,7 +654,7 @@ private fun ProfileRow(
         if (selected) {
             Icon(
                 imageVector = Icons.Filled.Check,
-                contentDescription = "Selected",
+                contentDescription = stringResource(R.string.common_selected),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp),
             )

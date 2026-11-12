@@ -36,6 +36,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.StateFlow
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * Thin VM exposing the app-scoped [ReminderBannerBus] to the navigation root.
@@ -121,9 +123,9 @@ fun ReminderBannerHost(
                         )
                         Text(
                             text = if (banner.channelName.isNotBlank())
-                                "Starting now on ${banner.channelName}"
+                                stringResource(R.string.livetv_reminder_starting_now_on, banner.channelName)
                             else
-                                "Starting now",
+                                stringResource(R.string.livetv_reminder_starting_now),
                             style = MaterialTheme.typography.bodySmall.subtext(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
@@ -133,7 +135,7 @@ fun ReminderBannerHost(
                     IconButton(onClick = { vm.dismiss() }) {
                         Icon(
                             imageVector = Icons.Filled.Close,
-                            contentDescription = "Dismiss",
+                            contentDescription = stringResource(R.string.livetv_dismiss),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }

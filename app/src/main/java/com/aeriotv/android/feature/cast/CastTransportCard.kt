@@ -19,6 +19,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.aeriotv.android.core.cast.AerioCastSender
@@ -178,6 +180,8 @@ fun CastTransportCard(
         companionRemote.disconnect()
     }
 
+    val castingToLine = deviceName?.let { stringResource(R.string.player_cast_casting_to, it) }
+        ?: stringResource(R.string.player_cast_casting_to_your_tv)
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -191,24 +195,27 @@ fun CastTransportCard(
     ) {
         CastMiniController(
             title = when {
-                switchingTo != null -> "Switching to $switchingTo"
+                switchingTo != null -> stringResource(R.string.player_cast_switching_to, switchingTo)
                 hasContent -> title
-                else -> "Casting to ${deviceName ?: "your TV"}"
+                else -> castingToLine
             },
             deviceName = deviceName,
             artUri = if (isCompanion) companionDetails?.logoUrl else castContent?.artUri,
             isPlaying = if (isCompanion) companionIsPlaying else castIsPlaying,
             // Nothing playing yet: the card says where the next tap lands.
             subtitle = when {
-                switchingTo != null -> "Casting to ${deviceName ?: "your TV"}"
-                !hasContent -> "Select a Channel"
-                isCompanion -> "Controlling ${deviceName ?: "TV"}"
+                switchingTo != null -> castingToLine
+                !hasContent -> stringResource(R.string.player_cast_select_channel)
+                isCompanion -> deviceName?.let { stringResource(R.string.player_cast_controlling_device, it) }
+                    ?: stringResource(R.string.player_companion_controlling_tv)
                 else -> null
             },
             programmeTitle = programmeTitle,
             transportIcon = if (isCompanion) Icons.Filled.Tv else Icons.Filled.Cast,
             showTransport = hasContent,
-            stopDescription = if (isCompanion) "Stop playback" else "Stop casting",
+            stopDescription = stringResource(
+                if (isCompanion) R.string.player_cast_stop_playback else R.string.player_cast_stop_casting,
+            ),
             onTap = {
                 Log.i(TAG, "[Cast] card tap")
                 sheetOpen = true
@@ -241,8 +248,8 @@ fun CastTransportCard(
             isPlaying = remoteIsPlaying,
             position = position,
             transportIcon = if (isCompanion) Icons.Filled.Tv else Icons.Filled.Cast,
-            statusVerb = if (isCompanion) "Controlling" else "Casting to",
-            stopLabel = if (isCompanion) "Stop" else "Stop casting",
+            companionStatus = isCompanion,
+            stopLabel = stringResource(if (isCompanion) R.string.player_cast_stop else R.string.player_cast_stop_casting),
             // Only the companion transport can be dropped while the TV plays on.
             onDisconnect = if (isCompanion) ({ disconnectCompanionOnly() }) else null,
             canChangeChannel = currentChannel != null,

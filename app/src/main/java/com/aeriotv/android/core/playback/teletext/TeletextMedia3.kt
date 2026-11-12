@@ -19,6 +19,8 @@ import androidx.media3.extractor.ts.ElementaryStreamReader
 import androidx.media3.extractor.ts.PesReader
 import androidx.media3.extractor.ts.TsExtractor
 import androidx.media3.extractor.ts.TsPayloadReader
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import com.google.common.collect.ImmutableList
 
 /**
@@ -113,7 +115,7 @@ class TeletextReader(private val pages: List<TeletextPage>) : ElementaryStreamRe
                     .setId(idGenerator.formatId)
                     .setSampleMimeType(TELETEXT_MIME)
                     .setLanguage(page.language)
-                    .setLabel("Teletext ${page.number}")
+                    .setLabel(AppText.get(R.string.player_teletext_page, page.number))
                     .setRoleFlags(if (page.hearingImpaired) C.ROLE_FLAG_DESCRIBES_MUSIC_AND_SOUND else C.ROLE_FLAG_SUBTITLE)
                     .setInitializationData(listOf(byteArrayOf(page.magazine.toByte(), page.page.toByte())))
                     .build(),

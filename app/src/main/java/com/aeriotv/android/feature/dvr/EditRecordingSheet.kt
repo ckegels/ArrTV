@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.dvr
 
+import com.aeriotv.android.R
+import androidx.compose.ui.res.stringResource
 import com.aeriotv.android.ui.scale.subtext
 import com.aeriotv.android.ui.theme.textAccent
 import androidx.compose.foundation.background
@@ -78,7 +80,7 @@ fun EditRecordingSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = "Edit Recording",
+                text = stringResource(R.string.media_edit_recording),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold,
@@ -87,7 +89,7 @@ fun EditRecordingSheet(
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("Title") },
+                label = { Text(stringResource(R.string.media_field_title)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = com.aeriotv.android.ui.textfield.aerioTextFieldKeyboardOptions(
@@ -98,17 +100,17 @@ fun EditRecordingSheet(
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
-                label = { Text("Description") },
+                label = { Text(stringResource(R.string.media_field_description)) },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = com.aeriotv.android.ui.textfield.aerioTextFieldKeyboardOptions(),
             )
 
             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
 
-            SectionHeader("Extra Pre-Roll")
+            SectionHeader(stringResource(R.string.media_extra_pre_roll))
             DeltaRollRow(selected = preRoll, onSelect = { preRoll = it })
 
-            SectionHeader("Extra Post-Roll")
+            SectionHeader(stringResource(R.string.media_extra_post_roll))
             DeltaRollRow(selected = postRoll, onSelect = { postRoll = it })
 
             Row(
@@ -121,7 +123,7 @@ fun EditRecordingSheet(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Will record",
+                        text = stringResource(R.string.media_will_record),
                         style = MaterialTheme.typography.bodySmall.subtext(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -138,14 +140,14 @@ fun EditRecordingSheet(
                 horizontalArrangement = Arrangement.End,
             ) {
                 TextButton(onClick = onDismiss) {
-                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.common_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 TextButton(
                     onClick = { if (canSave) onSave(newStart, newEnd, title.trim(), description.trim()) },
                     enabled = canSave,
                 ) {
                     Text(
-                        text = "Save",
+                        text = stringResource(R.string.common_save),
                         color = if (canSave) MaterialTheme.colorScheme.textAccent
                         else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -171,7 +173,7 @@ private fun SectionHeader(label: String) {
 private fun DeltaRollRow(selected: Int, onSelect: (Int) -> Unit) {
     Column {
         DELTA_OPTIONS.forEachIndexed { idx, mins ->
-            val label = if (mins == 0) "No change" else "+$mins min"
+            val label = if (mins == 0) stringResource(R.string.media_no_change) else stringResource(R.string.media_plus_minutes, mins)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

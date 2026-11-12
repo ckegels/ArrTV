@@ -3,6 +3,7 @@ package com.aeriotv.android.core.data.db.entity
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.aeriotv.android.R
 import com.aeriotv.android.core.data.SourceType
 import com.aeriotv.android.core.data.capability.CAPABILITIES_SCHEMA
 import com.aeriotv.android.core.data.capability.CAPABILITIES_TTL_MS
@@ -11,6 +12,7 @@ import com.aeriotv.android.core.data.capability.CapabilityCorrections
 import com.aeriotv.android.core.data.capability.CapabilitySet
 import com.aeriotv.android.core.data.capability.CapabilitySnapshot
 import com.aeriotv.android.core.data.capability.deriveCapabilities
+import com.aeriotv.android.core.locale.AppText
 import java.util.UUID
 
 /**
@@ -446,10 +448,10 @@ fun PlaylistEntity.isDispatcharrAdmin(): Boolean = canSwitchStream()
  */
 fun PlaylistEntity.sourceTypeDisplayLabel(): String = when (sourceType) {
     SourceType.DispatcharrUserPass.name ->
-        "Dispatcharr Direct Connect - Username & Password"
+        AppText.get(R.string.core_source_label_dispatcharr_user_pass)
     SourceType.DispatcharrApiKey.name ->
-        if (effectiveUserLevel() >= 10) "Dispatcharr Direct Connect - Admin API Key"
-        else "Dispatcharr Direct Connect - Standard API Key"
+        if (effectiveUserLevel() >= 10) AppText.get(R.string.core_source_label_dispatcharr_admin_key)
+        else AppText.get(R.string.core_source_label_dispatcharr_standard_key)
     SourceType.XtreamCodes.name -> "Xtream Codes (XC)"
     SourceType.M3uUrl.name -> "M3U"
     // Unknown enum NAME (shouldn't happen; future-proofing) falls back to raw.

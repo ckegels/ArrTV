@@ -18,6 +18,10 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.RadioButtonChecked
 import androidx.compose.material.icons.outlined.Tv
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.annotation.StringRes
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * Mirrors iOS Aerio/Features/Home/HomeView.swift AppTab enum (lines 2783-2787):
@@ -38,25 +42,30 @@ import androidx.compose.ui.graphics.vector.ImageVector
  */
 enum class AppTab(
     val id: String,
+    /** English name, kept for code that matches on it; show [labelRes] / [displayLabel]. */
     val label: String,
+    @StringRes val labelRes: Int,
     val iconSelected: ImageVector,
     val iconUnselected: ImageVector,
 ) {
     LiveTV(
         id = "livetv",
         label = "Live TV",
+        labelRes = R.string.main_tab_live_tv,
         iconSelected = Icons.Filled.LiveTv,
         iconUnselected = Icons.Outlined.LiveTv,
     ),
     Favorites(
         id = "favorites",
         label = "Favorites",
+        labelRes = R.string.main_tab_favorites,
         iconSelected = Icons.Filled.Favorite,
         iconUnselected = Icons.Outlined.Favorite,
     ),
     DVR(
         id = "dvr",
         label = "DVR",
+        labelRes = R.string.main_tab_dvr,
         // iOS parity (record.circle): the Tv glyph doubled as the
         // Control-a-TV button once the bar minimized (Logan 2026-09-09).
         iconSelected = Icons.Filled.RadioButtonChecked,
@@ -65,6 +74,7 @@ enum class AppTab(
     OnDemand(
         id = "ondemand",
         label = "On Demand",
+        labelRes = R.string.main_tab_on_demand,
         iconSelected = Icons.Filled.OndemandVideo,
         iconUnselected = Icons.Outlined.OndemandVideo,
     ),
@@ -77,18 +87,21 @@ enum class AppTab(
     Movies(
         id = "movies",
         label = "Movies",
+        labelRes = R.string.main_tab_movies,
         iconSelected = Icons.Filled.Movie,
         iconUnselected = Icons.Outlined.Movie,
     ),
     TVShows(
         id = "tvshows",
         label = "TV Shows",
+        labelRes = R.string.main_tab_tv_shows,
         iconSelected = Icons.Filled.Tv,
         iconUnselected = Icons.Outlined.Tv,
     ),
     Settings(
         id = "settings",
         label = "Settings",
+        labelRes = R.string.common_settings,
         iconSelected = Icons.Filled.Settings,
         iconUnselected = Icons.Outlined.Settings,
     ),
@@ -105,7 +118,12 @@ enum class AppTab(
     Search(
         id = "search",
         label = "Search",
+        labelRes = R.string.common_search,
         iconSelected = Icons.Filled.Search,
         iconUnselected = Icons.Outlined.Search,
     ),
 }
+
+/** The tab's name in the app's language. */
+@Composable
+fun AppTab.displayLabel(): String = stringResource(labelRes)

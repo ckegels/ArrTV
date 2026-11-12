@@ -60,7 +60,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import com.aeriotv.android.R
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.aeriotv.android.ui.settings.LocalSettingsInPane
@@ -263,7 +265,7 @@ private fun SettingsSidebar(
     ) {
         item("title") {
             Text(
-                text = "Settings",
+                text = stringResource(R.string.common_settings),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground,
@@ -274,7 +276,7 @@ private fun SettingsSidebar(
         // last row of the closing group).
         item("playlists") {
             SettingsNavRow(
-                title = "Playlists",
+                title = stringResource(R.string.settings2_playlists),
                 subtitle = activePlaylistName,
                 icon = Icons.AutoMirrored.Filled.List,
                 onClick = { onSelect(SettingsRoute.Playlists) },
@@ -289,7 +291,7 @@ private fun SettingsSidebar(
             item("header-${group.key}") {
                 Column {
                     Spacer(Modifier.height(10.dp))
-                    if (group.header.isNotBlank()) SettingsSectionHeader(group.header)
+                    group.header?.let { SettingsSectionHeader(stringResource(it)) }
                 }
             }
             items(items = group.sections, key = { "row-${it.name}" }) { section ->
@@ -527,23 +529,17 @@ private fun SettingsTvRail(
     // Flatten to one list so the selected index (for initial scroll + focus) is
     // a simple lookup rather than a per-section calculation. About arrives from
     // the closing section group like any other row.
-    val rows = remember(sections, activePlaylistName, syncEnabled) {
-        buildList {
-            add(Triple(SettingsRoute.Playlists as SettingsRoute, "Playlists", activePlaylistName))
+    // Routes only: each row's title and subtitle are resolved where it is
+    // drawn, since they are string resources.
+    val rows = remember(sections) {
+        buildList<SettingsRoute> {
+            add(SettingsRoute.Playlists)
             sections.forEach { group ->
-                group.sections.forEach { section ->
-                    add(
-                        Triple(
-                            SettingsRoute.Section(section),
-                            section.title,
-                            settingsSectionSubtitle(section, syncEnabled),
-                        ),
-                    )
-                }
+                group.sections.forEach { section -> add(SettingsRoute.Section(section)) }
             }
         }
     }
-    val selectedIndex = rows.indexOfFirst { it.first == selection }.coerceAtLeast(0)
+    val selectedIndex = rows.indexOfFirst { it == selection }.coerceAtLeast(0)
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     androidx.compose.runtime.LaunchedEffect(Unit) {
         // Keep the selected row in view. Focus is NOT pulled here any more
@@ -577,8 +573,11 @@ private fun SettingsTvRail(
         ),
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
-        itemsIndexed(rows, key = { _, row -> encodeSettingsRoute(row.first) }) { index, row ->
-            val (route, title, subtitle) = row
+        itemsIndexed(rows, key = { _, route -> encodeSettingsRoute(route) }) { index, route ->
+            val title = if (route is SettingsRoute.Section) route.section.title
+            else stringResource(R.string.settings2_playlists)
+            val subtitle = if (route is SettingsRoute.Section) settingsSectionSubtitle(route.section, syncEnabled)
+            else activePlaylistName
             SettingsNavRow(
                 title = title,
                 subtitle = subtitle,
@@ -610,7 +609,7 @@ private fun settingsRouteIcon(route: SettingsRoute) = when (route) {
 private fun SettingsPanePlaceholder() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
         androidx.compose.material3.Text(
-            text = "Select a setting",
+            text = stringResource(R.string.settings2_select_a_setting),
             style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
             color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
         )

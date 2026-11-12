@@ -1,5 +1,6 @@
 package com.aeriotv.android.feature.multiview
 
+import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.launch
 import com.aeriotv.android.ui.theme.decorTertiary
 import com.aeriotv.android.ui.scale.subtext
@@ -369,7 +370,7 @@ fun MultiviewScreen(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = "No tiles selected.",
+                text = stringResource(R.string.multiview_no_tiles),
                 style = MaterialTheme.typography.bodyMedium.subtext(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -529,10 +530,10 @@ fun MultiviewScreen(
                 // On TV the tile gestures are D-pad: arrows move, OK picks
                 // audio, BACK exits. Surface that so a remote user isn't
                 // hunting for the touch-only X.
-                relocatingIndex != null -> if (isTvDevice) "Move Tile · arrows to move · OK or Back to finish" else "Tap a tile to swap"
-                fullscreenIndex != null -> if (isTvDevice) "Back to exit fullscreen" else "Double-tap to exit fullscreen"
-                isTvDevice -> "${selected.size} / ${storeHandle.maxTiles} · Back to exit"
-                else -> "${selected.size} / ${storeHandle.maxTiles}"
+                relocatingIndex != null -> stringResource(if (isTvDevice) R.string.multiview_hint_move_tv else R.string.multiview_hint_move_phone)
+                fullscreenIndex != null -> stringResource(if (isTvDevice) R.string.multiview_hint_fullscreen_tv else R.string.multiview_hint_fullscreen_phone)
+                isTvDevice -> stringResource(R.string.multiview_hint_count_tv, selected.size, storeHandle.maxTiles)
+                else -> stringResource(R.string.multiview_hint_count, selected.size, storeHandle.maxTiles)
             }
             val labelHighlighted = relocatingIndex != null || fullscreenIndex != null
             Text(
@@ -577,7 +578,7 @@ fun MultiviewScreen(
                     }) {
                         Icon(
                             imageVector = Icons.Filled.GridView,
-                            contentDescription = "Grid layout",
+                            contentDescription = stringResource(R.string.multiview_grid_layout),
                             tint = Color.White,
                         )
                     }
@@ -598,7 +599,7 @@ fun MultiviewScreen(
                     IconButton(onClick = { addPickerOpen = true }) {
                         Icon(
                             imageVector = Icons.Filled.Add,
-                            contentDescription = "Add streams",
+                            contentDescription = stringResource(R.string.multiview_add_streams),
                             tint = Color.White,
                         )
                     }
@@ -609,10 +610,10 @@ fun MultiviewScreen(
 
     if (exitDialogOpen) {
         TvActionMenuDialog(
-            title = "Leave Multiview?",
+            title = stringResource(R.string.multiview_leave_title),
             actions = listOf(
                 TvMenuAction(
-                    label = "Add streams",
+                    label = stringResource(R.string.multiview_add_streams),
                     icon = Icons.Filled.Add,
                     // Reopen the picker over the running grid. Existing tiles
                     // stay in the store and keep playing; the picker APPENDS.
@@ -622,7 +623,7 @@ fun MultiviewScreen(
                 // streams in this menu and on the grid, a keep-tiles-and-
                 // leave option just duplicated the system Back flow.
                 TvMenuAction(
-                    label = "Exit Multiview",
+                    label = stringResource(R.string.multiview_exit),
                     icon = Icons.Outlined.Close,
                     destructive = true,
                     // Only FLAG the clear here: clearing while the nav pop
@@ -694,7 +695,7 @@ fun MultiviewScreen(
                 if (selected.size < storeHandle.maxTiles) {
                     add(
                         TvMenuAction(
-                            label = "Add Channel",
+                            label = stringResource(R.string.multiview_add_channel),
                             icon = Icons.Filled.Add,
                             onClick = { addPickerOpen = true },
                         ),
@@ -707,7 +708,7 @@ fun MultiviewScreen(
                 // conditional Return to Live for THIS tile's player.
                 add(
                     TvMenuAction(
-                        label = "Playback",
+                        label = stringResource(R.string.multiview_playback),
                         icon = Icons.Filled.PlayArrow,
                         onClick = { playbackMenuIndex = menuIdx },
                     ),
@@ -716,7 +717,7 @@ fun MultiviewScreen(
                 // 2026-08-28 - it re-points the tile at another CHANNEL).
                 add(
                     TvMenuAction(
-                        label = "Change Channel",
+                        label = stringResource(R.string.multiview_change_channel),
                         icon = Icons.Filled.SwapHoriz,
                         onClick = {
                             swapTargetTileId = menuTile.id
@@ -726,7 +727,7 @@ fun MultiviewScreen(
                 )
                 add(
                     TvMenuAction(
-                        label = "Full-Screen in Grid",
+                        label = stringResource(R.string.multiview_fullscreen_in_grid),
                         icon = Icons.Filled.Fullscreen,
                         onClick = {
                             // First D-pad entry point to the existing mode
@@ -740,7 +741,7 @@ fun MultiviewScreen(
                 )
                 add(
                     TvMenuAction(
-                        label = if (isSpotlit) "Remove Spotlight" else "Spotlight This Tile",
+                        label = stringResource(if (isSpotlit) R.string.multiview_remove_spotlight else R.string.multiview_spotlight_tile),
                         icon = Icons.Filled.ViewSidebar,
                         onClick = {
                             if (isSpotlit) {
@@ -776,7 +777,7 @@ fun MultiviewScreen(
                     val activeMode = effectiveMode == mode
                     add(
                         TvMenuAction(
-                            label = "Layout: ${mode.displayName}",
+                            label = stringResource(R.string.multiview_layout_value, stringResource(mode.labelRes)),
                             icon = if (activeMode) Icons.Filled.Check else mode.menuIcon(),
                             onClick = {
                                 settingsVm.setMultiviewLayoutMode(mode.key)
@@ -788,7 +789,7 @@ fun MultiviewScreen(
                 if (menuAudioTracks.size > 1) {
                     add(
                         TvMenuAction(
-                            label = "Audio Track",
+                            label = stringResource(R.string.multiview_audio_track),
                             icon = Icons.Filled.Audiotrack,
                             onClick = { audioTrackTileIndex = menuIdx },
                         ),
@@ -797,7 +798,7 @@ fun MultiviewScreen(
                 if (menuSubtitleTracks.isNotEmpty()) {
                     add(
                         TvMenuAction(
-                            label = "Subtitle Track",
+                            label = stringResource(R.string.multiview_subtitle_track),
                             icon = Icons.Filled.Subtitles,
                             onClick = { subtitleTileIndex = menuIdx },
                         ),
@@ -811,7 +812,7 @@ fun MultiviewScreen(
                     val scrubOn = menuIdx in scrubberTiles
                     add(
                         TvMenuAction(
-                            label = if (scrubOn) "Hide Scrubber" else "Show Scrubber",
+                            label = stringResource(if (scrubOn) R.string.multiview_hide_scrubber else R.string.multiview_show_scrubber),
                             icon = Icons.Filled.Timeline,
                             onClick = {
                                 scrubberTiles = if (scrubOn) scrubberTiles - menuIdx
@@ -822,7 +823,7 @@ fun MultiviewScreen(
                 }
                 add(
                     TvMenuAction(
-                        label = "Move Tile",
+                        label = stringResource(R.string.multiview_move_tile),
                         icon = Icons.Filled.OpenWith,
                         onClick = {
                             relocatingIndex = menuIdx
@@ -832,7 +833,7 @@ fun MultiviewScreen(
                 )
                 add(
                     TvMenuAction(
-                        label = "Remove",
+                        label = stringResource(R.string.multiview_remove),
                         icon = Icons.Outlined.Close,
                         destructive = true,
                         onClick = {
@@ -862,11 +863,11 @@ fun MultiviewScreen(
     if (pbIdx != null && pbTile != null) {
         val pbPlayer = tilePlayers[pbIdx]
         TvActionMenuDialog(
-            title = "Playback",
+            title = stringResource(R.string.multiview_playback),
             actions = buildList {
                 add(
                     TvMenuAction(
-                        label = "RW 60s",
+                        label = stringResource(R.string.multiview_rw_60),
                         icon = Icons.Filled.FastRewind,
                         onClick = {
                             pbPlayer?.let { it.seekTo((it.currentPosition - 60_000L).coerceAtLeast(0L)) }
@@ -875,7 +876,7 @@ fun MultiviewScreen(
                 )
                 add(
                     TvMenuAction(
-                        label = if (pbPlayer?.playWhenReady == false) "Play" else "Pause",
+                        label = stringResource(if (pbPlayer?.playWhenReady == false) R.string.common_play else R.string.common_pause),
                         icon = if (pbPlayer?.playWhenReady == false) Icons.Filled.PlayArrow else Icons.Filled.Pause,
                         onClick = {
                             pbPlayer?.let { it.playWhenReady = !it.playWhenReady }
@@ -884,7 +885,7 @@ fun MultiviewScreen(
                 )
                 add(
                     TvMenuAction(
-                        label = "FF 60s",
+                        label = stringResource(R.string.multiview_ff_60),
                         icon = Icons.Filled.FastForward,
                         onClick = {
                             pbPlayer?.let {
@@ -900,7 +901,7 @@ fun MultiviewScreen(
                 if (behindLive) {
                     add(
                         TvMenuAction(
-                            label = "Return to Live",
+                            label = stringResource(R.string.multiview_return_to_live),
                             icon = Icons.Filled.LiveTv,
                             onClick = {
                                 pbPlayer?.let {
@@ -978,7 +979,7 @@ private fun BoxScope.CloseButton(onClose: () -> Unit) {
         IconButton(onClick = onClose) {
             Icon(
                 imageVector = Icons.Filled.Close,
-                contentDescription = "Exit multiview",
+                contentDescription = stringResource(R.string.multiview_exit_cd),
                 tint = Color.White,
             )
         }
@@ -1374,7 +1375,7 @@ private fun BoxScope.TileFinishedOverlay(
         )
         Spacer(Modifier.height(6.dp))
         Text(
-            text = "Finished",
+            text = stringResource(R.string.multiview_finished),
             style = MaterialTheme.typography.labelLarge,
             color = Color.White,
             fontWeight = FontWeight.SemiBold,
@@ -1397,7 +1398,7 @@ private fun BoxScope.TileFinishedOverlay(
                     .padding(horizontal = 14.dp, vertical = 8.dp),
             ) {
                 Text(
-                    text = "Replay",
+                    text = stringResource(R.string.multiview_replay),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onPrimary,
                     fontWeight = FontWeight.SemiBold,
@@ -1411,7 +1412,7 @@ private fun BoxScope.TileFinishedOverlay(
                     .padding(horizontal = 14.dp, vertical = 8.dp),
             ) {
                 Text(
-                    text = "Remove",
+                    text = stringResource(R.string.multiview_remove),
                     style = MaterialTheme.typography.labelMedium,
                     color = Color.White,
                     fontWeight = FontWeight.SemiBold,
@@ -2142,7 +2143,7 @@ private fun ExoTile(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = "Playback Problem",
+                text = stringResource(R.string.multiview_playback_problem),
                 style = MaterialTheme.typography.titleSmall,
                 color = Color.White,
             )
@@ -2157,7 +2158,7 @@ private fun ExoTile(
                 tileRetrySerial.intValue += 1
                 tileRetryRef.value?.invoke()
             }) {
-                Text("Retry")
+                Text(stringResource(R.string.common_retry))
             }
         }
     }

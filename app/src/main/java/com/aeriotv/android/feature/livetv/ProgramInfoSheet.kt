@@ -83,6 +83,8 @@ import kotlinx.coroutines.withContext
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * Read-only ModalBottomSheet showing programme detail. Mirrors iOS
@@ -262,6 +264,8 @@ private fun TvProgramInfoCard(
     enrichedRepeat: Boolean,
 ) {
     val colors = MaterialTheme.colorScheme
+    val untitled = stringResource(R.string.livetv_untitled)
+    val onNow = stringResource(R.string.livetv_badge_on_now)
     Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
         // Same slot as the guide preview banner (ProgramArtSlot, Logan
         // 2026-09-15): same size on both surfaces, whole image, no crop.
@@ -275,7 +279,7 @@ private fun TvProgramInfoCard(
                 color = colors.onSurfaceVariant,
             )
             Text(
-                text = target.title.ifBlank { "Untitled" },
+                text = target.title.ifBlank { untitled },
                 fontSize = 19.sp, lineHeight = 23.sp, fontWeight = FontWeight.Bold, color = colors.onBackground,
             )
             target.subTitle?.takeIf { !subtitleIsRedundant(it, target.title, target.description) }?.let { sub ->
@@ -283,7 +287,7 @@ private fun TvProgramInfoCard(
             }
             val showEpgBadges = LocalShowEpgBadges.current
             val badges = buildList {
-                if (target.isLiveNow() && !target.isLiveBroadcast) add(EpgFlag("ON NOW", EpgLiveRed))
+                if (target.isLiveNow() && !target.isLiveBroadcast) add(EpgFlag(onNow, EpgLiveRed))
                 if (showEpgBadges) {
                     val hidden = com.aeriotv.android.core.ui.LocalHiddenEpgBadges.current
                     addAll(
@@ -291,7 +295,7 @@ private fun TvProgramInfoCard(
                             isNew = target.isNew, isLiveBroadcast = target.isLiveBroadcast,
                             isPremiere = target.isPremiere, isFinale = target.isFinale,
                             isRepeat = target.isRepeat || enrichedRepeat,
-                        ).filter { it.label !in hidden },
+                        ).filter { it.key !in hidden },
                     )
                 }
             }
@@ -305,10 +309,10 @@ private fun TvProgramInfoCard(
             val timeFormat = remember(clockMode) { ClockFormat.short(clockMode) }
             val dateFormat = remember { DateFormat.getDateInstance(DateFormat.MEDIUM) }
             Row(horizontalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.padding(top = 3.dp)) {
-                TvInfoColumn("Airs", "${timeFormat.format(Date(target.startMillis))} \u2013 ${timeFormat.format(Date(target.endMillis))}")
-                TvInfoColumn("Date", dateFormat.format(Date(target.startMillis)))
-                TvInfoColumn("Duration", formatDuration(target.endMillis - target.startMillis))
-                target.seasonEpisodeLabel()?.let { TvInfoColumn("Episode", it) }
+                TvInfoColumn(stringResource(R.string.livetv_info_airs), "${timeFormat.format(Date(target.startMillis))} \u2013 ${timeFormat.format(Date(target.endMillis))}")
+                TvInfoColumn(stringResource(R.string.livetv_info_date), dateFormat.format(Date(target.startMillis)))
+                TvInfoColumn(stringResource(R.string.livetv_info_duration), formatDuration(target.endMillis - target.startMillis))
+                target.seasonEpisodeLabel()?.let { TvInfoColumn(stringResource(R.string.livetv_info_episode), it) }
             }
             target.recording?.let { facts ->
                 // tvOS: one row, Status included; the Window value wraps
@@ -318,8 +322,10 @@ private fun TvProgramInfoCard(
                     verticalAlignment = Alignment.Top,
                     modifier = Modifier.padding(top = 5.dp),
                 ) {
+                    val windowLabel = stringResource(R.string.core_recording_fact_window)
+                    val windowSep = stringResource(R.string.core_recording_fact_window_range, "", "")
                     facts.rows().forEach { (label, value) ->
-                        TvInfoColumn(label, if (label == "Window") value.replace(" to ", " to\n") else value)
+                        TvInfoColumn(label, if (label == windowLabel) value.replace(windowSep, windowSep.trimEnd() + "\n") else value)
                     }
                 }
             }
@@ -331,7 +337,7 @@ private fun TvProgramInfoCard(
     var descFocused by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { runCatching { descFocus.requestFocus() } }
     Text(
-        text = if (target.description.isBlank()) "No program description provided in XMLTV." else target.description,
+        text = if (target.description.isBlank()) stringResource(R.string.livetv_no_description) else target.description,
         fontSize = 12.sp, lineHeight = 16.sp,
         fontStyle = if (target.description.isBlank()) FontStyle.Italic else FontStyle.Normal,
         color = if (target.description.isBlank()) colors.tertiary else colors.onBackground,
@@ -412,7 +418,7 @@ private fun ProgramInfoBody(
             // (badges no longer share its row, which had squeezed a long
             // single-word title into ugly mid-word breaks like "Somethi/ng").
             Text(
-                text = target.title.ifBlank { "Untitled" },
+                text = target.title.ifBlank { stringResource(R.string.livetv_untitled) },
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.Bold,
@@ -430,7 +436,7 @@ private fun ProgramInfoBody(
             val showEpgBadges = LocalShowEpgBadges.current
             val badges = buildList {
                 if (target.isLiveNow() && !target.isLiveBroadcast) {
-                    add(EpgFlag("ON NOW", EpgLiveRed))
+                    add(EpgFlag(stringResource(R.string.livetv_badge_on_now), EpgLiveRed))
                 }
                 if (showEpgBadges) {
                     val hidden = com.aeriotv.android.core.ui.LocalHiddenEpgBadges.current
@@ -441,7 +447,7 @@ private fun ProgramInfoBody(
                             isPremiere = target.isPremiere,
                             isFinale = target.isFinale,
                             isRepeat = target.isRepeat || enrichedRepeat,
-                        ).filter { it.label !in hidden },
+                        ).filter { it.key !in hidden },
                     )
                 }
             }
@@ -510,11 +516,11 @@ private fun ProgramInfoBody(
     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
     Spacer(Modifier.height(sectionGap))
 
-    SectionLabel("Description")
+    SectionLabel(stringResource(R.string.livetv_info_description))
     Spacer(Modifier.height(8.dp))
     if (target.description.isBlank()) {
         Text(
-            text = "No program description provided in XMLTV.",
+            text = stringResource(R.string.livetv_no_description),
             style = MaterialTheme.typography.bodyMedium.subtext(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontStyle = FontStyle.Italic,
@@ -532,13 +538,13 @@ private fun ProgramInfoBody(
         val (metadata, genres) = tokens.partition { it.lowercase(Locale.getDefault()) in METADATA_TOKENS }
         if (metadata.isNotEmpty()) {
             Spacer(Modifier.height(sectionGap))
-            SectionLabel("Metadata")
+            SectionLabel(stringResource(R.string.livetv_info_metadata))
             Spacer(Modifier.height(8.dp))
             CategoryPillsFlow(tokens = metadata)
         }
         if (genres.isNotEmpty()) {
             Spacer(Modifier.height(sectionGap))
-            SectionLabel("Categories")
+            SectionLabel(stringResource(R.string.livetv_info_categories))
             Spacer(Modifier.height(8.dp))
             CategoryPillsFlow(tokens = genres)
         }
@@ -555,12 +561,12 @@ private fun InfoColumnsRow(target: ProgramInfoTarget, rowPadding: Dp) {
     val duration = formatDuration(target.endMillis - target.startMillis)
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        InfoRow(label = "Channel", value = target.channelName, verticalPadding = rowPadding)
-        InfoRow(label = "Airs", value = airs, verticalPadding = rowPadding)
-        InfoRow(label = "Date", value = date, verticalPadding = rowPadding)
-        InfoRow(label = "Duration", value = duration, verticalPadding = rowPadding)
+        InfoRow(label = stringResource(R.string.livetv_info_channel), value = target.channelName, verticalPadding = rowPadding)
+        InfoRow(label = stringResource(R.string.livetv_info_airs), value = airs, verticalPadding = rowPadding)
+        InfoRow(label = stringResource(R.string.livetv_info_date), value = date, verticalPadding = rowPadding)
+        InfoRow(label = stringResource(R.string.livetv_info_duration), value = duration, verticalPadding = rowPadding)
         target.seasonEpisodeLabel()?.let {
-            InfoRow(label = "Episode", value = it, verticalPadding = rowPadding)
+            InfoRow(label = stringResource(R.string.livetv_info_episode), value = it, verticalPadding = rowPadding)
         }
     }
 }
@@ -616,13 +622,15 @@ interface ProgramInfoEntryPoint {
     fun appPreferences(): AppPreferences
 }
 
+@Composable
 private fun formatDuration(millis: Long): String {
     if (millis <= 0L) return "–"
     val totalMinutes = ((millis + 30_000L) / 60_000L).toInt()
-    if (totalMinutes < 60) return "$totalMinutes min"
+    if (totalMinutes < 60) return stringResource(R.string.livetv_duration_minutes, totalMinutes)
     val hours = totalMinutes / 60
     val mins = totalMinutes % 60
-    return if (mins == 0) "$hours h" else "$hours h $mins min"
+    return if (mins == 0) stringResource(R.string.livetv_duration_hours, hours)
+    else stringResource(R.string.livetv_duration_hours_minutes, hours, mins)
 }
 
 /**

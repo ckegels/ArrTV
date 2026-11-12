@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.multiview
 
+import com.aeriotv.android.R
+import androidx.annotation.StringRes
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import kotlin.math.ceil
@@ -14,18 +16,18 @@ import kotlin.math.sqrt
  * `displayName` is the menu label. Ported 1:1 from
  * `Features/Multiview/MultiviewGridMath.swift`.
  */
-enum class MultiviewLayoutMode(val key: String, val displayName: String) {
+enum class MultiviewLayoutMode(val key: String, val displayName: String, @StringRes val labelRes: Int) {
     /** The built-in default layout for the current count (layout1..layout9). */
-    Auto("auto", "Default"),
+    Auto("auto", "Default", R.string.multiview_layout_default),
 
     /** Balanced equal-size grid, landscape-preferred, last partial row centered. */
-    EvenGrid("evenGrid", "Even Grid"),
+    EvenGrid("evenGrid", "Even Grid", R.string.multiview_layout_even_grid),
 
     /** One large hero tile on the left with the rest stacked on the right. */
-    Spotlight("spotlight", "Spotlight"),
+    Spotlight("spotlight", "Spotlight", R.string.multiview_layout_spotlight),
 
     /** 6 only: the 5-tile hero layout with the empty bottom-right cell filled. */
-    HeroCorner("heroCorner", "Hero + Corner"),
+    HeroCorner("heroCorner", "Hero + Corner", R.string.multiview_layout_hero_corner),
 
     /**
      * One full-width column: every tile stacked top to bottom, equal heights.
@@ -36,7 +38,7 @@ enum class MultiviewLayoutMode(val key: String, val displayName: String) {
      * shape entirely: an explicit pick should stack in either orientation, not
      * silently turn back into columns on rotation.
      */
-    Stacked("stacked", "Stacked");
+    Stacked("stacked", "Stacked", R.string.multiview_layout_stacked);
 
     companion object {
         fun from(key: String?): MultiviewLayoutMode =

@@ -57,7 +57,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.aeriotv.android.R
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.aeriotv.android.core.pip.findActivity
@@ -147,7 +149,7 @@ fun SyncSettingsScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        SettingsDetailTopBar(title = "Sync", onBack = onBack)
+        SettingsDetailTopBar(title = stringResource(R.string.settings2_section_sync), onBack = onBack)
 
         androidx.compose.foundation.layout.Box(
             modifier = Modifier.fillMaxSize(),
@@ -165,13 +167,13 @@ fun SyncSettingsScreen(
                     val email = viewModel.signInWithGoogle(activity)
                     if (email == null) {
                         inFlight = false
-                        Toast.makeText(context, "Sign-in cancelled or failed.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.settings2_sync_sign_in_failed), Toast.LENGTH_SHORT).show()
                         return@launch
                     }
                     when (val driveResult = viewModel.requestDriveScope()) {
                         is DriveSyncManager.RequestResult.Authorized -> {
                             inFlight = false
-                            Toast.makeText(context, "Signed in as $email", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.settings2_sync_signed_in_as, email), Toast.LENGTH_SHORT).show()
                         }
                         is DriveSyncManager.RequestResult.NeedsConsent -> {
                             consentLauncher.launch(
@@ -182,7 +184,7 @@ fun SyncSettingsScreen(
                         DriveSyncManager.RequestResult.Failed,
                         null -> {
                             inFlight = false
-                            Toast.makeText(context, "Drive authorization failed.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.settings2_sync_drive_auth_failed), Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
@@ -211,19 +213,19 @@ fun SyncSettingsScreen(
             }
             item {
                 SettingsSection(
-                    header = "Drive Sync",
-                    footer = "Playlists, watch progress, reminders, app preferences and credentials sync via your Drive AppData folder. Files are scoped per-app and never appear in your main Drive UI.",
+                    header = stringResource(R.string.settings2_sync_drive_header),
+                    footer = stringResource(R.string.settings2_sync_drive_footer),
                 ) {
                     AccountRow(
                         signedIn = signedIn,
                         email = accountEmail,
                     )
                     SettingsToggleRow(
-                        title = "Sync enabled",
+                        title = stringResource(R.string.settings2_sync_enabled),
                         subtitle = if (signedIn)
-                            "Auto-syncing the categories you've toggled below."
+                            stringResource(R.string.settings2_sync_enabled_subtitle_signed_in)
                         else
-                            "Sign in below, then enable sync to push and pull data.",
+                            stringResource(R.string.settings2_sync_enabled_subtitle_signed_out),
                         checked = masterEnabled,
                         onCheckedChange = { enabled ->
                             viewModel.setMasterEnabled(enabled)
@@ -245,7 +247,7 @@ fun SyncSettingsScreen(
                             enabled = !inFlight,
                             onClick = {
                                 viewModel.signOut()
-                                Toast.makeText(context, "Signed out of Drive.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.settings2_sync_signed_out), Toast.LENGTH_SHORT).show()
                             },
                         )
                     } else {
@@ -272,21 +274,18 @@ fun SyncSettingsScreen(
 
             item {
                 SettingsSection(
-                    header = "Categories",
+                    header = stringResource(R.string.settings2_sync_categories_header),
                     // Glitzbr had to ask what triggers a sync, so say it.
                     // Android is NOT Apple's model: no live KVS push, just
                     // DriveSyncWorker every PERIOD_HOURS on an unmetered
                     // connection, plus the manual buttons below.
-                    footer = "Choose what syncs across your devices. Syncing runs " +
-                        "automatically about every 6 hours while you are on Wi-Fi and " +
-                        "the battery is not low. Use Push or Pull below when you want " +
-                        "it to happen right now.",
+                    footer = stringResource(R.string.settings2_sync_categories_footer),
                 ) {
                     SyncCategory.entries.forEach { category ->
                         val enabled by viewModel.categoryEnabled(category).collectAsStateWithLifecycle(initialValue = true)
                         SettingsToggleRow(
-                            title = category.displayName,
-                            subtitle = category.subtitle,
+                            title = stringResource(category.displayNameRes),
+                            subtitle = stringResource(category.subtitleRes),
                             checked = enabled,
                             onCheckedChange = { viewModel.setCategoryEnabled(category, it) },
                         )
@@ -299,10 +298,8 @@ fun SyncSettingsScreen(
                             val shareRemoteMap by viewModel.syncRemoteControlMap
                                 .collectAsStateWithLifecycle(initialValue = true)
                             SettingsToggleRow(
-                                title = "Remote Button Map",
-                                subtitle = "Part of App Preferences. Turn off on a device whose " +
-                                    "remote differs from your others. This choice stays on this " +
-                                    "device and is not shared.",
+                                title = stringResource(R.string.settings2_sync_remote_map),
+                                subtitle = stringResource(R.string.settings2_sync_remote_map_subtitle),
                                 checked = shareRemoteMap,
                                 onCheckedChange = { viewModel.setSyncRemoteControlMap(it) },
                             )
@@ -314,8 +311,8 @@ fun SyncSettingsScreen(
             if (signedIn) {
                 item {
                     SettingsSection(
-                        header = "Actions",
-                        footer = "Push overwrites the Drive backup with this device; Pull overwrites this device with the backup. Last Push: ${formatTimestamp(lastPush)}. Last Pull: ${formatTimestamp(lastPull)}.",
+                        header = stringResource(R.string.settings2_sync_actions_header),
+                        footer = stringResource(R.string.settings2_sync_actions_footer, formatTimestamp(lastPush), formatTimestamp(lastPull)),
                     ) {
                         // Inline spinner + result line replaced the old Toasts,
                         // which never surfaced on Android TV (rows looked dead).
@@ -329,8 +326,8 @@ fun SyncSettingsScreen(
                         // wants every manual sync to state its direction. The
                         // periodic background worker still does push-then-pull.
                         SettingsActionRow(
-                            label = "Push Config to Drive",
-                            subtitle = "Overwrite the Drive backup with this device's setup",
+                            label = stringResource(R.string.settings2_sync_push),
+                            subtitle = stringResource(R.string.settings2_sync_push_subtitle),
                             leadingIcon = Icons.Filled.CloudUpload,
                             running = pushStatus is SyncSettingsViewModel.ActionStatus.Running,
                             statusLine = when (val s = pushStatus) {
@@ -345,8 +342,8 @@ fun SyncSettingsScreen(
                             },
                         )
                         SettingsActionRow(
-                            label = "Pull Config from Drive",
-                            subtitle = "Overwrite this device with the Drive backup",
+                            label = stringResource(R.string.settings2_sync_pull),
+                            subtitle = stringResource(R.string.settings2_sync_pull_subtitle),
                             leadingIcon = Icons.Filled.CloudDownload,
                             running = pullStatus is SyncSettingsViewModel.ActionStatus.Running,
                             statusLine = when (val s = pullStatus) {
@@ -361,7 +358,7 @@ fun SyncSettingsScreen(
                             },
                         )
                         SettingsActionRow(
-                            label = "Clear Drive Data",
+                            label = stringResource(R.string.settings2_sync_clear),
                             leadingIcon = Icons.Filled.CloudOff,
                             destructive = true,
                             running = clearStatus is SyncSettingsViewModel.ActionStatus.Running,
@@ -386,17 +383,15 @@ fun SyncSettingsScreen(
     if (pushConfirmOpen) {
         com.aeriotv.android.ui.scale.AlertDialog(
             onDismissRequest = { pushConfirmOpen = false },
-            title = { Text("Push Config to Drive?") },
+            title = { Text(stringResource(R.string.settings2_sync_push_confirm_title)) },
             text = {
                 Text(
-                    "This replaces the entire Drive backup with this device's " +
-                        "current configuration. Other devices that pull later " +
-                        "receive this copy.",
+                    stringResource(R.string.settings2_sync_push_confirm_text),
                 )
             },
             confirmButton = {
                 SettingsDialogTextButton(
-                    label = "Push to Drive",
+                    label = stringResource(R.string.settings2_sync_push_confirm_button),
                     onClick = {
                         pushConfirmOpen = false
                         viewModel.runPushOnly()
@@ -404,7 +399,7 @@ fun SyncSettingsScreen(
                 )
             },
             dismissButton = {
-                SettingsDialogTextButton(label = "Cancel", onClick = { pushConfirmOpen = false })
+                SettingsDialogTextButton(label = stringResource(R.string.common_cancel), onClick = { pushConfirmOpen = false })
             },
         )
     }
@@ -412,17 +407,15 @@ fun SyncSettingsScreen(
     if (pullConfirmOpen) {
         com.aeriotv.android.ui.scale.AlertDialog(
             onDismissRequest = { pullConfirmOpen = false },
-            title = { Text("Pull Config from Drive?") },
+            title = { Text(stringResource(R.string.settings2_sync_pull_confirm_title)) },
             text = {
                 Text(
-                    "This replaces this device's playlists, preferences, and " +
-                        "watch progress with the Drive backup. The current setup " +
-                        "on this device is overwritten.",
+                    stringResource(R.string.settings2_sync_pull_confirm_text),
                 )
             },
             confirmButton = {
                 SettingsDialogTextButton(
-                    label = "Pull from Drive",
+                    label = stringResource(R.string.settings2_sync_pull_confirm_button),
                     onClick = {
                         pullConfirmOpen = false
                         viewModel.runPullOnly()
@@ -431,7 +424,7 @@ fun SyncSettingsScreen(
                 )
             },
             dismissButton = {
-                SettingsDialogTextButton(label = "Cancel", onClick = { pullConfirmOpen = false })
+                SettingsDialogTextButton(label = stringResource(R.string.common_cancel), onClick = { pullConfirmOpen = false })
             },
         )
     }
@@ -442,21 +435,15 @@ fun SyncSettingsScreen(
                 credsSyncDisclosureOpen = false
                 viewModel.markCredentialsSyncDisclosed()
             },
-            title = { Text("Credentials sync to your Drive") },
+            title = { Text(stringResource(R.string.settings2_sync_creds_title)) },
             text = {
                 Text(
-                    "So your servers restore automatically on another device, AerioTV " +
-                        "includes each server's sign-in details (username, password, and API " +
-                        "key) in the Drive backup. These files live in your own Google Drive " +
-                        "app data, are reachable only by AerioTV, and never appear in your " +
-                        "Drive UI, but they are stored without an extra password. On this " +
-                        "device the same credentials are encrypted at rest.\n\n" +
-                        "You can turn this off any time with the Credentials toggle below.",
+                    stringResource(R.string.settings2_sync_creds_text),
                 )
             },
             confirmButton = {
                 SettingsDialogTextButton(
-                    label = "Got it",
+                    label = stringResource(R.string.settings2_sync_got_it),
                     onClick = {
                         credsSyncDisclosureOpen = false
                         viewModel.markCredentialsSyncDisclosed()
@@ -472,20 +459,15 @@ fun SyncSettingsScreen(
     if (notConfiguredDialogOpen) {
         com.aeriotv.android.ui.scale.AlertDialog(
             onDismissRequest = { notConfiguredDialogOpen = false },
-            title = { Text("Drive Sync isn't set up yet") },
+            title = { Text(stringResource(R.string.settings2_sync_not_set_up)) },
             text = {
                 Text(
-                    "This AerioTV build doesn't have a Google Cloud OAuth Web Client ID baked in, " +
-                        "so the Sign in with Google sheet can't load.\n\n" +
-                        "To enable Drive Sync on your own build, create an OAuth Web Client ID in " +
-                        "Google Cloud Console, register the signing-cert SHA-1 of this APK as an " +
-                        "Android Client in the same project, then add the line " +
-                        "GOOGLE_DRIVE_WEB_CLIENT_ID=<your-id> to local.properties before rebuilding.",
+                    stringResource(R.string.settings2_sync_not_configured_text),
                 )
             },
             confirmButton = {
                 SettingsDialogTextButton(
-                    label = "Got it",
+                    label = stringResource(R.string.settings2_sync_got_it),
                     onClick = { notConfiguredDialogOpen = false },
                 )
             },
@@ -522,16 +504,14 @@ private fun SignedOutWelcomeBanner() {
         Spacer(Modifier.size(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Drive Sync isn't set up yet",
+                text = stringResource(R.string.settings2_sync_not_set_up),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(Modifier.height(2.dp))
             Text(
-                text = "Select Sign in with Google below to connect your account. AerioTV will " +
-                    "then keep your playlists, watch progress, reminders, and preferences in " +
-                    "sync across every device signed into the same Google account.",
+                text = stringResource(R.string.settings2_sync_welcome_text),
                 style = MaterialTheme.typography.labelSmall.subtext(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -548,9 +528,7 @@ private fun SignedOutWelcomeBanner() {
 @Composable
 private fun DeveloperConfigHint() {
     Text(
-        text = "This build doesn't have a Google Cloud OAuth client configured, so " +
-            "Sign in with Google is disabled. Add GOOGLE_DRIVE_WEB_CLIENT_ID to " +
-            "local.properties and register the signing-cert SHA-1 in the same Cloud project.",
+        text = stringResource(R.string.settings2_sync_dev_config_hint),
         style = MaterialTheme.typography.labelSmall.subtext(),
         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f),
         modifier = Modifier.padding(horizontal = 4.dp),
@@ -590,7 +568,7 @@ private fun AccountRow(signedIn: Boolean, email: String) {
         Spacer(Modifier.size(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = if (signedIn) "Signed in to Drive" else "Not signed in",
+                text = if (signedIn) stringResource(R.string.settings2_sync_signed_in_to_drive) else stringResource(R.string.settings2_sync_not_signed_in),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.Medium,
@@ -598,8 +576,8 @@ private fun AccountRow(signedIn: Boolean, email: String) {
             Text(
                 text = when {
                     signedIn && email.isNotBlank() -> email
-                    signedIn -> "Account connected"
-                    else -> "Sign in to start syncing across devices"
+                    signedIn -> stringResource(R.string.settings2_sync_account_connected)
+                    else -> stringResource(R.string.settings2_sync_sign_in_prompt)
                 },
                 style = MaterialTheme.typography.bodySmall.subtext(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -628,7 +606,7 @@ private fun SignOutButton(enabled: Boolean, onClick: () -> Unit) {
         horizontalArrangement = Arrangement.Center,
     ) {
         Text(
-            text = "Sign out",
+            text = stringResource(R.string.settings2_sync_sign_out),
             color = if (enabled) MaterialTheme.colorScheme.error
             else MaterialTheme.colorScheme.error.copy(alpha = 0.5f),
             style = MaterialTheme.typography.labelLarge,
@@ -685,7 +663,7 @@ private fun SignInWithGoogleButton(enabled: Boolean, onClick: () -> Unit) {
         )
         Spacer(Modifier.size(12.dp))
         Text(
-            text = "Sign in with Google",
+            text = stringResource(R.string.settings2_sync_sign_in_with_google),
             color = fg,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Medium,
@@ -696,8 +674,9 @@ private fun SignInWithGoogleButton(enabled: Boolean, onClick: () -> Unit) {
 // Phase 61b: removed the inline GoogleGMark approximation — the button now
 // renders the official four-color brand mark from res/drawable/ic_google_g.xml.
 
+@Composable
 private fun formatTimestamp(value: Long): String {
-    if (value <= 0L) return "never"
+    if (value <= 0L) return stringResource(R.string.settings2_sync_never)
     val df = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
     return df.format(Date(value))
 }

@@ -35,6 +35,8 @@ import androidx.media3.datasource.okhttp.OkHttpDataSource
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 import com.aeriotv.android.BuildConfig
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -1301,7 +1303,7 @@ class AerioExoPlayerHolder @Inject constructor(
                 "attempt=$fullRebuildAttempts settle=${settleMs}ms",
         )
         tracer.recover("$reason; rebuilding player and surface attempt=$fullRebuildAttempts")
-        liveFailover.publishServerStatus("Reconnecting...")
+        liveFailover.publishServerStatus(AppText.get(R.string.player_status_reconnecting))
         val title = lastPlayTitle
         val subtitle = lastPlaySubtitle
         val art = lastPlayArtworkUri
@@ -1481,10 +1483,7 @@ class AerioExoPlayerHolder @Inject constructor(
                 error.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED &&
                 causeChain.contains("mpeg2", ignoreCase = true)
             ) {
-                "This channel broadcasts MPEG-2 video (over-the-air TV), which " +
-                    "this device can't decode. See the OTA / HDHomeRun section of " +
-                    "the AerioTV GitHub README for a Dispatcharr Stream Profile " +
-                    "that fixes this."
+                AppText.get(R.string.player_error_mpeg2_unsupported)
             } else {
                 error.cause?.message
                     ?.let { "${error.errorCodeName}: $it" } ?: error.errorCodeName
@@ -3203,7 +3202,7 @@ class AerioExoPlayerHolder @Inject constructor(
                                 "frozen=$playheadFrozen buffered ahead ${bufferAheadNowMs}ms, " +
                                 "ingest quiet ${ingestStaleNowMs}ms ch=$currentChannelId; showing Reconnecting",
                         )
-                        liveFailover.publishServerStatus("Reconnecting...")
+                        liveFailover.publishServerStatus(AppText.get(R.string.player_status_reconnecting))
                     }
                 } else if (ingestStallStatusShown &&
                     (!stallWatchLive || playheadAdvanced)
@@ -3619,7 +3618,7 @@ class AerioExoPlayerHolder @Inject constructor(
                     "(503 \"${info.reason}\" ${now - sameChannelReopenAtMs}ms after reopen; " +
                     "retrying in ${SAME_CHANNEL_QUICK_RETRY_MS}ms)",
             )
-            liveFailover.publishServerStatus("Reconnecting...")
+            liveFailover.publishServerStatus(AppText.get(R.string.player_status_reconnecting))
             stoppingRetryJob = watchdogScope.launch {
                 delay(SAME_CHANNEL_QUICK_RETRY_MS)
                 if (lastPlayUrl != url) return@launch
@@ -3666,7 +3665,7 @@ class AerioExoPlayerHolder @Inject constructor(
                 retryAfterMs = info.retryAfterMs,
                 elapsedMs = elapsedMs,
             )
-            liveFailover.publishServerStatus("Reconnecting...")
+            liveFailover.publishServerStatus(AppText.get(R.string.player_status_reconnecting))
             Log.i(
                 TAG,
                 "[RECOVER] 503 reason=\"${info.reason}\" backing off ${waitMs}ms " +
@@ -3769,7 +3768,7 @@ class AerioExoPlayerHolder @Inject constructor(
         // watchdog's flag: that clears the moment the (stopped) player stops
         // looking live, which would blank the status through the whole wait.
         // The next tune's first byte clears it (LiveStreamFailover).
-        if (backoffMs > 0L) liveFailover.publishServerStatus("Reconnecting...")
+        if (backoffMs > 0L) liveFailover.publishServerStatus(AppText.get(R.string.player_status_reconnecting))
         cleanEndJob = watchdogScope.launch {
             // Verification first: the ONLY way this ever stops for good. A
             // non-admin account, an old server or any transport failure
@@ -3919,8 +3918,8 @@ class AerioExoPlayerHolder @Inject constructor(
         if (_lastErrorText.value == null) {
             // Quote the server when it told us why; only fall back to the
             // generic no-data line when nothing was said.
-            _lastErrorText.value = serverReason?.let { "Server: $it" }
-                ?: "No data received from the stream"
+            _lastErrorText.value = serverReason?.let { AppText.get(R.string.player_error_server_reason, it) }
+                ?: AppText.get(R.string.player_error_no_data)
         }
         _streamUnavailable.value = true
         tracer.recover("stream unavailable; stopping")

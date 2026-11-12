@@ -1,5 +1,8 @@
 package com.aeriotv.android.feature.ondemand
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import com.aeriotv.android.ui.scale.subtext
 import com.aeriotv.android.ui.theme.textAccent
 import android.content.Intent
@@ -290,7 +293,7 @@ fun MovieDetailScreen(
                     androidx.compose.material3.CircularProgressIndicator()
                 } else {
                     Text(
-                        text = "Movie not found",
+                        text = stringResource(R.string.ondemand_movie_not_found),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -351,7 +354,7 @@ fun MovieDetailScreen(
                             plot = heroPlot,
                         ) {
                             TvHeroActionButton(
-                                title = if (hasResume) "Resume" else "Play",
+                                title = stringResource(if (hasResume) R.string.media_resume else R.string.common_play),
                                 icon = Icons.Filled.PlayArrow,
                                 primary = true,
                                 modifier = Modifier
@@ -367,29 +370,29 @@ fun MovieDetailScreen(
                             )
                             if (hasResume) {
                                 TvHeroActionButton(
-                                    title = "Play from Beginning",
+                                    title = stringResource(R.string.media_play_from_beginning),
                                     icon = Icons.Filled.Replay,
                                     onClick = { onPlay(true) },
                                 )
                             }
                             if (versionOptions.size > 1) {
                                 TvHeroActionButton(
-                                    title = "Version: ${selectedVersion?.label ?: "Auto"}",
+                                    title = stringResource(R.string.ondemand_version_value, selectedVersion?.label ?: stringResource(R.string.ondemand_version_auto)),
                                     icon = Icons.Outlined.Tune,
                                     onClick = { showVersionPicker = true },
                                 )
                             }
                             heroTrailerUrl?.let { url ->
                                 TvHeroActionButton(
-                                    title = "Trailer",
+                                    title = stringResource(R.string.ondemand_trailer),
                                     icon = Icons.Outlined.PlayCircle,
                                     onClick = {
                                         if (youtubeResolvable) {
                                             trailerMenuUrl = url
                                         } else {
                                             qrLink = TvQrLink(
-                                                title = "Trailer",
-                                                caption = "Scan with your phone to watch the trailer on YouTube.",
+                                                title = context.getString(R.string.ondemand_trailer),
+                                                caption = context.getString(R.string.ondemand_scan_trailer),
                                                 url = url,
                                             )
                                         }
@@ -398,12 +401,12 @@ fun MovieDetailScreen(
                             }
                             heroTmdbUrl?.let { url ->
                                 TvHeroActionButton(
-                                    title = "TMDB",
+                                    title = stringResource(R.string.ondemand_tmdb),
                                     icon = Icons.Outlined.Info,
                                     onClick = {
                                         qrLink = TvQrLink(
-                                            title = "View on TMDB",
-                                            caption = "Scan with your phone to view this title on TMDB.",
+                                            title = context.getString(R.string.ondemand_view_on_tmdb),
+                                            caption = context.getString(R.string.ondemand_scan_tmdb),
                                             url = url,
                                         )
                                     },
@@ -435,7 +438,7 @@ fun MovieDetailScreen(
                         // Only offered when there is an actual choice (> 1
                         // provider copy on a Dispatcharr Direct Connect source).
                         versionLabel = if (versionOptions.size > 1) {
-                            selectedVersion?.label ?: "Auto"
+                            selectedVersion?.label ?: stringResource(R.string.ondemand_version_auto)
                         } else {
                             null
                         },
@@ -455,11 +458,8 @@ fun MovieDetailScreen(
                                     trailerMenuUrl = url
                                 } else {
                                     qrLink = TvQrLink(
-                                        title = label,
-                                        caption = when (label) {
-                                            "Trailer" -> "Scan with your phone to watch the trailer on YouTube."
-                                            else -> "Scan with your phone to view this title on TMDB."
-                                        },
+                                        title = context.getString(if (label == "Trailer") R.string.ondemand_trailer else R.string.ondemand_view_on_tmdb),
+                                        caption = context.getString(if (label == "Trailer") R.string.ondemand_scan_trailer else R.string.ondemand_scan_tmdb),
                                         url = url,
                                     )
                                 }
@@ -498,13 +498,13 @@ fun MovieDetailScreen(
                         // Genre then Runtime, right column Released then
                         // Director.
                         val facts = buildList {
-                            genre?.let { add("Genre" to joinGenres(it)) }
+                            genre?.let { add(stringResource(R.string.ondemand_genre) to joinGenres(it)) }
                             info?.effectiveReleaseDate?.takeIf { it.length > 4 }
-                                ?.let { add("Released" to it) }
-                            runtimeSecs?.let { add("Runtime" to formatDuration(it)) }
-                            director?.let { add("Director" to it) }
-                            if (castCrewPeople.isEmpty()) cast?.let { add("Cast" to it) }
-                            info?.effectiveCountry?.takeIf { it.isNotBlank() }?.let { add("Country" to it) }
+                                ?.let { add(stringResource(R.string.ondemand_released) to it) }
+                            runtimeSecs?.let { add(stringResource(R.string.ondemand_runtime) to formatDuration(it)) }
+                            director?.let { add(stringResource(R.string.ondemand_director) to it) }
+                            if (castCrewPeople.isEmpty()) cast?.let { add(stringResource(R.string.ondemand_cast) to it) }
+                            info?.effectiveCountry?.takeIf { it.isNotBlank() }?.let { add(stringResource(R.string.ondemand_country) to it) }
                         }
                         TvDetailsBlock(facts = facts) {
                             TmdbSourceNote(
@@ -574,10 +574,10 @@ fun MovieDetailScreen(
             // Guard never armed: this menu opens from a short press, and the
             // rows' own OK latch already ignores the opening press's release.
             TvActionMenuDialog(
-                title = "Trailer",
+                title = stringResource(R.string.ondemand_trailer),
                 actions = listOf(
                     TvMenuAction(
-                        label = "Play in YouTube",
+                        label = stringResource(R.string.ondemand_play_in_youtube),
                         icon = Icons.Filled.PlayArrow,
                         onClick = {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
@@ -586,12 +586,12 @@ fun MovieDetailScreen(
                         },
                     ),
                     TvMenuAction(
-                        label = "Show QR Code",
+                        label = stringResource(R.string.ondemand_show_qr),
                         icon = Icons.Filled.QrCode,
                         onClick = {
                             qrLink = TvQrLink(
-                                title = "Trailer",
-                                caption = "Scan with your phone to watch the trailer on YouTube.",
+                                title = context.getString(R.string.ondemand_trailer),
+                                caption = context.getString(R.string.ondemand_scan_trailer),
                                 url = url,
                             )
                         },
@@ -770,7 +770,7 @@ private fun HeroSection(
                     year = displayYear,
                     rating = displayRating,
                     durationSecs = durationSecs,
-                    typeLabel = "MOVIE",
+                    typeLabel = stringResource(R.string.ondemand_type_movie),
                 )
                 Spacer(Modifier.height(10.dp))
                 PlayCta(
@@ -884,7 +884,7 @@ private fun PlayCta(
             tint = MaterialTheme.colorScheme.onPrimary,
         )
         Text(
-            text = if (hasResume) "Resume" else "Play",
+            text = stringResource(if (hasResume) R.string.media_resume else R.string.common_play),
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onPrimary,
             fontWeight = FontWeight.Bold,
@@ -976,21 +976,21 @@ private fun InfoSection(
                 if (trailerUrl != null) {
                     PillButton(
                         icon = Icons.Outlined.PlayCircle,
-                        text = "Trailer",
+                        text = stringResource(R.string.ondemand_trailer),
                         onClick = { onOpenUrl("Trailer", trailerUrl) },
                     )
                 }
                 if (tmdbUrl != null) {
                     PillButton(
                         icon = Icons.Outlined.Info,
-                        text = "View on TMDB",
+                        text = stringResource(R.string.ondemand_view_on_tmdb),
                         onClick = { onOpenUrl("View on TMDB", tmdbUrl) },
                     )
                 }
                 if (isTv && versionLabel != null) {
                     PillButton(
                         icon = Icons.Outlined.Tune,
-                        text = "Version: $versionLabel",
+                        text = stringResource(R.string.ondemand_version_value, versionLabel),
                         onClick = onVersionClick,
                     )
                 }
@@ -1000,17 +1000,17 @@ private fun InfoSection(
             if (isTv) MetaRow(label, value) else PhoneMetaRow(label, value)
         }
         // iOS order: Genre first, then Released (VODDetailView 1305, 1313).
-        if (!genre.isNullOrBlank()) row("Genre", genre)
+        if (!genre.isNullOrBlank()) row(stringResource(R.string.ondemand_genre), genre)
         // v0.26.0 reliably populates release_date. The hero already shows the
         // year, so only surface the full date here when it carries more than a
         // bare year (month/day). Mirrors iOS VODDetailView (count > 4).
-        info?.releaseDate?.takeIf { it.length > 4 }?.let { row("Released", it) }
+        info?.releaseDate?.takeIf { it.length > 4 }?.let { row(stringResource(R.string.ondemand_released), it) }
         // The text rows duplicate the Cast & Crew photo strip when it
         // renders; they stay as the fallback when TMDB enrichment is off
         // or returned nothing for this title.
-        if (!cast.isNullOrBlank() && !castPhotosVisible) row("Cast", cast)
-        if (!director.isNullOrBlank() && !castPhotosVisible) row("Director", director)
-        if (!country.isNullOrBlank()) row("Country", country)
+        if (!cast.isNullOrBlank() && !castPhotosVisible) row(stringResource(R.string.ondemand_cast), cast)
+        if (!director.isNullOrBlank() && !castPhotosVisible) row(stringResource(R.string.ondemand_director), director)
+        if (!country.isNullOrBlank()) row(stringResource(R.string.ondemand_country), country)
         if (isTv) {
             TmdbAttribution(modifier = Modifier.padding(top = 12.dp), long = true, isTv = true)
         } else {
@@ -1042,7 +1042,7 @@ private fun CastCrewSection(
     val edgeInset = if (isTv) TV_DETAIL_INSET else 16.dp
     Column(modifier = modifier.fillMaxWidth().padding(bottom = 16.dp)) {
         Text(
-            text = "Cast & Crew",
+            text = stringResource(R.string.ondemand_cast_crew),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onBackground,
             // tvOS .headlineSmall is SEMIbold (Typography.swift).
@@ -1193,7 +1193,7 @@ private fun PillButton(
 private fun MetaRow(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         Text(
-            text = "$label:",
+            text = stringResource(R.string.ondemand_label_colon, label),
             style = MaterialTheme.typography.bodyMedium.subtext(),
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             modifier = Modifier.width(80.dp),
@@ -1225,7 +1225,7 @@ private fun FloatingBackButton(onClick: () -> Unit) {
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(R.string.common_back),
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
@@ -1250,9 +1250,9 @@ private fun formatDuration(totalSecs: Int): String {
     val h = totalSecs / 3600
     val m = (totalSecs % 3600) / 60
     return when {
-        h > 0 && m > 0 -> "${h}h ${m}m"
-        h > 0 -> "${h}h"
-        else -> "${m}m"
+        h > 0 && m > 0 -> AppText.get(R.string.ondemand_duration_h_m, h, m)
+        h > 0 -> AppText.get(R.string.ondemand_duration_h, h)
+        else -> AppText.get(R.string.ondemand_duration_m, m)
     }
 }
 
@@ -1270,7 +1270,7 @@ internal fun RelatedSection(
 ) {
     Column(modifier = modifier.fillMaxWidth().padding(bottom = 16.dp)) {
         Text(
-            text = "Related",
+            text = stringResource(R.string.ondemand_related),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onBackground,
             fontWeight = FontWeight.Bold,

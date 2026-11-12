@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.movies
 
+import com.aeriotv.android.R
+import androidx.compose.ui.res.stringResource
 import com.aeriotv.android.ui.scale.subtext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -93,7 +95,7 @@ fun <T> MediaPageScaffold(
     query: String = "",
     onQueryChange: (String) -> Unit = {},
     onSearchToggle: () -> Unit = {},
-    searchPlaceholder: String = "Search",
+    searchPlaceholder: String = stringResource(R.string.common_search),
     isSearching: Boolean = false,
     searchExtras: List<PageRow> = emptyList(),
     pills: List<String> = emptyList(),
@@ -219,9 +221,12 @@ fun <T> MediaPageScaffold(
                 if (!isSearching && pills.isNotEmpty()) {
                     item(key = "pills", span = { GridItemSpan(maxLineSpan) }) {
                         EdgeToEdgePillRow {
-                            item(key = "all") { GenrePill("All", selectedPill == null) { onPill(null) } }
+                            item(key = "all") { GenrePill(stringResource(R.string.common_all), selectedPill == null) { onPill(null) } }
                             items(pills.size, key = { pills[it] }) { i ->
-                                GenrePill(pills[i], selectedPill == pills[i]) { onPill(if (selectedPill == pills[i]) null else pills[i]) }
+                                GenrePill(
+                                    if (pills[i] == com.aeriotv.android.feature.ondemand.HIDDEN_CATEGORY) stringResource(R.string.media_hidden_category) else pills[i],
+                                    selectedPill == pills[i],
+                                ) { onPill(if (selectedPill == pills[i]) null else pills[i]) }
                             }
                         }
                     }
@@ -309,9 +314,9 @@ private fun LibraryHeader(
         }
         Spacer(Modifier.weight(1f))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (onSearch != null) HeaderCircle(Icons.Filled.Search, "Search", onSearch)
-            Box { HeaderCircle(Icons.Filled.SwapVert, "Sort", onSort); sortMenu() }
-            if (onFilter != null) HeaderCircle(Icons.Filled.FilterList, "Filter", onFilter)
+            if (onSearch != null) HeaderCircle(Icons.Filled.Search, stringResource(R.string.common_search), onSearch)
+            Box { HeaderCircle(Icons.Filled.SwapVert, stringResource(R.string.media_sort), onSort); sortMenu() }
+            if (onFilter != null) HeaderCircle(Icons.Filled.FilterList, stringResource(R.string.media_filter), onFilter)
         }
     }
 }
@@ -366,7 +371,7 @@ private fun SearchPillField(
                 leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                 trailingIcon = {
                     androidx.compose.material3.IconButton(onClick = onClose) {
-                        Icon(Icons.Filled.Cancel, contentDescription = "Clear and close search", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Icons.Filled.Cancel, contentDescription = stringResource(R.string.media_clear_and_close_search), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
                 colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(

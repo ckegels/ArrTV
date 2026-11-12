@@ -151,7 +151,7 @@ class CompanionRemoteService : MediaSessionService() {
         placeholderPosted = true
         val placeholder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("Controlling TV")
+            .setContentTitle(getString(R.string.player_companion_controlling_tv))
             .setContentIntent(remoteActivityIntent())
             .setOngoing(true)
             .build()
@@ -259,8 +259,12 @@ class CompanionRemoteService : MediaSessionService() {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (nm.getNotificationChannel(CHANNEL_ID) == null) {
             nm.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "TV remote control", NotificationManager.IMPORTANCE_LOW).apply {
-                    description = "Controls for the TV you are controlling from this phone"
+                NotificationChannel(
+                    CHANNEL_ID,
+                    getString(R.string.player_companion_channel_name),
+                    NotificationManager.IMPORTANCE_LOW,
+                ).apply {
+                    description = getString(R.string.player_companion_channel_description)
                     setShowBadge(false)
                 },
             )

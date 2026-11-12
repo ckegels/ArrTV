@@ -1,0 +1,400 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="livetv_title">TV en direct</string>
+    <string name="livetv_live_badge">DIRECT</string>
+    <string name="livetv_badge_on_now">EN COURS</string>
+    <string name="livetv_untitled">Sans titre</string>
+    <string name="livetv_today">Aujourd\'hui</string>
+    <string name="livetv_yesterday">Hier</string>
+    <string name="livetv_tomorrow">Demain</string>
+    <string name="livetv_day_with_date">%1$s %2$s</string>
+    <string name="livetv_dismiss">Ignorer</string>
+
+    <!-- ProgramCategory.kt -->
+    <string name="livetv_category_sports">Sport</string>
+    <string name="livetv_category_movies">Films</string>
+    <string name="livetv_category_kids">Jeunesse</string>
+    <string name="livetv_category_news">Info</string>
+    <string name="livetv_category_documentary">Documentaire</string>
+    <string name="livetv_category_drama">Drame</string>
+    <string name="livetv_category_comedy">Comédie</string>
+    <string name="livetv_category_reality">Téléréalité</string>
+    <string name="livetv_category_educational">Éducatif</string>
+    <string name="livetv_category_scifi">Science-fiction / Fantastique</string>
+    <string name="livetv_category_music">Musique</string>
+
+    <!-- GuideIndex.kt -->
+    <string name="livetv_event_starts_at">Commence %1$s</string>
+    <string name="livetv_event_started_at">A commencé %1$s</string>
+    <string name="livetv_event_from_channel_name">Programme tiré du nom de la chaîne ; le fournisseur n\'a pas de guide pour elle.</string>
+
+    <!-- RemoteControlHints.kt: key names -->
+    <string name="livetv_remote_key_hold_ok">OK maintenu</string>
+    <string name="livetv_remote_key_up">Haut</string>
+    <string name="livetv_remote_key_hold_up">Haut maintenu</string>
+    <string name="livetv_remote_key_down">Bas</string>
+    <string name="livetv_remote_key_hold_down">Bas maintenu</string>
+    <string name="livetv_remote_key_left">Gauche</string>
+    <string name="livetv_remote_key_hold_left">Gauche maintenu</string>
+    <string name="livetv_remote_key_right">Droite</string>
+    <string name="livetv_remote_key_hold_right">Droite maintenu</string>
+    <string name="livetv_remote_key_play_pause">Lecture/Pause</string>
+    <string name="livetv_remote_key_ffwd">Avance rapide</string>
+    <string name="livetv_remote_key_rewind">Retour rapide</string>
+    <string name="livetv_remote_key_channel_up">Chaîne +</string>
+    <string name="livetv_remote_key_channel_down">Chaîne -</string>
+    <string name="livetv_remote_key_back">Retour</string>
+    <string name="livetv_remote_key_double_back">Double Retour</string>
+    <string name="livetv_remote_key_back_twice">Retour deux fois</string>
+    <string name="livetv_remote_key_left_right">Gauche/Droite</string>
+    <string name="livetv_remote_key_up_down">Haut/Bas</string>
+
+    <!-- RemoteControlHints.kt: player actions inside a sentence -->
+    <string name="livetv_remote_phrase_program_info">infos du programme</string>
+    <string name="livetv_remote_phrase_player_controls">commandes du lecteur</string>
+    <string name="livetv_remote_phrase_options">options</string>
+    <string name="livetv_remote_phrase_channel_list">liste des chaînes</string>
+    <string name="livetv_remote_phrase_recent_channels">chaînes récentes</string>
+    <string name="livetv_remote_phrase_search">recherche</string>
+    <string name="livetv_remote_phrase_previous_channel">chaîne précédente</string>
+    <string name="livetv_remote_phrase_tv_guide">guide TV</string>
+    <string name="livetv_remote_select_is">Sélection : %1$s</string>
+    <string name="livetv_remote_hold_select_is">Sélection maintenue : %1$s</string>
+    <string name="livetv_remote_left_channel_list">Gauche = liste des chaînes</string>
+    <string name="livetv_remote_left_again_groups">Gauche à nouveau = groupes</string>
+    <string name="livetv_remote_left_is">Gauche = %1$s</string>
+    <string name="livetv_remote_right_is">Droite = %1$s</string>
+
+    <!-- RemoteControlHints.kt: guide actions inside a sentence -->
+    <string name="livetv_remote_guide_earlier">parcourir les programmes précédents</string>
+    <string name="livetv_remote_guide_later">parcourir les programmes suivants</string>
+    <string name="livetv_remote_guide_group_pills">aller aux pastilles de groupe</string>
+    <string name="livetv_remote_guide_page_up">remonter d\'une page de chaînes</string>
+    <string name="livetv_remote_guide_page_down">descendre d\'une page de chaînes</string>
+    <string name="livetv_remote_guide_now">revenir à maintenant</string>
+    <string name="livetv_remote_guide_day">aller à un jour et une heure</string>
+    <string name="livetv_remote_guide_top">aller à la première chaîne</string>
+    <string name="livetv_remote_guide_player">revenir au lecteur</string>
+    <string name="livetv_remote_hold_left_to">Maintenez Gauche sur la télécommande pour %1$s.</string>
+    <string name="livetv_remote_short_earlier">plus tôt</string>
+    <string name="livetv_remote_short_later">plus tard</string>
+    <string name="livetv_remote_short_group_pills">pastilles de groupe</string>
+    <string name="livetv_remote_short_page_up">page haut</string>
+    <string name="livetv_remote_short_page_down">page bas</string>
+    <string name="livetv_remote_short_now">maintenant</string>
+    <string name="livetv_remote_short_jump_to">aller à</string>
+    <string name="livetv_remote_short_top">première chaîne</string>
+    <string name="livetv_remote_short_player">lecteur</string>
+    <string name="livetv_remote_hold_left_is">Gauche maintenu = %1$s</string>
+
+    <!-- RemoteControlHints.kt: the hint strip -->
+    <string name="livetv_remote_strip_groups">Groupes</string>
+    <string name="livetv_remote_strip_group_pills">Pastilles de groupe</string>
+    <string name="livetv_remote_strip_earlier">Programmes précédents</string>
+    <string name="livetv_remote_strip_later">Programmes suivants</string>
+    <string name="livetv_remote_strip_page_up">Page haut</string>
+    <string name="livetv_remote_strip_page_down">Page bas</string>
+    <string name="livetv_remote_strip_now">Maintenant</string>
+    <string name="livetv_remote_strip_jump_to_day">Aller au jour</string>
+    <string name="livetv_remote_strip_top_channel">Première chaîne</string>
+    <string name="livetv_remote_strip_resume">Reprendre</string>
+    <string name="livetv_remote_strip_close_mini">Fermer le mini</string>
+    <string name="livetv_remote_strip_program_info">Infos du programme</string>
+    <string name="livetv_remote_strip_program_menu">Menu du programme</string>
+    <string name="livetv_remote_strip_record">Enregistrer</string>
+    <string name="livetv_remote_strip_player_controls">Commandes du lecteur</string>
+    <string name="livetv_remote_strip_options">Options</string>
+    <string name="livetv_remote_strip_channel_list">Liste des chaînes</string>
+    <string name="livetv_remote_strip_recent_channels">Chaînes récentes</string>
+    <string name="livetv_remote_strip_previous_channel">Chaîne précédente</string>
+    <string name="livetv_remote_strip_tv_guide">Guide TV</string>
+    <string name="livetv_remote_strip_channel_up">Chaîne suivante</string>
+    <string name="livetv_remote_strip_channel_down">Chaîne précédente</string>
+    <string name="livetv_remote_strip_play_pause">Lecture ou pause</string>
+    <string name="livetv_remote_strip_seek_forward">Avancer</string>
+    <string name="livetv_remote_strip_seek_back">Reculer</string>
+    <string name="livetv_remote_strip_restart">Recommencer</string>
+    <string name="livetv_remote_strip_jump_to_live">Revenir au direct</string>
+    <string name="livetv_remote_strip_subtitles">Sous-titres</string>
+    <string name="livetv_remote_strip_audio">Audio</string>
+    <string name="livetv_remote_strip_aspect_ratio">Format d\'image</string>
+    <string name="livetv_remote_strip_sleep_timer">Minuterie de veille</string>
+    <string name="livetv_remote_strip_stop">Arrêter</string>
+    <string name="livetv_remote_strip_scrub">Parcourir</string>
+    <string name="livetv_remote_strip_channels">Chaînes</string>
+    <string name="livetv_remote_strip_exit">Quitter</string>
+    <string name="livetv_remote_strip_mini_player">Mini-lecteur</string>
+    <string name="livetv_remote_strip_go_to_time">Aller à ce moment</string>
+    <string name="livetv_remote_strip_controls">Commandes</string>
+    <string name="livetv_remote_strip_scrubber">Barre de lecture</string>
+
+    <!-- HomeChannelsPublisher.kt -->
+    <string name="livetv_home_top_channels">Chaînes favorites</string>
+    <string name="livetv_home_channel_number">Chaîne %1$s</string>
+
+    <!-- TvQrLinkDialog.kt -->
+    <string name="livetv_qr_code_for">QR code pour %1$s</string>
+
+    <!-- Groups -->
+    <string name="livetv_group_all_channels">Toutes les chaînes</string>
+    <string name="livetv_group_favorites">Favoris</string>
+    <string name="livetv_group_recently_watched">Regardées récemment</string>
+    <string name="livetv_group_collection">Collection</string>
+    <string name="livetv_groups">Groupes</string>
+    <string name="livetv_channel_groups">Groupes de chaînes</string>
+    <string name="livetv_channel_groups_header">GROUPES DE CHAÎNES</string>
+    <string name="livetv_default_group">Groupe par défaut</string>
+    <string name="livetv_manage_groups">Gérer les groupes</string>
+    <plurals name="livetv_manage_groups_hidden">
+        <item quantity="one">Gérer les groupes (%1$d masqué)</item>
+        <item quantity="many">Gérer les groupes (%1$d masqués)</item>
+        <item quantity="other">Gérer les groupes (%1$d masqués)</item>
+    </plurals>
+    <string name="livetv_manage_groups_short">Gérer les groupes</string>
+    <plurals name="livetv_manage_groups_short_hidden">
+        <item quantity="one">Gérer les groupes (%1$d masqué)</item>
+        <item quantity="many">Gérer les groupes (%1$d masqués)</item>
+        <item quantity="other">Gérer les groupes (%1$d masqués)</item>
+    </plurals>
+    <string name="livetv_group_order">Ordre</string>
+    <string name="livetv_group_sort_az">A-Z</string>
+    <string name="livetv_group_sort_manual">Manuel</string>
+    <string name="livetv_group_moving">Déplacement</string>
+    <string name="livetv_manage_groups_hint">Cochez les groupes à afficher, décochez pour les masquer.</string>
+    <string name="livetv_manage_groups_hint_manual">Faites glisser pour réordonner, cochez pour afficher ou masquer.</string>
+    <string name="livetv_manage_groups_tv_hint">Activez ou désactivez les groupes pour les afficher ou les masquer.</string>
+    <string name="livetv_manage_groups_tv_hint_manual">Maintenez OK sur un groupe pour le déplacer, puis utilisez Haut et Bas. OK ou Retour pour terminer.</string>
+    <string name="livetv_no_groups_available">Aucun groupe disponible</string>
+    <string name="livetv_drag_to_reorder">Faire glisser pour réordonner</string>
+    <string name="livetv_sidebar_layout">Disposition du panneau latéral</string>
+    <string name="livetv_sidebar_overlay">Superposé</string>
+    <string name="livetv_sidebar_shift">Décaler le guide</string>
+    <string name="livetv_sidebar_shift_hint">« Décaler le guide » pousse le guide TV pour que le panneau latéral ne cache jamais les programmes.</string>
+
+    <!-- Favorites tab -->
+    <string name="livetv_favorites_empty_title">Aucun favori</string>
+    <string name="livetv_favorites_empty_body">Appuyez longuement sur une chaîne dans TV en direct, puis sur Ajouter aux favoris.</string>
+
+    <!-- Channel list -->
+    <string name="livetv_no_channel_number">Aucune chaîne %1$s</string>
+    <string name="livetv_sort_by_number">Par numéro</string>
+    <string name="livetv_sort_by_name">Par nom</string>
+    <string name="livetv_sort_favorites_first">Favoris d\'abord</string>
+    <string name="livetv_sort_is">Tri : %1$s</string>
+    <string name="livetv_empty_group_title">Aucune chaîne dans ce groupe</string>
+    <string name="livetv_empty_group_body">Ce groupe n\'a pas encore de chaînes. Il se remplira dès que le fournisseur lui en attribuera.</string>
+    <string name="livetv_empty_group_no_matches_title">Aucune chaîne correspondante</string>
+    <string name="livetv_empty_group_no_matches_body">Aucune chaîne de ce groupe ne correspond à cette recherche.</string>
+    <string name="livetv_show_all_channels">Afficher toutes les chaînes</string>
+    <string name="livetv_hide_options">Masquer les options</string>
+    <string name="livetv_more_options">Plus d\'options</string>
+    <string name="livetv_close_search">Fermer la recherche</string>
+    <string name="livetv_show_list">Afficher la liste</string>
+    <string name="livetv_show_guide">Afficher le guide</string>
+
+    <!-- GuideJumpSheet.kt -->
+    <string name="livetv_jump_title">Aller à</string>
+    <string name="livetv_jump_day">Jour</string>
+    <string name="livetv_jump_time">Heure</string>
+    <string name="livetv_jump_upcoming">À venir</string>
+    <string name="livetv_jump_previous">Précédents</string>
+    <string name="livetv_jump_go">Aller</string>
+    <string name="livetv_jump_back_to_now">Revenir à maintenant</string>
+    <string name="livetv_jump_slot_same_time">Même heure</string>
+    <string name="livetv_jump_slot_morning">Matin</string>
+    <string name="livetv_jump_slot_afternoon">Après-midi</string>
+    <string name="livetv_jump_slot_evening">Soir</string>
+    <string name="livetv_jump_slot_prime_time">Prime time</string>
+    <string name="livetv_jump_slot_late">Nuit</string>
+    <string name="livetv_jump_slot_with_hour">%1$s %2$s</string>
+    <string name="livetv_jump_target_at">%1$s à %2$s</string>
+
+    <!-- ProgramInfoSheet.kt -->
+    <string name="livetv_info_airs">Diffusion</string>
+    <string name="livetv_info_date">Date</string>
+    <string name="livetv_info_duration">Durée</string>
+    <string name="livetv_info_episode">Épisode</string>
+    <string name="livetv_info_channel">Chaîne</string>
+    <string name="livetv_info_description">Description</string>
+    <string name="livetv_info_metadata">Métadonnées</string>
+    <string name="livetv_info_categories">Catégories</string>
+    <string name="livetv_no_description">Aucune description du programme dans le XMLTV.</string>
+    <string name="livetv_duration_minutes">%1$d min</string>
+    <string name="livetv_duration_hours">%1$d h</string>
+    <string name="livetv_duration_hours_minutes">%1$d h %2$d min</string>
+
+    <!-- RetainedChannelsIndicator.kt -->
+    <plurals name="livetv_channels_kept_live">
+        <item quantity="one">%1$d chaîne maintenue en direct</item>
+        <item quantity="many">%1$d chaînes maintenues en direct</item>
+        <item quantity="other">%1$d chaînes maintenues en direct</item>
+    </plurals>
+    <string name="livetv_kept_live_title">Maintenues en direct</string>
+    <string name="livetv_watch_channel">Regarder %1$s</string>
+    <string name="livetv_stop_channel">Arrêter %1$s</string>
+    <string name="livetv_stop_all">Tout arrêter</string>
+
+    <!-- Reminders -->
+    <string name="livetv_reminder_starting_now">Commence maintenant</string>
+    <string name="livetv_reminder_starting_now_on">Commence maintenant sur %1$s</string>
+    <string name="livetv_reminder_starting_soon_on">Commence bientôt sur %1$s</string>
+    <string name="livetv_reminder_channel_name">Rappels de programmes</string>
+    <string name="livetv_reminder_channel_description">Alerte quand un programme pour lequel vous avez défini un rappel va commencer.</string>
+
+    <!-- SearchScreen.kt -->
+    <string name="livetv_search_placeholder">Rechercher films, séries, programmes…</string>
+    <string name="livetv_search_prompt">Recherchez des films, des séries ou des programmes du guide</string>
+    <string name="livetv_search_no_results">Aucun résultat pour « %1$s »</string>
+    <string name="livetv_search_no_results_hint">Essayez un autre terme ou changez le filtre de recherche.</string>
+    <string name="livetv_search_result_movie">Film</string>
+    <string name="livetv_search_result_tv_show">Série</string>
+    <string name="livetv_search_scope_movies">Films</string>
+    <string name="livetv_search_scope_tv_shows">Séries</string>
+    <string name="livetv_search_scope_epg">Guide</string>
+
+    <!-- RecordProgramSheet.kt -->
+    <string name="livetv_rec_cap_reached">Limite de stockage local atteinte. Libérez de l\'espace ou augmentez la limite dans Paramètres -&gt; Enregistrements.</string>
+    <string name="livetv_rec_no_stream_url">Impossible de trouver l\'URL du flux de %1$s.</string>
+    <string name="livetv_rec_started_locally">Enregistrement lancé sur l\'appareil.</string>
+    <string name="livetv_rec_needs_dispatcharr">L\'enregistrement nécessite une playlist Dispatcharr.</string>
+    <plurals name="livetv_rec_rule_saved_count">
+        <item quantity="one">Règle enregistrée : %1$d enregistrement programmé</item>
+        <item quantity="many">Règle enregistrée : %1$d enregistrements programmés</item>
+        <item quantity="other">Règle enregistrée : %1$d enregistrements programmés</item>
+    </plurals>
+    <string name="livetv_rec_rule_saved">Règle enregistrée : %1$s</string>
+    <string name="livetv_rec_rule_failed">Échec de la règle : %1$s</string>
+    <string name="livetv_rec_scheduled">Programmé : %1$s</string>
+    <string name="livetv_rec_recording_fallback">enregistrement</string>
+    <string name="livetv_rec_schedule_failed">Échec de la programmation : %1$s</string>
+    <string name="livetv_rec_record_from_now">Enregistrer dès maintenant</string>
+    <string name="livetv_rec_record_program">Enregistrer le programme</string>
+    <string name="livetv_rec_scheduling">Programmation…</string>
+    <string name="livetv_rec_save_rule">Enregistrer la règle</string>
+    <string name="livetv_rec_record">Enregistrer</string>
+    <string name="livetv_rec_program">Programme</string>
+    <string name="livetv_rec_channel">Chaîne</string>
+    <string name="livetv_rec_time">Heure</string>
+    <string name="livetv_rec_rule_options">Options de la règle</string>
+    <string name="livetv_rec_title_match">Correspondance du titre</string>
+    <string name="livetv_rec_title_match_tv">Correspondance du titre</string>
+    <string name="livetv_rec_match_exact">Exacte</string>
+    <string name="livetv_rec_match_contains">Contient</string>
+    <string name="livetv_rec_match_search">Recherche</string>
+    <string name="livetv_rec_match_regex">Regex</string>
+    <string name="livetv_rec_description_contains">La description contient (facultatif)</string>
+    <string name="livetv_rec_untagged_new">Les épisodes sans marque comptent comme nouveaux</string>
+    <string name="livetv_rec_untagged_new_hint">Pour les guides qui ne marquent que les rediffusions.</string>
+    <string name="livetv_rec_every_channel">Sur toutes les chaînes</string>
+    <string name="livetv_rec_only_on">Désactivé, n\'enregistre que sur %1$s.</string>
+    <string name="livetv_rec_start_early">Commencer plus tôt</string>
+    <string name="livetv_rec_preroll_unavailable">Marge avant indisponible (programme déjà commencé).</string>
+    <string name="livetv_rec_end_late">Finir plus tard</string>
+    <string name="livetv_rec_destination">Destination</string>
+    <string name="livetv_rec_dispatcharr_server">Serveur Dispatcharr</string>
+    <string name="livetv_rec_this_device">Cet appareil</string>
+    <string name="livetv_rec_saving_to_device">Enregistrement sur cet appareil</string>
+    <string name="livetv_rec_needs_manage">Enregistrer sur le serveur Dispatcharr nécessite l\'accès de gestion des enregistrements sur votre compte. Contactez l\'administrateur de votre serveur pour en savoir plus.</string>
+    <string name="livetv_rec_remove_commercials">Supprimer les publicités (Comskip)</string>
+    <string name="livetv_rec_remove_commercials_hint">Détecte et supprime les coupures publicitaires après l\'enregistrement. Traitement sur le serveur.</string>
+    <string name="livetv_rec_custom_buffer">Marge personnalisée</string>
+    <string name="livetv_rec_min_after_start">%1$d min après le début</string>
+    <string name="livetv_rec_minutes">%1$d minutes</string>
+    <string name="livetv_rec_below_zero_hint">Descendez sous zéro pour commencer l\'enregistrement après l\'heure de début prévue.</string>
+    <string name="livetv_rec_set">Valider</string>
+    <string name="livetv_rec_hide_options">Masquer les options</string>
+    <string name="livetv_rec_customize">Personnaliser</string>
+    <string name="livetv_rec_untagged_new_tv">Sans marque = nouveau</string>
+    <string name="livetv_rec_every_channel_tv">Toutes les chaînes</string>
+    <string name="livetv_rec_options">Options</string>
+    <string name="livetv_rec_adjust">Ajuster</string>
+    <string name="livetv_rec_rules_server_note">Les règles de séries commencent, finissent et suppriment les publicités selon les réglages du serveur Dispatcharr.</string>
+    <string name="livetv_rec_mark_ad_breaks">Marquer les coupures pub (Comskip)</string>
+    <string name="livetv_rec_comskip_server_only">Comskip s\'exécute sur le serveur. Choisissez la destination Serveur Dispatcharr pour l\'activer.</string>
+    <string name="livetv_rec_comskip_hint">Sur le serveur : repère les coupures pub une fois l\'enregistrement terminé, si Comskip est configuré sur le serveur Dispatcharr ; le lecteur les saute.</string>
+    <string name="livetv_rec_keep_open">Gardez AerioTV ouvert. Fermer l\'app arrêtera cet enregistrement.</string>
+    <string name="livetv_rec_needs_dvr_title">L\'enregistrement nécessite l\'accès aux enregistrements sur Dispatcharr</string>
+    <string name="livetv_rec_none">Aucune</string>
+    <string name="livetv_rec_n_min">%1$d min</string>
+    <string name="livetv_rec_custom_after_start">Personnalisée (%1$d min après le début)</string>
+    <string name="livetv_rec_custom_min">Personnalisée (%1$d min)</string>
+    <string name="livetv_rec_custom">Personnalisée</string>
+    <string name="livetv_rec_from_now">dès maintenant</string>
+    <string name="livetv_rec_min_early">%1$d min plus tôt</string>
+    <string name="livetv_rec_on_time">à l\'heure</string>
+    <string name="livetv_rec_min_late">%1$d min plus tard</string>
+    <string name="livetv_rec_ends_on_time">finit à l\'heure</string>
+    <string name="livetv_rec_on_this_device">sur cet appareil</string>
+    <string name="livetv_rec_ad_breaks_marked">coupures pub marquées</string>
+    <string name="livetv_rec_ad_breaks_not_marked">coupures pub non marquées</string>
+    <string name="livetv_rec_length_h_min">%1$d h %2$d min</string>
+    <string name="livetv_rec_length_min">%1$d min</string>
+    <string name="livetv_rec_window">Enregistre de %1$s à %2$s · %3$s</string>
+    <string name="livetv_rec_rule_new_any">Nouveaux épisodes de « %1$s » sur toutes les chaînes, programmés par le serveur Dispatcharr</string>
+    <string name="livetv_rec_rule_new_on">Nouveaux épisodes de « %1$s » sur %2$s, programmés par le serveur Dispatcharr</string>
+    <string name="livetv_rec_rule_all_any">Tous les épisodes de « %1$s » sur toutes les chaînes, programmés par le serveur Dispatcharr</string>
+    <string name="livetv_rec_rule_all_on">Tous les épisodes de « %1$s » sur %2$s, programmés par le serveur Dispatcharr</string>
+    <string name="livetv_rec_date_time_range">%1$s à %2$s – %3$s</string>
+    <string name="livetv_rec_mode_once">Cet épisode</string>
+    <string name="livetv_rec_mode_once_detail">N\'enregistre que cette diffusion.</string>
+    <string name="livetv_rec_mode_all">Tous les épisodes</string>
+    <string name="livetv_rec_mode_all_detail">Une règle de série sur le serveur enregistre chaque diffusion de ce titre.</string>
+    <string name="livetv_rec_mode_new">Nouveaux épisodes uniquement</string>
+    <string name="livetv_rec_mode_new_detail">Ignore les diffusions que le guide marque comme rediffusions.</string>
+    <string name="livetv_rec_mode_custom">Personnaliser la règle</string>
+    <string name="livetv_rec_mode_custom_detail">Choisissez comment le titre et la description sont comparés.</string>
+
+    <string name="livetv_rec_needs_dvr_text">Programmer un enregistrement sur le serveur Dispatcharr nécessite l\'accès de gestion des enregistrements sur votre compte. Votre compte peut regarder et enregistrer des programmes en direct sur cet appareil, mais pas programmer d\'enregistrements sur le serveur. Contactez l\'administrateur de votre serveur pour en savoir plus, ou attendez la diffusion du programme pour l\'enregistrer sur cet appareil.</string>
+
+    <!-- Guide and channel list menus, collections -->
+    <string name="livetv_no_info">Aucune info</string>
+    <string name="livetv_search_channels">Rechercher des chaînes</string>
+    <string name="livetv_clear_search">Effacer la recherche</string>
+    <string name="livetv_watch">Regarder</string>
+    <string name="livetv_watch_from_start">Regarder depuis le début</string>
+    <string name="livetv_add_to_favorites">Ajouter aux favoris</string>
+    <string name="livetv_remove_from_favorites">Retirer des favoris</string>
+    <string name="livetv_add_to_multiview">Ajouter à la multivue</string>
+    <string name="livetv_remove_from_multiview">Retirer de la multivue</string>
+    <string name="livetv_add_channel_to_collection">Ajouter la chaîne à une collection</string>
+    <string name="livetv_add_to_collection_ellipsis">Ajouter à une collection…</string>
+    <string name="livetv_remove_from_collection">Retirer de %1$s</string>
+    <string name="livetv_remove_from_all_collections">Retirer de toutes les collections</string>
+    <string name="livetv_program_info">Infos du programme</string>
+    <string name="livetv_record_from_now">Enregistrer dès maintenant</string>
+    <string name="livetv_record">Enregistrer</string>
+    <string name="livetv_set_reminder">Définir un rappel</string>
+    <string name="livetv_cancel_reminder">Annuler le rappel</string>
+    <string name="livetv_catchup_unavailable_programme">Le replay n\'est pas disponible pour ce programme.</string>
+    <string name="livetv_live_recording_title">Enregistrement en direct de %1$s</string>
+    <string name="livetv_sort_channels">Trier les chaînes</string>
+    <string name="livetv_favorite">Favori</string>
+    <string name="livetv_catchup_available">Replay disponible</string>
+    <string name="livetv_collapse">Réduire</string>
+    <string name="livetv_expand_schedule">Afficher le programme</string>
+    <string name="livetv_no_upcoming">Aucun programme à venir</string>
+    <string name="livetv_previously_aired">Déjà diffusé</string>
+    <string name="livetv_reminder_cancelled">Rappel annulé.</string>
+    <string name="livetv_reminder_set">Rappel défini.</string>
+    <string name="livetv_ending">se termine</string>
+    <string name="livetv_left_m">%1$d min</string>
+    <string name="livetv_left_h">%1$d h</string>
+    <string name="livetv_left_h_m">%1$d h %2$d min</string>
+    <string name="livetv_new_collection">Nouvelle collection</string>
+    <string name="livetv_move_to_front">Placer au début</string>
+    <string name="livetv_move_to_back">Placer à la fin</string>
+    <string name="livetv_delete_collection">Supprimer la collection</string>
+    <string name="livetv_add_to_collection">Ajouter à une collection</string>
+    <string name="livetv_new_collection_ellipsis">Nouvelle collection…</string>
+    <string name="livetv_collection_name_hint">Nommez la collection et choisissez où sa pastille apparaît dans la rangée TV en direct.</string>
+    <string name="livetv_collection_name">Nom</string>
+    <string name="livetv_add_at_beginning">Ajouter au début</string>
+    <string name="livetv_add_at_end">Ajouter à la fin</string>
+    <string name="livetv_member_check">✓ %1$s</string>
+    <string name="livetv_select_program">Sélectionnez un programme</string>
+    <string name="livetv_min_left">%1$d min restantes</string>
+    <string name="livetv_h_min_left">%1$d h %2$d min restantes</string>
+    <string name="livetv_h_min">%1$d h %2$d min</string>
+    <string name="livetv_min">%1$d min</string>
+    <string name="livetv_a11y_now">, en cours : %1$s</string>
+</resources>

@@ -93,8 +93,11 @@ class CastNotificationController @Inject constructor(
         )
         val notif = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher)
-            .setContentTitle(content.title.ifBlank { "Now casting" })
-            .setContentText(if (!deviceName.isNullOrBlank()) "Casting to $deviceName" else "Casting")
+            .setContentTitle(content.title.ifBlank { context.getString(R.string.player_cast_now_casting) })
+            .setContentText(
+                if (!deviceName.isNullOrBlank()) context.getString(R.string.player_cast_casting_to, deviceName)
+                else context.getString(R.string.player_cast_casting),
+            )
             .setContentIntent(launchPi)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -113,13 +116,14 @@ class CastNotificationController @Inject constructor(
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val title = if (!end.deviceName.isNullOrBlank()) {
-            "Casting to ${end.deviceName} disconnected"
+            context.getString(R.string.player_cast_to_device_disconnected, end.deviceName)
         } else {
-            "Casting disconnected"
+            context.getString(R.string.player_cast_disconnected)
         }
-        val body = buildString {
-            if (!end.contentTitle.isNullOrBlank()) append("${end.contentTitle} stopped. ")
-            append("The connection to the TV was lost. Open AerioTV to cast again.")
+        val body = if (!end.contentTitle.isNullOrBlank()) {
+            context.getString(R.string.player_cast_lost_body_with_title, end.contentTitle)
+        } else {
+            context.getString(R.string.player_cast_lost_body)
         }
         val notif = NotificationCompat.Builder(context, ALERT_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher)
@@ -149,7 +153,7 @@ class CastNotificationController @Inject constructor(
         val mgr = context.getSystemService(NotificationManager::class.java) ?: return
         if (mgr.getNotificationChannel(CHANNEL_ID) == null) {
             mgr.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "Casting", NotificationManager.IMPORTANCE_LOW).apply {
+                NotificationChannel(CHANNEL_ID, context.getString(R.string.player_cast_channel_name), NotificationManager.IMPORTANCE_LOW).apply {
                     setShowBadge(false)
                 },
             )
@@ -161,7 +165,7 @@ class CastNotificationController @Inject constructor(
             mgr.createNotificationChannel(
                 NotificationChannel(
                     ALERT_CHANNEL_ID,
-                    "Casting interrupted",
+                    context.getString(R.string.player_cast_alert_channel_name),
                     NotificationManager.IMPORTANCE_DEFAULT,
                 ),
             )

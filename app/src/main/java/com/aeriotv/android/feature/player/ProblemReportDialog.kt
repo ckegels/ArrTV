@@ -1,5 +1,8 @@
 package com.aeriotv.android.feature.player
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -31,13 +34,14 @@ internal data class ProblemReportRequest(
 
 /** What went wrong, as a choice: a remote has no good way to type. The code
  *  goes to the server with the words ("problem" in the report's extra). */
-internal enum class ProblemKind(val code: String, val label: String) {
-    NO_LOAD("no_load", "Stream doesn't load"),
-    STUTTER("stutter", "Picture stutters or freezes"),
-    SOUND("sound", "Sound problem"),
-    GUIDE("guide", "Wrong or missing guide"),
-    WRONG_CHANNEL("wrong_channel", "Wrong channel or picture"),
-    OTHER("other", "Something else"),
+/** [label] goes to the server in English; [labelRes] is shown. */
+internal enum class ProblemKind(val code: String, val label: String, @StringRes val labelRes: Int) {
+    NO_LOAD("no_load", "Stream doesn't load", R.string.player_problem_no_load),
+    STUTTER("stutter", "Picture stutters or freezes", R.string.player_problem_stutter),
+    SOUND("sound", "Sound problem", R.string.player_problem_sound),
+    GUIDE("guide", "Wrong or missing guide", R.string.player_problem_guide),
+    WRONG_CHANNEL("wrong_channel", "Wrong channel or picture", R.string.player_problem_wrong_channel),
+    OTHER("other", "Something else", R.string.player_problem_other),
 }
 
 /**
@@ -55,10 +59,10 @@ internal fun ProblemReportDialog(
     val firstChoice = remember { FocusRequester() }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("What went wrong?") },
+        title = { Text(stringResource(R.string.player_problem_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("About ${request.channelName}. The player's state and its log go with it.")
+                Text(stringResource(R.string.player_problem_about, request.channelName))
                 ProblemKind.entries.forEachIndexed { index, kind ->
                     OutlinedButton(
                         onClick = {
@@ -75,14 +79,14 @@ internal fun ProblemReportDialog(
                             .fillMaxWidth()
                             .then(if (index == 0) Modifier.focusRequester(firstChoice) else Modifier),
                     ) {
-                        Text(kind.label)
+                        Text(stringResource(kind.labelRes))
                     }
                 }
             }
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
         },
     )
     // D-pad focus on the first choice when the dialog opens.

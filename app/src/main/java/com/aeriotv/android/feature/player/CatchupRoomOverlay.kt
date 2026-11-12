@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.player
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,7 +54,7 @@ fun CatchupRoomOverlay(holder: AerioExoPlayerHolder) {
                 .padding(horizontal = 28.dp, vertical = 22.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Starting look back", style = MaterialTheme.typography.titleMedium, color = Color.White)
+            Text(stringResource(R.string.player_starting_look_back), style = MaterialTheme.typography.titleMedium, color = Color.White)
             lines.forEachIndexed { i, line ->
                 val last = i == lines.lastIndex
                 androidx.compose.foundation.layout.Row(

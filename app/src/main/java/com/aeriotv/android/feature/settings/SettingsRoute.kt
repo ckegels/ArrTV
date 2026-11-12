@@ -26,7 +26,9 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
+import com.aeriotv.android.R
 import com.aeriotv.android.core.data.SourceType
 
 /** One destination in the Settings area. */
@@ -90,7 +92,8 @@ val SettingsRoute.isPaneBaseline: Boolean
 data class SettingsSectionGroupSpec(
     /** Stable LazyColumn item key; matches the pre-B3 hand-written keys. */
     val key: String,
-    val header: String,
+    /** Group eyebrow; null for the header-less closing group. */
+    @StringRes val header: Int?,
     val sections: List<SettingsSection>,
     val footer: String? = null,
 )
@@ -105,7 +108,7 @@ fun visibleSettingsSections(
 ): List<SettingsSectionGroupSpec> = listOf(
     SettingsSectionGroupSpec(
         key = "app",
-        header = "App",
+        header = R.string.settings2_group_app,
         sections = listOf(
             SettingsSection.LiveTV,
             SettingsSection.Player,
@@ -115,7 +118,7 @@ fun visibleSettingsSections(
     ),
     SettingsSectionGroupSpec(
         key = "device",
-        header = "Device",
+        header = R.string.settings2_group_device,
         sections = buildList {
             add(SettingsSection.Appearance)
             add(SettingsSection.General)
@@ -129,7 +132,7 @@ fun visibleSettingsSections(
         key = "system",
         // Header-less closing group (Settings phase 1): Developer and About sit
         // together at the bottom with nothing to label them.
-        header = "",
+        header = null,
         sections = listOf(SettingsSection.Developer, SettingsSection.About),
     ),
 )

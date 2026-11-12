@@ -36,6 +36,7 @@ import com.aeriotv.android.R
 import com.aeriotv.android.feature.settings.SettingsViewModel
 import com.aeriotv.android.ui.settings.rememberIsTvDevice
 import kotlinx.coroutines.delay
+import androidx.compose.ui.res.stringResource
 
 /**
  * Cold-launch splash. Mirrors the CURRENT iOS/tvOS SplashView
@@ -155,7 +156,7 @@ private fun SplashContent(modifier: Modifier = Modifier) {
             )
             Spacer(Modifier.height(subtitleTopPad))
             Text(
-                text = "Live TV  ·  Movies  ·  Series",
+                text = stringResource(R.string.main_splash_tagline),
                 fontSize = subtitleSize,
                 fontWeight = FontWeight.Light,
                 color = accent,

@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- App shell, onboarding, navigation, main scaffold and shared UI pieces. -->
+<resources>
+    <!-- TvFilterPage.kt -->
+    <string name="main_filter_title">Filter</string>
+    <string name="main_filter_show_all_groups">Show All Groups</string>
+
+    <!-- SecretReveal.kt -->
+    <string name="main_secret_hide">Hide %1$s</string>
+    <string name="main_secret_show">Show %1$s</string>
+    <string name="main_secret_label_key">key</string>
+    <string name="main_secret_label_api_key">API key</string>
+    <string name="main_secret_label_password">password</string>
+
+    <!-- TmdbAttribution.kt -->
+    <string name="main_tmdb_notice">This product uses the TMDB API but is not endorsed or certified by TMDB.</string>
+    <string name="main_tmdb_key_hint">TMDB data is used only after configuring a TMDB API key in Settings > App Behaviors.</string>
+
+    <!-- UpdateViewModel.kt -->
+    <string name="main_update_up_to_date">ArrTV is up to date</string>
+
+    <!-- AppTab.kt -->
+    <string name="main_tab_live_tv">Live TV</string>
+    <string name="main_tab_favorites">Favorites</string>
+    <string name="main_tab_dvr">DVR</string>
+    <string name="main_tab_on_demand">On Demand</string>
+    <string name="main_tab_movies">Movies</string>
+    <string name="main_tab_tv_shows">TV Shows</string>
+
+    <!-- TvNavRail.kt -->
+    <string name="main_rail_arrtv_look">ArrTV look</string>
+    <string name="main_rail_update">Update</string>
+
+    <!-- SplashScreen.kt -->
+    <string name="main_splash_tagline">"Live TV  ·  Movies  ·  Series"</string>
+
+    <!-- SettingUpScreen.kt -->
+    <string name="main_setting_up_title">Setting Up</string>
+    <string name="main_setting_up_loading_epg">Loading EPG</string>
+    <string name="main_setting_up_loading_vod">Loading VOD</string>
+    <string name="main_setting_up_loading_dvr">Loading DVR</string>
+    <string name="main_setting_up_loading_preferences">Loading preferences</string>
+    <string name="main_setting_up_skip">Skip</string>
+    <string name="main_setting_up_synced">Synced</string>
+
+    <!-- OnboardingSyncCategoryChooser.kt -->
+    <string name="main_sync_chooser_title">What should come in from Drive?</string>
+    <string name="main_sync_chooser_body">You can change any of this later in Settings, and each device chooses for itself.</string>
+    <string name="main_not_now">Not now</string>
+
+    <!-- LiveRewindPrompt.kt -->
+    <string name="main_live_rewind_prompt_title">New: Live Rewind</string>
+    <string name="main_live_rewind_prompt_body">Pause and rewind live TV. While you watch a channel fullscreen, AerioTV keeps a rolling buffer on this device so you can skip back, scrub the timeline, or pause and pick up where you left off.</string>
+    <string name="main_live_rewind_prompt_footer">Buffered video is deleted automatically. You can change this anytime in Settings > App Behaviors > Live Rewind.</string>
+    <string name="main_live_rewind_prompt_enable">Enable</string>
+    <string name="main_not_now_caps">Not Now</string>
+
+    <!-- WhatsNewSheet.kt -->
+    <string name="main_whats_new_title">What\'s New in v%1$s</string>
+    <string name="main_whats_new_library_title">Your whole library</string>
+    <string name="main_whats_new_library_body">Movies and TV Shows no longer stop at 40,000 titles. The catalog is stored on the device as it loads, resumes where it left off after a restart, and never loads the whole library into memory.</string>
+    <string name="main_whats_new_guide_column_title">Guide channel column</string>
+    <string name="main_whats_new_guide_column_body">Channel number, favorite star and catch-up icon sit in a band above the logo, and the logo fills the space below it. Season and episode moved from the guide cells to the program details.</string>
+    <string name="main_whats_new_playlist_title">Playlist switching keeps your data</string>
+    <string name="main_whats_new_playlist_body">Switching playlists no longer clears the previous playlist\'s guide or library, and permissions refresh the moment you switch. Refresh Everything rebuilds the library from scratch.</string>
+    <string name="main_whats_new_corners_title">Rounded corners, two toggles</string>
+    <string name="main_whats_new_corners_body">Rounded corners for List view and Guide view are now separate in Settings > Appearance, and guide artwork follows the Guide toggle.</string>
+    <string name="main_whats_new_tv_guide_title">Android TV: Guide only</string>
+    <string name="main_whats_new_tv_guide_body">The List view is retired on TV. Live TV always opens the Guide, and its options live under Guide Presentation in Appearance.</string>
+    <string name="main_whats_new_fixes_title">Fixes</string>
+    <string name="main_whats_new_fixes_body">Switching streams on a slow provider no longer freezes the picture. The interface no longer runs off the screen after a resolution switch on the Google TV Streamer. Crash reports are captured automatically for the log export.</string>
+
+    <!-- ChooseSourceTypeScreen.kt -->
+    <string name="main_add_playlist_title">Add Playlist</string>
+    <string name="main_choose_source_title">Choose Source Type</string>
+    <string name="main_choose_source_subtitle">Select how you want to connect to your media source.</string>
+    <string name="main_source_dispatcharr_title">Dispatcharr Direct Connect</string>
+    <string name="main_source_dispatcharr_subtitle">Connect to Dispatcharr with your admin login or a personal API key (*AerioTV is not officially affiliated with the Dispatcharr project)</string>
+    <string name="main_source_xtream_subtitle">Xtream Codes API. Live TV, VOD movies &amp; series.</string>
+    <string name="main_source_m3u_subtitle">Any M3U playlist URL. Works with Dispatcharr, any IPTV provider.</string>
+
+    <!-- WelcomeScreen.kt -->
+    <string name="main_welcome_tagline">Your IPTV &amp; Media Hub</string>
+    <string name="main_welcome_devices">Android TV · Phone · Tablet</string>
+    <string name="main_welcome_sync_title">Sync via Google Account</string>
+    <string name="main_welcome_sync_subtitle">Sign in to mirror playlists, watch progress, reminders, and preferences across your devices.</string>
+    <string name="main_welcome_connect_server">Connect a Server</string>
+    <string name="main_welcome_skip_for_now">Skip for now</string>
+
+    <!-- OnboardingSyncProgressScreen.kt -->
+    <string name="main_restore_title">Restoring Your Data</string>
+    <string name="main_restore_subtitle">Pulling your synced setup from Google Drive</string>
+    <string name="main_restore_channels_guide">Channels &amp; Guide</string>
+    <string name="main_restore_channels_guide_loading">Loading channels and guide</string>
+    <string name="main_restore_playlists">Playlists</string>
+    <string name="main_restore_watch_progress">Watch progress</string>
+    <string name="main_restore_reminders">Reminders</string>
+    <string name="main_restore_favorites">Favorites</string>
+    <string name="main_restore_watchlist">Watchlist</string>
+    <string name="main_restore_preferences">Preferences</string>
+    <string name="main_restore_credentials">Credentials</string>
+
+    <!-- ServerDiscovery.kt -->
+    <string name="main_discovery_found_subtitle">Found on your network · Dispatcharr %1$s · %2$s:%3$d</string>
+    <string name="main_discovery_scanning">Looking for Dispatcharr on your network…</string>
+
+    <!-- AppTheme.kt -->
+    <string name="main_theme_aerio">AerioTV</string>
+    <string name="main_theme_midnight">Midnight</string>
+    <string name="main_theme_sunset">Sunset</string>
+    <string name="main_theme_forest">Forest</string>
+    <string name="main_theme_lavender">Lavender</string>
+    <string name="main_theme_monochrome">Monochrome</string>
+    <string name="main_theme_slate">Slate</string>
+    <string name="main_theme_light">Light</string>
+
+    <!-- UpdateUi.kt -->
+    <string name="main_update_later">Later</string>
+    <string name="main_update_available_title">Update available</string>
+    <string name="main_update_available_body">AerioTV %1$s is available (%2$d MB). Update downloads and installs it in one go.</string>
+    <string name="main_update_action">Update</string>
+    <string name="main_update_downloading_title">Downloading update</string>
+    <string name="main_update_verifying_title">Verifying download</string>
+    <string name="main_update_verifying_body">Checking the update\'s signature and version.</string>
+    <string name="main_update_ready_title">Ready to install</string>
+    <string name="main_update_ready_body">AerioTV %1$s is verified and ready. Your channels, settings, and recordings are kept. AerioTV will close to install; reopen it from your home screen.</string>
+    <string name="main_update_install">Install</string>
+    <string name="main_update_permission_title">One-time permission needed</string>
+    <string name="main_update_permission_body">Android needs you to allow AerioTV to install updates. Turn on \"Allow from this source\" in the Settings screen, come back, and tap Install. If you\'ve already allowed it, Install continues right away.</string>
+    <string name="main_update_installing_title">Installing</string>
+    <string name="main_update_installing_body">Confirm the update in the Android dialog. AerioTV will close to install; reopen it from your home screen. Your data is kept.</string>
+    <string name="main_update_error_title">Update problem</string>
+    <string name="main_update_try_again">Try again</string>
+    <string name="main_update_percent">%1$d%%</string>
+
+    <!-- ConfigureSourceScreen.kt -->
+    <string name="main_configure_title">Configure</string>
+    <string name="main_configure_test_connection">Test Connection</string>
+    <string name="main_configure_name">Name</string>
+    <string name="main_configure_name_placeholder">My IPTV Server</string>
+    <string name="main_configure_server_url">Server URL</string>
+    <string name="main_configure_admin_api_key">Admin API Key</string>
+    <string name="main_configure_admin_api_key_placeholder">Paste your admin API key</string>
+    <string name="main_configure_api_key_info">Use a Dispatcharr Admin API Key (System -> Users -> Edit User -> API &amp; XC). This enables native Dispatcharr endpoints for Live TV, Guide, Movies, and TV Shows. If your admin rotates the key, you\'ll need to re-enter it here. For hands-off auto-refresh, switch to Username &amp; Password.</string>
+    <string name="main_configure_username">Username</string>
+    <string name="main_configure_password">Password</string>
+    <string name="main_configure_missing_api_key">API key</string>
+    <string name="main_configure_dispatcharr_username_placeholder">Dispatcharr admin username</string>
+    <string name="main_configure_dispatcharr_password_placeholder">Dispatcharr admin password</string>
+    <string name="main_configure_dispatcharr_password_hint">Use your Dispatcharr Dashboard password (System -> Users -> Account tab), not your Dispatcharr XC password.</string>
+    <string name="main_configure_userpass_info">Save credentials and refresh automatically. AerioTV signs in with these credentials, then keeps your session alive in the background. If your Dispatcharr admin rotates your API key, AerioTV silently re-authenticates without prompting. Credentials are stored in encrypted Android storage.</string>
+    <string name="main_configure_xc_username_placeholder">XC Username</string>
+    <string name="main_configure_xc_password_placeholder">XC Password</string>
+    <string name="main_configure_xtream_info">Enter your Xtream Codes server URL and credentials. Dispatcharr users: use your Dispatcharr URL with the Xtream Codes username and password from Dispatcharr\'s User settings.</string>
+    <string name="main_configure_m3u_url">M3U URL</string>
+    <string name="main_configure_import_m3u">Import M3U from a file instead</string>
+    <string name="main_configure_epg_url">EPG URL (optional)</string>
+    <string name="main_configure_import_xmltv">Import XMLTV from a file instead</string>
+    <string name="main_configure_m3u_info">Paste your M3U playlist URL. Works with Dispatcharr\'s /output/m3u, any IPTV provider, or a direct .m3u file link.</string>
+    <string name="main_configure_lan_url">LAN URL (optional)</string>
+    <string name="main_configure_lan_url_info">AerioTV uses this URL automatically whenever your server is reachable on the local network, and the public one above otherwise. No setup needed.</string>
+    <string name="main_configure_auth_userpass">Username &amp; Password</string>
+    <string name="main_configure_auth_api_key">API Key</string>
+    <string name="main_configure_field_required">%1$s is required.</string>
+    <plurals name="main_configure_fields_need_attention">
+        <item quantity="one">%1$d field needs attention.</item>
+        <item quantity="other">%1$d fields need attention.</item>
+    </plurals>
+    <string name="main_configure_vod_enabled">Fetch On Demand from this playlist</string>
+    <string name="main_configure_vod_enabled_info">When off, this playlist\'s movies and TV shows aren\'t loaded into On Demand. Useful if you only want Live TV from this server, or if you have a second playlist that already provides On Demand. You can change this later in Settings.</string>
+    <string name="main_configure_dvr_destination">Default Recording Destination</string>
+    <string name="main_configure_dvr_destination_server">Server (Dispatcharr)</string>
+    <string name="main_configure_dvr_destination_device">This device</string>
+    <string name="main_configure_dvr_destination_info">Where recordings are saved by default. Server recording requires a Dispatcharr admin account. You can change this later in Settings > DVR.</string>
+    <string name="main_configure_guide_days">Guide Days</string>
+    <string name="main_configure_guide_days_all">All Available</string>
+    <plurals name="main_configure_guide_days_count">
+        <item quantity="one">%1$d Day</item>
+        <item quantity="other">%1$d Days</item>
+    </plurals>
+    <string name="main_configure_guide_days_info">How many days of guide data to load, back and ahead. Dispatcharr only; other sources show what their guide carries.</string>
+
+    <!-- Navigation.kt, MainScaffold.kt, MainActivity.kt -->
+    <string name="main_playing_on">Playing on %1$s</string>
+    <string name="main_tv_fallback">TV</string>
+    <string name="main_recording_fallback">Recording</string>
+    <string name="main_signed_in_restoring">Signed in as %1$s. Restoring your data...</string>
+    <string name="main_signed_in_no_playlists">Signed in as %1$s. No playlists in Drive yet -- set one up below.</string>
+    <string name="main_signed_in_no_playlists_plain">Signed in. No playlists in Drive yet.</string>
+    <string name="main_sign_in_needs_activity">Sign-in needs a foreground activity. Try again.</string>
+    <string name="main_drive_not_set_up">Drive Sync isn\'t set up yet</string>
+    <string name="main_drive_not_configured_text">This AerioTV build doesn\'t have a Google Cloud OAuth Web Client ID baked in. Add GOOGLE_DRIVE_WEB_CLIENT_ID to local.properties (and register this APK\'s signing-cert SHA-1 in the same Cloud project) before Sign in with Google can load.</string>
+    <string name="main_episode_fallback">Episode</string>
+    <string name="main_arrtv_look_applied">ArrTV look applied</string>
+    <string name="main_control_a_tv">Control a TV</string>
+    <string name="main_show_tab_bar">Show tab bar, %1$s</string>
+    <string name="main_apply_arrtv_look">Apply the ArrTV look</string>
+    <string name="main_refresh_channels_guide">Refresh channels and guide</string>
+    <string name="main_close_app_title">Would you like to close AerioTV?</string>
+    <string name="main_close_app">Close AerioTV</string>
+
+    <!-- PlaylistViewModel.kt -->
+    <string name="main_pl_refresh_saved_failed">Failed to refresh saved source: %1$s</string>
+    <string name="main_pl_unknown_error">unknown error</string>
+    <string name="main_pl_enter_url">Enter a URL</string>
+    <string name="main_pl_source_later">%1$s support is coming in a later phase.</string>
+    <string name="main_pl_enter_key_or_login">Enter an API key, or a username and password.</string>
+    <string name="main_pl_user_pass_required">Username and password are required</string>
+    <string name="main_pl_no_channels">No channels found.</string>
+    <string name="main_pl_failed_to_load">Failed to load</string>
+    <string name="main_pl_save_failed">Save failed</string>
+    <string name="main_pl_too_large">%1$s: playlist is too large for this device\'s memory. If this is an Xtream Codes get.php link, add it with the Xtream Codes source type instead.</string>
+    <string name="main_pl_prefixed_error">%1$s: %2$s</string>
+    <string name="main_pl_no_active">No active playlist</string>
+    <plurals name="main_pl_channels_loaded">
+        <item quantity="one">%1$d channel loaded</item>
+        <item quantity="other">%1$d channels loaded</item>
+    </plurals>
+    <plurals name="main_pl_channels_reloaded">
+        <item quantity="one">%1$d channel reloaded</item>
+        <item quantity="other">%1$d channels reloaded</item>
+    </plurals>
+    <string name="main_pl_refresh_failed">Refresh failed: %1$s</string>
+    <string name="main_pl_no_epg_source">No EPG source configured</string>
+    <plurals name="main_pl_epg_updated">
+        <item quantity="one">EPG updated (%1$d programme)</item>
+        <item quantity="other">EPG updated (%1$d programmes)</item>
+    </plurals>
+    <string name="main_pl_epg_refresh_failed">EPG refresh failed: %1$s</string>
+    <plurals name="main_pl_connected_ok">
+        <item quantity="one">Connected OK (%1$d channel)</item>
+        <item quantity="other">Connected OK (%1$d channels)</item>
+    </plurals>
+    <string name="main_pl_connection_failed">Connection failed: %1$s</string>
+    <string name="main_pl_using_local">Local server reachable, using local URL</string>
+    <string name="main_pl_using_remote">Using remote URL</string>
+    <string name="main_pl_switch_failed">Switch failed: %1$s</string>
+</resources>

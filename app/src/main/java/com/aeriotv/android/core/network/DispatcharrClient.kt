@@ -9,6 +9,8 @@ import io.ktor.utils.io.jvm.javaio.toInputStream
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.request.prepareGet
 import com.aeriotv.android.BuildConfig
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import com.aeriotv.android.feature.ondemand.vodMeasuredDescriptors
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -178,15 +180,13 @@ class DispatcharrClient @Inject constructor() {
             }
         } catch (t: Throwable) {
             throw DispatcharrError.Transport(
-                "Login transport error: ${t.message ?: t::class.simpleName}",
+                AppText.get(R.string.core_dispatcharr_login_transport_error, t.message ?: t::class.simpleName.toString()),
             )
         }
         val code = response.status.value
         if (code == 401 || code == 403) {
             throw DispatcharrError.InvalidCredentials(
-                "Invalid username or password. AerioTV uses your Dispatcharr " +
-                    "Dashboard password (System -> Users -> Account tab), " +
-                    "not your Dispatcharr XC password.",
+                AppText.get(R.string.core_dispatcharr_invalid_credentials),
             )
         }
         if (code == 429) {
@@ -196,19 +196,17 @@ class DispatcharrClient @Inject constructor() {
             // credential problems that did not exist (Discord 2026-08-16,
             // iOS twin fixed the same day). Self-clearing: say WAIT.
             throw DispatcharrError.Transport(
-                "The server is rate-limiting login attempts (HTTP 429). " +
-                    "Wait a minute and try again.",
+                AppText.get(R.string.core_dispatcharr_login_rate_limited),
             )
         }
         if (!response.status.isSuccess()) {
-            throw DispatcharrError.Transport("Login transport error: HTTP $code")
+            throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_login_http_error, code))
         }
         return try {
             response.body()
         } catch (e: SerializationException) {
             throw DispatcharrError.UnexpectedResponse(
-                "Server returned an unexpected response shape during login. " +
-                    "Verify the URL points at a Dispatcharr 0.23.0 or newer instance.",
+                AppText.get(R.string.core_dispatcharr_login_unexpected),
             )
         }
     }
@@ -234,23 +232,23 @@ class DispatcharrClient @Inject constructor() {
             }
         } catch (t: Throwable) {
             throw DispatcharrError.Transport(
-                "Refresh transport error: ${t.message ?: t::class.simpleName}",
+                AppText.get(R.string.core_dispatcharr_refresh_transport_error, t.message ?: t::class.simpleName.toString()),
             )
         }
         val code = response.status.value
         if (code == 401 || code == 403) {
             throw DispatcharrError.RefreshExpired(
-                "Refresh token expired. AerioTV will re-authenticate from saved credentials.",
+                AppText.get(R.string.core_dispatcharr_refresh_expired),
             )
         }
         if (!response.status.isSuccess()) {
-            throw DispatcharrError.Transport("Refresh transport error: HTTP $code")
+            throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_refresh_http_error, code))
         }
         val body: RefreshResponse = try {
             response.body()
         } catch (e: SerializationException) {
             throw DispatcharrError.UnexpectedResponse(
-                "Refresh returned an unexpected response shape.",
+                AppText.get(R.string.core_dispatcharr_refresh_unexpected),
             )
         }
         return body.access
@@ -271,18 +269,17 @@ class DispatcharrClient @Inject constructor() {
             }
         } catch (t: Throwable) {
             throw DispatcharrError.Transport(
-                "Couldn't read user profile: ${t.message ?: t::class.simpleName}",
+                AppText.get(R.string.core_dispatcharr_profile_read_failed, t.message ?: t::class.simpleName.toString()),
             )
         }
         if (!response.status.isSuccess()) {
-            throw DispatcharrError.Transport("Couldn't read user profile: HTTP ${response.status.value}")
+            throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_profile_read_http, response.status.value))
         }
         val me: MeResponse = try {
             response.body()
         } catch (e: SerializationException) {
             throw DispatcharrError.UnexpectedResponse(
-                "Server returned an unexpected user profile shape. Verify the URL " +
-                    "points at a Dispatcharr 0.23.0 or newer instance.",
+                AppText.get(R.string.core_dispatcharr_profile_unexpected),
             )
         }
         // An account without an api_key is a fixable server-side state, not
@@ -291,9 +288,7 @@ class DispatcharrClient @Inject constructor() {
         // fix instead of the generic "unexpected shape" copy.
         return me.apiKey?.takeIf { it.isNotBlank() }
             ?: throw DispatcharrError.UnexpectedResponse(
-                "The Dispatcharr account '${me.username}' has no API key. In " +
-                    "Dispatcharr, open System, then Users, edit this user, and " +
-                    "generate an API key, then try again.",
+                AppText.get(R.string.core_dispatcharr_no_api_key, me.username.toString()),
             )
     }
 
@@ -555,7 +550,7 @@ class DispatcharrClient @Inject constructor() {
             }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            return ReportAnswer.Refused("Could not reach the server: ${e.message ?: e::class.simpleName}")
+            return ReportAnswer.Refused(AppText.get(R.string.core_dispatchmore_unreachable, e.message ?: e::class.simpleName.orEmpty()))
         }
         // A rotated key: thrown so withApiKeyRetry logs in again and resends.
         if (response.status.value == 401) {
@@ -567,10 +562,10 @@ class DispatcharrClient @Inject constructor() {
             when {
                 response.status.isSuccess() && id != null -> ReportAnswer.Sent(id)
                 response.status.value == 403 ->
-                    ReportAnswer.Refused("This server does not take reports")
+                    ReportAnswer.Refused(AppText.get(R.string.core_dispatchmore_reports_not_taken))
                 else -> ReportAnswer.Refused(
                     (body?.get("error") as? JsonPrimitive)?.contentOrNull
-                        ?: "The server answered ${response.status.value}",
+                        ?: AppText.get(R.string.core_dispatchmore_server_answered, response.status.value),
                 )
             }
         }
@@ -650,7 +645,7 @@ class DispatcharrClient @Inject constructor() {
             }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            return GuideAnswer.Refused(0, "Could not reach the server: ${e.message ?: e::class.simpleName}")
+            return GuideAnswer.Refused(0, AppText.get(R.string.core_dispatchmore_unreachable, e.message ?: e::class.simpleName.orEmpty()))
         }
         if (response.status.value == 401) throw DispatcharrError.Unauthorized("Guide list refused: 401")
         val body = runCatching { response.body<JsonElement>() as? JsonObject }.getOrNull()
@@ -684,7 +679,7 @@ class DispatcharrClient @Inject constructor() {
             }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            return GuideAnswer.Refused(0, "Could not reach the server: ${e.message ?: e::class.simpleName}")
+            return GuideAnswer.Refused(0, AppText.get(R.string.core_dispatchmore_unreachable, e.message ?: e::class.simpleName.orEmpty()))
         }
         if (response.status.value == 401) throw DispatcharrError.Unauthorized("Guide choice refused: 401")
         val body = runCatching { response.body<JsonElement>() as? JsonObject }.getOrNull()
@@ -696,9 +691,9 @@ class DispatcharrClient @Inject constructor() {
         GuideAnswer.Refused(
             status,
             (body?.get("error") as? JsonPrimitive)?.contentOrNull ?: when (status) {
-                403 -> "Changing the guide is switched off on the server"
-                404 -> "That channel or guide no longer exists"
-                else -> "The server answered $status"
+                403 -> AppText.get(R.string.core_dispatchmore_guide_switched_off)
+                404 -> AppText.get(R.string.core_dispatchmore_guide_gone)
+                else -> AppText.get(R.string.core_dispatchmore_server_answered, status)
             },
         )
 
@@ -738,10 +733,8 @@ class DispatcharrClient @Inject constructor() {
      * These errors are surfaced, never swallowed.
      */
     private fun dvrPermissionMessage(status: Int): String? = when (status) {
-        403 -> "Your Dispatcharr account can view recordings but not manage them. " +
-            "Ask your server administrator for DVR manage access."
-        401 -> "Dispatcharr rejected this request as unauthorized. " +
-            "Your session or API key may have expired."
+        403 -> AppText.get(R.string.core_capability_denied_manage_dvr)
+        401 -> AppText.get(R.string.core_dispatcharr_dvr_unauthorized)
         else -> null
     }
 
@@ -798,7 +791,7 @@ class DispatcharrClient @Inject constructor() {
         val response: HttpResponse = client.get(url) { applyAuth(apiKey) }
         unauthorizedCheck(response, url)
         if (!response.status.isSuccess()) {
-            throw DispatcharrError.Transport("Connection check failed: HTTP ${response.status.value} ${response.status.description}")
+            throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_connection_check_failed, response.status.value, response.status.description))
         }
         return response.body()
     }
@@ -856,14 +849,14 @@ class DispatcharrClient @Inject constructor() {
         unauthorizedCheck(response, url)
         if (!response.status.isSuccess()) {
             throw DispatcharrError.Transport(
-                "Couldn't read channel profile $profileId: HTTP ${response.status.value}",
+                AppText.get(R.string.core_dispatcharr_channel_profile_read_failed, profileId, response.status.value),
             )
         }
         return try {
             response.body<DispatcharrProfile>().channels
         } catch (e: SerializationException) {
             throw DispatcharrError.UnexpectedResponse(
-                "Server returned an unexpected channel-profile shape for id $profileId.",
+                AppText.get(R.string.core_dispatcharr_channel_profile_unexpected, profileId),
             )
         }
     }
@@ -927,7 +920,7 @@ class DispatcharrClient @Inject constructor() {
         val response: HttpResponse = client.get(url) { applyAuth(apiKey) }
         unauthorizedCheck(response, url)
         if (!response.status.isSuccess()) {
-            throw DispatcharrError.Transport("Program detail failed: HTTP ${response.status.value}")
+            throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_program_detail_failed, response.status.value))
         }
         return response.body()
     }
@@ -985,7 +978,7 @@ class DispatcharrClient @Inject constructor() {
             unauthorizedCheck(response, nextUrl)
             if (!response.status.isSuccess()) {
                 if (all.isEmpty()) {
-                    throw DispatcharrError.Transport("Programs-by-tvg-id failed: HTTP ${response.status.value}")
+                    throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_programs_by_tvg_failed, response.status.value))
                 }
                 break
             }
@@ -1033,7 +1026,7 @@ class DispatcharrClient @Inject constructor() {
         val response: HttpResponse = client.get(url) { applyAuth(apiKey) }
         unauthorizedCheck(response, url)
         if (!response.status.isSuccess()) {
-            throw DispatcharrError.Transport("EPG grid failed: HTTP ${response.status.value} ${response.status.description}")
+            throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_epg_grid_failed, response.status.value, response.status.description))
         }
         val wrapper: EpgGridResponse = response.body()
         return wrapper.data
@@ -1067,7 +1060,7 @@ class DispatcharrClient @Inject constructor() {
         unauthorizedCheck(response, url)
         if (!response.status.isSuccess()) {
             throw DispatcharrError.Transport(
-                "Current programs failed: HTTP ${response.status.value} ${response.status.description}",
+                AppText.get(R.string.core_dispatcharr_current_programs_failed, response.status.value, response.status.description),
             )
         }
         // The endpoint emits either a flat JSON array or a DRF-wrapped
@@ -1145,7 +1138,7 @@ class DispatcharrClient @Inject constructor() {
         unauthorizedCheck(response, url)
         if (!response.status.isSuccess()) {
             throw DispatcharrError.Transport(
-                "HTTP ${response.status.value} ${response.status.description} from $url",
+                AppText.get(R.string.core_http_error_from_url, response.status.value, response.status.description, url),
             )
         }
         val raw: JsonElement = response.body()
@@ -1153,7 +1146,7 @@ class DispatcharrClient @Inject constructor() {
             raw is JsonArray -> raw
             raw is JsonObject && raw["results"] is JsonArray -> raw["results"]!!.jsonArray
             else -> throw DispatcharrError.UnexpectedResponse(
-                "Unexpected response shape from $url: ${raw::class.simpleName}",
+                AppText.get(R.string.core_dispatcharr_unexpected_shape_from, url, raw::class.simpleName.orEmpty()),
             )
         }
         // POSTing to a DRF `next` cursor is version-dependent behavior, so this
@@ -1196,7 +1189,7 @@ class DispatcharrClient @Inject constructor() {
             val response: HttpResponse = client.get(pageUrl) { applyAuth(apiKey) }
             unauthorizedCheck(response, pageUrl)
             if (!response.status.isSuccess()) {
-                throw DispatcharrError.Transport("HTTP ${response.status.value} ${response.status.description} from $pageUrl")
+                throw DispatcharrError.Transport(AppText.get(R.string.core_http_error_from_url, response.status.value, response.status.description, pageUrl))
             }
             val raw: JsonElement = response.body()
             nextUrl = when {
@@ -1216,7 +1209,7 @@ class DispatcharrClient @Inject constructor() {
                                 cursorHost.equals(trustedHost, ignoreCase = true)
                         }
                 }
-                else -> throw DispatcharrError.UnexpectedResponse("Unexpected response shape from $pageUrl: ${raw::class.simpleName}")
+                else -> throw DispatcharrError.UnexpectedResponse(AppText.get(R.string.core_dispatcharr_unexpected_shape_from, pageUrl, raw::class.simpleName.orEmpty()))
             }
         }
         if (nextUrl != null) {
@@ -1245,8 +1238,7 @@ class DispatcharrClient @Inject constructor() {
         val code = response.status.value
         if (code == 401 || code == 403) {
             throw DispatcharrError.Unauthorized(
-                "Dispatcharr rejected the api_key for $url (HTTP $code). " +
-                    "Admin probably rotated it.",
+                AppText.get(R.string.core_dispatcharr_api_key_rejected, url, code),
             )
         }
     }
@@ -1430,7 +1422,7 @@ class DispatcharrClient @Inject constructor() {
             response.status.value == 409 -> {
                 val body = runCatching { json.parseToJsonElement(response.bodyAsText()) as? JsonObject }.getOrNull()
                 CatchupSessionResult.Refused(
-                    (body?.get("error") as? JsonPrimitive)?.contentOrNull ?: "Unavailable due to current viewing priorities",
+                    (body?.get("error") as? JsonPrimitive)?.contentOrNull ?: AppText.get(R.string.core_dispatcharr_catchup_unavailable),
                     (body?.get("retry_after") as? JsonPrimitive)?.contentOrNull?.toIntOrNull() ?: 0,
                 )
             }
@@ -1632,7 +1624,7 @@ class DispatcharrClient @Inject constructor() {
         if (!response.status.isSuccess()) {
             throw DispatcharrError.Transport(
                 dvrPermissionMessage(response.status.value)
-                    ?: "Recording create failed: HTTP ${response.status.value} ${response.status.description}",
+                    ?: AppText.get(R.string.core_dispatcharr_recording_create_failed, response.status.value, response.status.description),
             )
         }
         return response.body()
@@ -1679,7 +1671,7 @@ class DispatcharrClient @Inject constructor() {
         unauthorizedCheck(response, url)
         if (!response.status.isSuccess()) {
             throw DispatcharrError.Transport(
-                "Series rule create failed: HTTP ${response.status.value} ${response.status.description}",
+                AppText.get(R.string.core_dispatcharr_series_rule_create_failed, response.status.value, response.status.description),
             )
         }
     }
@@ -1700,7 +1692,7 @@ class DispatcharrClient @Inject constructor() {
         unauthorizedCheck(response, url)
         if (!response.status.isSuccess()) {
             throw DispatcharrError.Transport(
-                "Series rule evaluate failed: HTTP ${response.status.value} ${response.status.description}",
+                AppText.get(R.string.core_dispatcharr_series_rule_evaluate_failed, response.status.value, response.status.description),
             )
         }
         val obj = runCatching { response.body<JsonObject>() }.getOrNull() ?: return -1
@@ -1725,7 +1717,7 @@ class DispatcharrClient @Inject constructor() {
         val response: HttpResponse = client.get(url) { applyAuth(apiKey) }
         unauthorizedCheck(response, url)
         if (!response.status.isSuccess()) {
-            throw DispatcharrError.Transport("Recording fetch failed: HTTP ${response.status.value}")
+            throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_recording_fetch_failed, response.status.value))
         }
         return response.body()
     }
@@ -1774,7 +1766,7 @@ class DispatcharrClient @Inject constructor() {
         unauthorizedCheck(response, url)
         if (!response.status.isSuccess()) {
             throw DispatcharrError.Transport(
-                "Recording update failed: HTTP ${response.status.value} ${response.status.description}",
+                AppText.get(R.string.core_dispatcharr_recording_update_failed, response.status.value, response.status.description),
             )
         }
         return response.body()
@@ -1803,7 +1795,7 @@ class DispatcharrClient @Inject constructor() {
         val response: HttpResponse = client.get(url) { applyAuth(apiKey) }
         unauthorizedCheck(response, url)
         if (!response.status.isSuccess()) {
-            throw DispatcharrError.Transport("VOD movies fetch failed: HTTP ${response.status.value}")
+            throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_vod_movies_failed, response.status.value))
         }
         val raw: JsonElement = response.body()
         val trustedHost = runCatching { java.net.URI(url).host }.getOrNull()
@@ -1828,7 +1820,7 @@ class DispatcharrClient @Inject constructor() {
                 }
                 VODMoviesPage(count = count, next = next, results = results)
             }
-            else -> throw IllegalStateException("Unexpected /api/vod/movies/ shape: ${raw::class.simpleName}")
+            else -> throw IllegalStateException(AppText.get(R.string.core_dispatcharr_vod_movies_unexpected, raw::class.simpleName.orEmpty()))
         }
     }
 
@@ -1857,7 +1849,7 @@ class DispatcharrClient @Inject constructor() {
             val response: HttpResponse = client.get(url) { applyAuth(apiKey) }
             unauthorizedCheck(response, url)
             if (!response.status.isSuccess()) {
-                throw DispatcharrError.Transport("VOD series $id fetch failed: HTTP ${response.status.value}")
+                throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_vod_series_item_failed, id, response.status.value))
             }
             val raw: JsonElement = response.body()
             json.decodeFromJsonElement(serializer<DispatcharrVODSeries>(), raw)
@@ -1867,7 +1859,7 @@ class DispatcharrClient @Inject constructor() {
         val response: HttpResponse = client.get(url) { applyAuth(apiKey) }
         unauthorizedCheck(response, url)
         if (!response.status.isSuccess()) {
-            throw DispatcharrError.Transport("VOD series fetch failed: HTTP ${response.status.value}")
+            throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_vod_series_failed, response.status.value))
         }
         val raw: JsonElement = response.body()
         val trustedHost = runCatching { java.net.URI(url).host }.getOrNull()
@@ -1889,7 +1881,7 @@ class DispatcharrClient @Inject constructor() {
                 }
                 VODSeriesPage(count = count, next = next, results = results)
             }
-            else -> throw IllegalStateException("Unexpected /api/vod/series/ shape: ${raw::class.simpleName}")
+            else -> throw IllegalStateException(AppText.get(R.string.core_dispatcharr_vod_series_unexpected, raw::class.simpleName.orEmpty()))
         }
     }
 
@@ -2004,7 +1996,7 @@ class DispatcharrClient @Inject constructor() {
         val response: HttpResponse = client.get(url) { applyAuth(apiKey) }
         unauthorizedCheck(response, url)
         if (!response.status.isSuccess()) {
-            throw DispatcharrError.Transport("Movie provider-info failed: HTTP ${response.status.value}")
+            throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_movie_provider_info_failed, response.status.value))
         }
         return response.body()
     }
@@ -2028,7 +2020,7 @@ class DispatcharrClient @Inject constructor() {
             client.prepareGet(url) { applyAuth(apiKey) }.execute { response ->
                 unauthorizedCheck(response, url)
                 if (!response.status.isSuccess()) {
-                    throw DispatcharrError.Transport("Series provider-info failed: HTTP ${response.status.value}")
+                    throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_series_provider_info_failed, response.status.value))
                 }
                 json.decodeFromStream<DispatcharrVODProviderInfo>(response.bodyAsChannel().toInputStream())
             }
@@ -2077,7 +2069,7 @@ class DispatcharrClient @Inject constructor() {
         val response: HttpResponse = client.get(url) { applyAuth(apiKey) }
         unauthorizedCheck(response, url)
         if (!response.status.isSuccess()) {
-            throw DispatcharrError.Transport("Movie provider-media failed: HTTP ${response.status.value}")
+            throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_movie_provider_media_failed, response.status.value))
         }
         return response.body()
     }
@@ -2137,7 +2129,7 @@ class DispatcharrClient @Inject constructor() {
             }.execute { response ->
                 unauthorizedCheck(response, pageUrl)
                 if (!response.status.isSuccess()) {
-                    throw DispatcharrError.Transport("Series episodes fetch failed: HTTP ${response.status.value}")
+                    throw DispatcharrError.Transport(AppText.get(R.string.core_dispatcharr_series_episodes_failed, response.status.value))
                 }
                 val raw = response.bodyAsChannel().toInputStream()
                 // Peek past leading whitespace: a bare array (older builds)
@@ -2294,7 +2286,7 @@ class DispatcharrClient @Inject constructor() {
         unauthorizedCheck(response, url)
         if (!response.status.isSuccess()) {
             throw DispatcharrError.Transport(
-                "Remove Commercials failed: HTTP ${response.status.value} ${response.status.description}",
+                AppText.get(R.string.core_dispatcharr_remove_commercials_failed, response.status.value, response.status.description),
             )
         }
     }
@@ -2311,7 +2303,7 @@ class DispatcharrClient @Inject constructor() {
         unauthorizedCheck(response, url)
         if (!response.status.isSuccess()) {
             throw DispatcharrError.Transport(
-                "Stop Recording failed: HTTP ${response.status.value} ${response.status.description}",
+                AppText.get(R.string.core_dispatcharr_stop_recording_failed, response.status.value, response.status.description),
             )
         }
     }
@@ -2385,7 +2377,7 @@ class DispatcharrClient @Inject constructor() {
         unauthorizedCheck(response, url)
         if (!response.status.isSuccess()) {
             throw DispatcharrError.Transport(
-                "Switch Stream failed: HTTP ${response.status.value} ${response.status.description} body=$respBody",
+                AppText.get(R.string.core_dispatcharr_switch_stream_failed, response.status.value, response.status.description, respBody.orEmpty()),
             )
         }
         return respBody?.let { body ->
@@ -2566,7 +2558,7 @@ class DispatcharrClient @Inject constructor() {
         if (!response.status.isSuccess()) {
             throw DispatcharrError.Transport(
                 dvrPermissionMessage(response.status.value)
-                    ?: "Recording delete failed: HTTP ${response.status.value} ${response.status.description}",
+                    ?: AppText.get(R.string.core_dispatcharr_recording_delete_failed, response.status.value, response.status.description),
             )
         }
     }

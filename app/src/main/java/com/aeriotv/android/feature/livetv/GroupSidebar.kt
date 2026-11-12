@@ -66,6 +66,9 @@ import com.aeriotv.android.ui.settings.settingsTitleStyle
 import com.aeriotv.android.ui.tv.tvFocusScale
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.aeriotv.android.R
 
 /**
  * Channel-group sidebar (Remote Control initiative, Logan spec 2026-07-20):
@@ -228,7 +231,7 @@ internal fun GroupSidebarPanel(
         ) {
             // tvOS: 22 pt semibold in the secondary text colour (halved).
             Text(
-                text = "Groups",
+                text = stringResource(R.string.livetv_groups),
                 style = if (isTv) MaterialTheme.typography.bodyMedium.copy(fontSize = 11.sp) else settingsTitleStyle(),
                 fontWeight = if (isTv) FontWeight.SemiBold else FontWeight.Bold,
                 color = if (isTv) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onBackground,
@@ -404,7 +407,7 @@ private fun GroupSidebarRow(
                 color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false),
             )
-            if (trailingPin) Icon(Icons.Filled.PushPin, contentDescription = "Default group", tint = fg.copy(alpha = 0.7f), modifier = Modifier.size(7.dp))
+            if (trailingPin) Icon(Icons.Filled.PushPin, contentDescription = stringResource(R.string.livetv_default_group), tint = fg.copy(alpha = 0.7f), modifier = Modifier.size(7.dp))
         }
         return
     }
@@ -643,7 +646,7 @@ internal fun PhoneGroupDrawer(
                 .padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 4.dp),
         ) {
             Text(
-                text = "CHANNEL GROUPS",
+                text = stringResource(R.string.livetv_channel_groups_header),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.2.sp,
@@ -660,8 +663,8 @@ internal fun PhoneGroupDrawer(
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Tune,
-                    contentDescription = if (hiddenGroupCount == 0) "Manage Groups"
-                    else "Manage Groups ($hiddenGroupCount hidden)",
+                    contentDescription = if (hiddenGroupCount == 0) stringResource(R.string.livetv_manage_groups)
+                    else pluralStringResource(R.plurals.livetv_manage_groups_hidden, hiddenGroupCount, hiddenGroupCount),
                     tint = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.size(16.dp),
                 )
@@ -717,7 +720,7 @@ internal fun PhoneGroupDrawer(
                         if (token == PlaylistViewModel.ALL_GROUPS) {
                             Icon(
                                 imageVector = Icons.Filled.PushPin,
-                                contentDescription = "Default group",
+                                contentDescription = stringResource(R.string.livetv_default_group),
                                 tint = MaterialTheme.colorScheme.tertiary,
                                 modifier = Modifier.size(11.dp),
                             )

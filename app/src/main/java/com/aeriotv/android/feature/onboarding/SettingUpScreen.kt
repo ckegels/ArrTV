@@ -35,6 +35,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * tvOS ServerSyncView ("Setting Up") parity: a staged-loading card shown while
@@ -48,9 +50,12 @@ import kotlinx.coroutines.delay
  */
 @Composable
 fun SettingUpScreen(onSkip: () -> Unit) {
-    val stages = remember {
-        listOf("Loading EPG", "Loading VOD", "Loading DVR", "Loading preferences")
-    }
+    val stages = listOf(
+        stringResource(R.string.main_setting_up_loading_epg),
+        stringResource(R.string.main_setting_up_loading_vod),
+        stringResource(R.string.main_setting_up_loading_dvr),
+        stringResource(R.string.main_setting_up_loading_preferences),
+    )
     // Index of the stage currently loading; earlier stages render as done.
     var active by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
@@ -74,7 +79,7 @@ fun SettingUpScreen(onSkip: () -> Unit) {
                 .padding(horizontal = 24.dp),
         ) {
             Text(
-                text = "Setting Up",
+                text = stringResource(R.string.main_setting_up_title),
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.Bold,
@@ -102,7 +107,7 @@ fun SettingUpScreen(onSkip: () -> Unit) {
             }
             Spacer(Modifier.height(28.dp))
             TextButton(onClick = onSkip) {
-                Text("Skip", color = MaterialTheme.colorScheme.textAccent)
+                Text(stringResource(R.string.main_setting_up_skip), color = MaterialTheme.colorScheme.textAccent)
             }
         }
     }
@@ -152,7 +157,7 @@ private fun StageRow(label: String, status: StageStatus, showSynced: Boolean) {
             )
             if (showSynced) {
                 Text(
-                    text = "Synced",
+                    text = stringResource(R.string.main_setting_up_synced),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.textAccent,
                 )

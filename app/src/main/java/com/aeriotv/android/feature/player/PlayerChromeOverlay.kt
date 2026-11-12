@@ -1,5 +1,8 @@
 package com.aeriotv.android.feature.player
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import com.aeriotv.android.ui.theme.decorSecondary
 import com.aeriotv.android.ui.theme.forText
 import com.aeriotv.android.ui.scale.subtext
@@ -304,7 +307,7 @@ fun PlayerChromeOverlay(
                 val now = System.currentTimeMillis()
                 ProgramInfoTarget(
                     channelName = it.name,
-                    title = "${it.name} live recording",
+                    title = AppText.get(R.string.player_live_recording_title, it.name),
                     startMillis = now,
                     endMillis = now + 3_600_000L,
                     description = "",
@@ -418,11 +421,11 @@ fun PlayerChromeOverlay(
             // Without one they stay in the row, greyed and inert, and say why
             // when focused, rather than vanishing and reflowing the row.
             val seekEnabled = tvTransport
-            val seekDisabledCaption = "Enable Live Rewind in Settings"
+            val seekDisabledCaption = stringResource(R.string.player_enable_rewind_caption)
             val centerPill: @Composable () -> Unit = {
                 PlayerControlCircle(
                     icon = if (isPlayerPaused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                    title = if (isPlayerPaused) "Play" else "Pause",
+                    title = stringResource(if (isPlayerPaused) R.string.common_play else R.string.common_pause),
                     onClick = onRewindTogglePause,
                     modifier = Modifier.focusRequester(pauseFocus),
                     onInteraction = onInteraction,
@@ -435,7 +438,7 @@ fun PlayerChromeOverlay(
                 if (connectionIssue) {
                     PlayerControlCircle(
                         icon = Icons.Filled.Refresh,
-                        title = "Retry",
+                        title = stringResource(R.string.player_retry),
                         onClick = onRetry,
                             modifier = Modifier.focusRequester(retryFocus),
                         onInteraction = onInteraction,
@@ -446,7 +449,7 @@ fun PlayerChromeOverlay(
                 if (canRecord && !catchupMode) {
                     PlayerControlCircle(
                         icon = Icons.Filled.FiberManualRecord,
-                        title = "Record",
+                        title = stringResource(R.string.player_record),
                         iconTint = Color(0xFFFF4757),
                         onClick = { recordCurrent() },
                         onInteraction = onInteraction,
@@ -456,7 +459,7 @@ fun PlayerChromeOverlay(
                 val backSeconds = rememberSkipBackSeconds()
                 PlayerControlCircle(
                     icon = SkipIntervals.backIcon(backSeconds),
-                    title = "Rewind",
+                    title = stringResource(R.string.player_rewind),
                     contentDescription = SkipIntervals.backLabel(backSeconds),
                     enabled = seekEnabled,
                     disabledCaption = seekDisabledCaption,
@@ -471,7 +474,7 @@ fun PlayerChromeOverlay(
                 val forwardSeconds = rememberSkipForwardSeconds()
                 PlayerControlCircle(
                     icon = SkipIntervals.forwardIcon(forwardSeconds),
-                    title = "Forward",
+                    title = stringResource(R.string.player_forward),
                     contentDescription = SkipIntervals.forwardLabel(forwardSeconds),
                     enabled = seekEnabled,
                     disabledCaption = seekDisabledCaption,
@@ -484,7 +487,7 @@ fun PlayerChromeOverlay(
                 if (tvTransport && !catchupMode && timeshiftState?.timeshifting == true) {
                     PlayerControlCircle(
                         icon = Icons.Filled.PlayArrow,
-                        title = "Go Live",
+                        title = stringResource(R.string.player_go_live),
                         onClick = onGoLive,
                             onInteraction = onInteraction,
                         )
@@ -492,8 +495,8 @@ fun PlayerChromeOverlay(
                 if (!catchupMode) {
                     PlayerControlCircle(
                         icon = Icons.Outlined.GridView,
-                        title = "Multiview",
-                        contentDescription = "Add a multiview tile",
+                        title = stringResource(R.string.player_multiview),
+                        contentDescription = stringResource(R.string.player_add_multiview_tile),
                         onClick = onAddToMultiview,
                             onInteraction = onInteraction,
                         )
@@ -501,7 +504,7 @@ fun PlayerChromeOverlay(
                 Box {
                     PlayerControlCircle(
                         icon = Icons.Filled.Tune,
-                        title = "Options",
+                        title = stringResource(R.string.player_options),
                         onClick = { moreOpen = true },
                             modifier = Modifier.focusRequester(optionsFocus),
                         onInteraction = onInteraction,
@@ -608,7 +611,7 @@ fun PlayerChromeOverlay(
             ) {
                 CircleIconButton(
                     icon = Icons.Filled.Close,
-                    contentDescription = "Close",
+                    contentDescription = stringResource(R.string.common_close),
                     onClick = onClose,
                     modifier = Modifier.focusRequester(closeFocus),
                 )
@@ -633,7 +636,7 @@ fun PlayerChromeOverlay(
                 Spacer(Modifier.weight(1f))
                 CircleIconButton(
                     icon = if (forcedLandscape) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
-                    contentDescription = if (forcedLandscape) "Exit fullscreen" else "Fullscreen",
+                    contentDescription = stringResource(if (forcedLandscape) R.string.player_exit_fullscreen else R.string.player_fullscreen),
                     onClick = {
                         forcedLandscape = !forcedLandscape
                         context.findActivity()?.requestedOrientation = if (forcedLandscape) {
@@ -648,7 +651,7 @@ fun PlayerChromeOverlay(
                 Box {
                     CircleIconButton(
                         icon = Icons.Filled.MoreHoriz,
-                        contentDescription = "More",
+                        contentDescription = stringResource(R.string.player_more),
                         onClick = { moreOpen = true },
                     )
                     PlayerMoreMenu(
@@ -702,14 +705,14 @@ fun PlayerChromeOverlay(
                     Spacer(Modifier.width(8.dp))
                     CircleIconButton(
                         icon = Icons.Filled.PictureInPicture,
-                        contentDescription = "Picture in picture",
+                        contentDescription = stringResource(R.string.player_pip),
                         onClick = { context.findActivity()?.enterPip16x9() },
                     )
                 }
                 Spacer(Modifier.width(8.dp))
                 CircleIconButton(
                     icon = Icons.Filled.Add,
-                    contentDescription = "Add to Multiview",
+                    contentDescription = stringResource(R.string.player_add_to_multiview),
                     onClick = onAddToMultiview,
                 )
             }
@@ -774,7 +777,7 @@ fun PlayerChromeOverlay(
                 if (showLiveRewindHint) {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        text = "Turn on Live Rewind in Settings to pause & rewind live TV",
+                        text = stringResource(R.string.player_turn_on_rewind),
                         style = MaterialTheme.typography.labelMedium,
                         color = Color.White.copy(alpha = 0.65f),
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -831,7 +834,7 @@ fun PlayerChromeOverlay(
                     android.text.format.DateFormat.getBestDateTimePattern(java.util.Locale.getDefault(), "EEEMMMd"),
                     java.util.Locale.getDefault(),
                 ).format(java.util.Date(p.startMillis))
-                InfoBarReplay(label = "Look back · $day", positionWallMs = p.startMillis + catchupPositionMs)
+                InfoBarReplay(label = stringResource(R.string.player_look_back_day, day), positionWallMs = p.startMillis + catchupPositionMs)
             },
             timeline = if (replayProgramme != null) {
                 {
@@ -891,41 +894,41 @@ fun PlayerChromeOverlay(
             // stream can both have changed since the screen was drawn.
             val report = ProblemReportMenu.action
             if (moreOpen && report != null && report.available()) {
-                add(PlayerOption("report", Icons.Outlined.Flag, "Send report") { close(); report.open() })
+                add(PlayerOption("report", Icons.Outlined.Flag, stringResource(R.string.player_send_report)) { close(); report.open() })
             }
             val guideChoice = GuideChoiceMenu.action
             if (moreOpen && guideChoice != null && guideChoice.available()) {
-                add(PlayerOption("guide", Icons.Outlined.EventNote, "Wrong guide?") { close(); guideChoice.open() })
+                add(PlayerOption("guide", Icons.Outlined.EventNote, stringResource(R.string.player_wrong_guide)) { close(); guideChoice.open() })
             }
-            add(PlayerOption("subtitles", Icons.Outlined.ClosedCaption, "Subtitles") { close(); onShowSubtitles() })
-            add(PlayerOption("audio", Icons.Outlined.GraphicEq, "Audio track") { close(); onShowAudioTracks() })
-            add(PlayerOption("speed", Icons.Outlined.Speed, "Speed") { close(); onShowPlaybackSpeed() })
+            add(PlayerOption("subtitles", Icons.Outlined.ClosedCaption, stringResource(R.string.player_subtitles)) { close(); onShowSubtitles() })
+            add(PlayerOption("audio", Icons.Outlined.GraphicEq, stringResource(R.string.player_option_audio_track)) { close(); onShowAudioTracks() })
+            add(PlayerOption("speed", Icons.Outlined.Speed, stringResource(R.string.player_option_speed)) { close(); onShowPlaybackSpeed() })
             // Stays open so repeated presses cycle; the value shows the mode
-            add(PlayerOption("scale", Icons.Outlined.AspectRatio, "Video scale", value = videoScaleLabel) {
+            add(PlayerOption("scale", Icons.Outlined.AspectRatio, stringResource(R.string.player_option_video_scale), value = videoScaleLabel) {
                 onCycleVideoScale()
             })
             if (canRecord) {
-                add(PlayerOption("record", Icons.Filled.FiberManualRecord, "Record", iconTint = Color(0xFFFF4757)) {
+                add(PlayerOption("record", Icons.Filled.FiberManualRecord, stringResource(R.string.player_record), iconTint = Color(0xFFFF4757)) {
                     close(); recordCurrent()
                 })
             }
             val sleeping = sleepRemainingMillis != null
             add(
                 PlayerOption(
-                    "sleep", if (sleeping) Icons.Filled.Bedtime else Icons.Outlined.Bedtime, "Sleep timer",
-                    value = sleepRemainingMillis?.let { "${(it / 60_000L).coerceAtLeast(0L)} min" },
+                    "sleep", if (sleeping) Icons.Filled.Bedtime else Icons.Outlined.Bedtime, stringResource(R.string.player_option_sleep_timer),
+                    value = sleepRemainingMillis?.let { stringResource(R.string.player_minutes_short, (it / 60_000L).coerceAtLeast(0L).toInt()) },
                     active = sleeping,
                 ) { close(); sleepOpen = true },
             )
-            add(PlayerOption("info", Icons.Outlined.Info, "Stream info") { close(); onShowStreamInfo() })
+            add(PlayerOption("info", Icons.Outlined.Info, stringResource(R.string.player_option_stream_info)) { close(); onShowStreamInfo() })
             if (canSwitchStream) {
-                add(PlayerOption("switch", Icons.Outlined.SwapHoriz, "Switch stream") { close(); onShowSwitchStream() })
+                add(PlayerOption("switch", Icons.Outlined.SwapHoriz, stringResource(R.string.player_option_switch_stream)) { close(); onShowSwitchStream() })
             }
-            add(PlayerOption("multiview", Icons.Outlined.GridView, "Multiview") { close(); onAddToMultiview() })
+            add(PlayerOption("multiview", Icons.Outlined.GridView, stringResource(R.string.player_multiview)) { close(); onAddToMultiview() })
             add(
                 PlayerOption(
                     "audioOnly", if (audioOnly) Icons.Filled.MusicNote else Icons.Outlined.MusicNote,
-                    if (audioOnly) "Show video" else "Audio only", active = audioOnly,
+                    stringResource(if (audioOnly) R.string.player_option_show_video else R.string.player_option_audio_only), active = audioOnly,
                 ) { close(); onToggleAudioOnly() },
             )
         }
@@ -1305,7 +1308,7 @@ private fun PlayerMoreMenu(
             // Non-interactive header (D-pad focus skips it and lands on the first
             // row); Back closes the dropdown, which the "‹" chevron represents.
             Text(
-                text = "Press ‹ to close",
+                text = stringResource(R.string.player_press_left_to_close),
                 fontSize = 12.sp.subtext(),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f).forText(),
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 4.dp),
@@ -1326,7 +1329,7 @@ private fun PlayerMoreMenu(
                         tint = MaterialTheme.colorScheme.onSurface,
                     )
                 },
-                text = { Text("Send a report to the server") },
+                text = { Text(stringResource(R.string.player_send_report_to_server)) },
                 onClick = {
                     onDismiss()
                     report.open()
@@ -1344,7 +1347,7 @@ private fun PlayerMoreMenu(
                         tint = MaterialTheme.colorScheme.onSurface,
                     )
                 },
-                text = { Text("Wrong guide? Choose another") },
+                text = { Text(stringResource(R.string.player_wrong_guide_choose)) },
                 onClick = {
                     onDismiss()
                     guideChoice.open()
@@ -1359,7 +1362,7 @@ private fun PlayerMoreMenu(
                     tint = MaterialTheme.colorScheme.onSurface,
                 )
             },
-            text = { Text("Subtitles") },
+            text = { Text(stringResource(R.string.player_subtitles)) },
             onClick = onSubtitles,
         )
         DropdownMenuItem(
@@ -1370,7 +1373,7 @@ private fun PlayerMoreMenu(
                     tint = MaterialTheme.colorScheme.onSurface,
                 )
             },
-            text = { Text("Audio Track") },
+            text = { Text(stringResource(R.string.player_audio_track)) },
             onClick = onAudioTracks,
         )
         DropdownMenuItem(
@@ -1381,7 +1384,7 @@ private fun PlayerMoreMenu(
                     tint = MaterialTheme.colorScheme.onSurface,
                 )
             },
-            text = { Text("Playback Speed") },
+            text = { Text(stringResource(R.string.player_playback_speed)) },
             onClick = onPlaybackSpeed,
         )
         // Video Scale: cycle Fit <-> Fill. Stays open so repeated presses
@@ -1394,7 +1397,7 @@ private fun PlayerMoreMenu(
                     tint = MaterialTheme.colorScheme.onSurface,
                 )
             },
-            text = { Text("Video Scale: $scaleLabel") },
+            text = { Text(stringResource(R.string.player_video_scale_value, scaleLabel)) },
             onClick = onCycleScale,
         )
         if (canRecord) {
@@ -1406,7 +1409,7 @@ private fun PlayerMoreMenu(
                         tint = Color(0xFFFF4757),
                     )
                 },
-                text = { Text("Record Current Program") },
+                text = { Text(stringResource(R.string.player_record_current_program)) },
                 onClick = onRecord,
             )
         }
@@ -1425,7 +1428,7 @@ private fun PlayerMoreMenu(
                 )
             },
             text = {
-                Text(if (sleepActive) "Sleep Timer (active)" else "Sleep Timer")
+                Text(stringResource(if (sleepActive) R.string.player_sleep_timer_active else R.string.player_sleep_timer))
             },
             onClick = onSleepTimer,
         )
@@ -1437,7 +1440,7 @@ private fun PlayerMoreMenu(
                     tint = MaterialTheme.colorScheme.onSurface,
                 )
             },
-            text = { Text("Stream Info") },
+            text = { Text(stringResource(R.string.player_stream_info)) },
             onClick = onStreamInfo,
         )
         if (canSwitchStream) {
@@ -1449,7 +1452,7 @@ private fun PlayerMoreMenu(
                         tint = MaterialTheme.colorScheme.onSurface,
                     )
                 },
-                text = { Text("Switch Stream") },
+                text = { Text(stringResource(R.string.player_switch_stream)) },
                 onClick = onSwitchStream,
             )
         }
@@ -1462,7 +1465,7 @@ private fun PlayerMoreMenu(
                         tint = MaterialTheme.colorScheme.onSurface,
                     )
                 },
-                text = { Text("Add to Multiview") },
+                text = { Text(stringResource(R.string.player_add_to_multiview_title)) },
                 onClick = onMultiview,
             )
         }
@@ -1485,7 +1488,7 @@ private fun PlayerMoreMenu(
                 // iOS toggles the label to "Show Video" when in Audio
                 // Only mode so the action describes what tapping does,
                 // not what state it shows. Port that.
-                Text(if (audioOnly) "Show Video" else "Audio Only")
+                Text(stringResource(if (audioOnly) R.string.player_show_video else R.string.player_audio_only))
             },
             onClick = onAudioOnly,
         )
@@ -1730,9 +1733,9 @@ private fun RewindTransportBar(
                 val remMin = ((prog.endMillis - current).coerceAtLeast(0) / 60_000).toInt()
                 Text(
                     text = if (remMin >= 60) {
-                        "${remMin / 60} h ${remMin % 60} min remaining"
+                        stringResource(R.string.player_time_left_h_min, remMin / 60, remMin % 60)
                     } else {
-                        "$remMin min remaining"
+                        stringResource(R.string.player_time_left_min, remMin)
                     },
                     style = MaterialTheme.typography.labelMedium,
                     color = Color.White.copy(alpha = 0.7f),
@@ -1744,7 +1747,7 @@ private fun RewindTransportBar(
                     val totalSec = behindMs / 1000
                     String.format("-%d:%02d", totalSec / 60, totalSec % 60)
                 } else {
-                    "LIVE"
+                    stringResource(R.string.player_live_badge)
                 },
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
@@ -1774,7 +1777,7 @@ private fun RewindTransportBar(
                 )
                 CircleIconButton(
                     icon = if (paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                    contentDescription = if (paused) "Play" else "Pause",
+                    contentDescription = stringResource(if (paused) R.string.common_play else R.string.common_pause),
                     onClick = onTogglePause,
                 )
                 CircleIconButton(
@@ -1803,7 +1806,7 @@ private fun RewindTransportBar(
                         .onFocusChanged { goLiveFocused = it.isFocused },
                 ) {
                     Text(
-                        text = "Go Live",
+                        text = stringResource(R.string.player_go_live),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.Black,
@@ -2048,9 +2051,9 @@ private fun TvRewindTimeline(
                 val remMin = ((prog.endMillis - current).coerceAtLeast(0) / 60_000).toInt()
                 Text(
                     text = if (remMin >= 60) {
-                        "${remMin / 60} h ${remMin % 60} min remaining"
+                        stringResource(R.string.player_time_left_h_min, remMin / 60, remMin % 60)
                     } else {
-                        "$remMin min remaining"
+                        stringResource(R.string.player_time_left_min, remMin)
                     },
                     style = MaterialTheme.typography.labelMedium,
                     color = Color.White.copy(alpha = 0.7f),
@@ -2062,7 +2065,7 @@ private fun TvRewindTimeline(
                     val totalSec = behindMs / 1000
                     String.format("-%d:%02d", totalSec / 60, totalSec % 60)
                 } else {
-                    "LIVE"
+                    stringResource(R.string.player_live_badge)
                 },
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
@@ -2104,14 +2107,14 @@ private fun SleepTimerSheet(
     com.aeriotv.android.ui.FormFactorModal(onDismiss = onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) {
             Text(
-                text = "Sleep Timer",
+                text = stringResource(R.string.player_sleep_timer),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(Modifier.height(12.dp))
             SLEEP_OPTIONS.forEach { mins ->
-                val label = if (mins == 0) "Off" else "$mins minutes"
+                val label = if (mins == 0) stringResource(R.string.common_off) else stringResource(R.string.player_sleep_minutes, mins)
                 val isActive = (mins == 0 && current == null) ||
                         (mins != 0 && current != null && ((current / 60_000L).toInt() in (mins - 1)..mins))
                 Row(
@@ -2153,19 +2156,19 @@ fun StreamInfoSheet(
     com.aeriotv.android.ui.FormFactorModal(onDismiss = onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) {
             Text(
-                text = "Stream Info",
+                text = stringResource(R.string.player_stream_info),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(Modifier.height(12.dp))
-            StreamInfoSection("VIDEO", snapshot.videoLines)
+            StreamInfoSection(stringResource(R.string.player_section_video), snapshot.videoLines)
             Spacer(Modifier.height(10.dp))
-            StreamInfoSection("AUDIO", snapshot.audioLines)
+            StreamInfoSection(stringResource(R.string.player_section_audio), snapshot.audioLines)
             Spacer(Modifier.height(10.dp))
-            StreamInfoSection("CACHE", snapshot.cacheLines)
+            StreamInfoSection(stringResource(R.string.player_section_cache), snapshot.cacheLines)
             Spacer(Modifier.height(10.dp))
-            StreamInfoSection(" SYNC", snapshot.syncLines)
+            StreamInfoSection(" " + stringResource(R.string.player_section_sync), snapshot.syncLines)
             Spacer(Modifier.height(20.dp))
         }
     }
@@ -2207,16 +2210,16 @@ fun SubtitlesSheet(
     com.aeriotv.android.ui.FormFactorModal(onDismiss = onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) {
             Text(
-                text = "Subtitles",
+                text = stringResource(R.string.player_subtitles),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(Modifier.height(12.dp))
-            SubtitleRow(label = "Off", selected = currentTrackId == null, onClick = { onSelect(null) })
+            SubtitleRow(label = stringResource(R.string.common_off), selected = currentTrackId == null, onClick = { onSelect(null) })
             if (tracks.isEmpty()) {
                 Text(
-                    text = "No subtitle tracks reported by the stream.",
+                    text = stringResource(R.string.player_no_subtitle_tracks),
                     style = MaterialTheme.typography.bodySmall.subtext(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 6.dp),
@@ -2224,7 +2227,7 @@ fun SubtitlesSheet(
             } else {
                 tracks.forEach { track ->
                     val label = buildString {
-                        append(track.title.ifBlank { "Track ${track.id}" })
+                        append(track.title.ifBlank { AppText.get(R.string.player_track_number, track.id) })
                         if (track.lang.isNotBlank()) append("  ·  ${track.lang}")
                     }
                     SubtitleRow(
@@ -2256,7 +2259,7 @@ fun AudioTracksSheet(
     com.aeriotv.android.ui.FormFactorModal(onDismiss = onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) {
             Text(
-                text = "Audio Track",
+                text = stringResource(R.string.player_audio_track),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.SemiBold,
@@ -2264,7 +2267,7 @@ fun AudioTracksSheet(
             Spacer(Modifier.height(12.dp))
             if (tracks.isEmpty()) {
                 Text(
-                    text = "No audio tracks reported by the stream.",
+                    text = stringResource(R.string.player_no_audio_tracks),
                     style = MaterialTheme.typography.bodySmall.subtext(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 6.dp),
@@ -2272,7 +2275,7 @@ fun AudioTracksSheet(
             } else {
                 tracks.forEach { track ->
                     val label = buildString {
-                        append(track.title.ifBlank { "Track ${track.id}" })
+                        append(track.title.ifBlank { AppText.get(R.string.player_track_number, track.id) })
                         val meta = buildList {
                             if (track.lang.isNotBlank()) add(track.lang)
                             if (track.codec.isNotBlank()) add(track.codec)
@@ -2308,7 +2311,7 @@ fun AudioTracksSheet(
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "Audio Sync",
+                    text = stringResource(R.string.player_audio_sync),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.SemiBold,
@@ -2331,11 +2334,11 @@ fun AudioTracksSheet(
                 TextButton(onClick = { applySync(syncMs + 100L) }) { Text("+100 ms") }
                 Spacer(Modifier.weight(1f))
                 if (syncMs != 0L) {
-                    TextButton(onClick = { applySync(0L) }) { Text("Reset") }
+                    TextButton(onClick = { applySync(0L) }) { Text(stringResource(R.string.player_reset)) }
                 }
             }
             Text(
-                text = "Positive plays audio later; negative plays it earlier.",
+                text = stringResource(R.string.player_audio_sync_hint),
                 style = MaterialTheme.typography.bodySmall.subtext(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -2370,7 +2373,7 @@ fun SwitchStreamSheet(
                 .verticalScroll(rememberScrollState()),
         ) {
             Text(
-                text = "Switch Stream",
+                text = stringResource(R.string.player_switch_stream),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.SemiBold,
@@ -2378,7 +2381,7 @@ fun SwitchStreamSheet(
             Spacer(Modifier.height(12.dp))
             if (streams.isEmpty()) {
                 Text(
-                    text = "No alternate streams available for this channel.",
+                    text = stringResource(R.string.player_no_alternate_streams),
                     style = MaterialTheme.typography.bodySmall.subtext(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 6.dp),
@@ -2414,7 +2417,7 @@ fun PlaybackSpeedSheet(
     com.aeriotv.android.ui.FormFactorModal(onDismiss = onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) {
             Text(
-                text = "Playback Speed",
+                text = stringResource(R.string.player_playback_speed),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.SemiBold,
@@ -2422,7 +2425,7 @@ fun PlaybackSpeedSheet(
             Spacer(Modifier.height(12.dp))
             PLAYBACK_SPEEDS.forEach { (value, label) ->
                 SubtitleRow(
-                    label = label,
+                    label = label.ifEmpty { stringResource(R.string.player_speed_normal_value) },
                     selected = kotlin.math.abs(currentSpeed - value) < 0.01f,
                     onClick = { onSelect(value) },
                 )
@@ -2435,7 +2438,7 @@ fun PlaybackSpeedSheet(
 private val PLAYBACK_SPEEDS = listOf(
     0.5f to "0.5x",
     0.75f to "0.75x",
-    1.0f to "Normal (1.0x)",
+    1.0f to "",
     1.25f to "1.25x",
     1.5f to "1.5x",
     2.0f to "2.0x",
@@ -2465,11 +2468,11 @@ private fun SubtitleRow(label: String, selected: Boolean, onClick: () -> Unit) {
 private fun formatRemaining(programme: EPGProgramme): String {
     val remainingMs = (programme.endMillis - System.currentTimeMillis()).coerceAtLeast(0L)
     val minutes = remainingMs / 60_000L
-    if (minutes <= 0L) return "ending"
-    if (minutes < 60L) return "$minutes min remaining"
+    if (minutes <= 0L) return AppText.get(R.string.player_time_ending)
+    if (minutes < 60L) return AppText.get(R.string.player_time_left_min, minutes.toInt())
     val hours = minutes / 60L
     val leftover = minutes % 60L
-    return if (leftover == 0L) "$hours h remaining" else "$hours h $leftover min remaining"
+    return if (leftover == 0L) AppText.get(R.string.player_time_left_h, hours.toInt()) else AppText.get(R.string.player_time_left_h_min, hours.toInt(), leftover.toInt())
 }
 
 private fun formatTimeRange(programme: EPGProgramme): String {
@@ -2529,7 +2532,7 @@ data class StreamOption(
      *  stream comes from; quality params follow. */
     val label: String
         get() = buildString {
-            append(name.ifBlank { "Stream $id" })
+            append(name.ifBlank { AppText.get(R.string.player_stream_n, id.toString()) })
             val meta = buildList {
                 sourceName?.takeIf { it.isNotBlank() }?.let { add(it) }
                 resolution?.let { add(prettyResolution(it)) }

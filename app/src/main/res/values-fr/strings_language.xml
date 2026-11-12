@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="language_header">Langue</string>
+    <string name="language_footer">Langue de l\'appareil suit la langue de votre téléviseur : le français s\'il est en français, l\'anglais sinon. Choisissez une langue pour l\'utiliser dans cette application uniquement.</string>
+    <string name="language_system">Langue de l\'appareil</string>
+</resources>

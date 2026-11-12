@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.settings
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import com.aeriotv.android.ui.scale.subtext
 import com.aeriotv.android.ui.theme.textAccent
 import androidx.compose.foundation.background
@@ -122,7 +124,7 @@ fun PlaylistDetailScreen(
         CenterAlignedTopAppBar(
             title = {
                 Text(
-                    text = playlist?.name ?: "Playlist",
+                    text = playlist?.name ?: stringResource(R.string.settings_playlist_detail_title_fallback),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
@@ -134,7 +136,7 @@ fun PlaylistDetailScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.common_back),
                             tint = MaterialTheme.colorScheme.primary,
                         )
                     }
@@ -145,7 +147,7 @@ fun PlaylistDetailScreen(
                 // a corner action sits off the natural D-pad path.
                 if (!rememberIsTvDevice()) {
                     SettingsHeaderTextButton(
-                        label = "Edit",
+                        label = stringResource(R.string.common_edit),
                         // Active-only, same rule as the refresh actions below:
                         // saveEdits writes through repository.activePlaylist(),
                         // so editing a NON-active playlist would silently
@@ -168,7 +170,7 @@ fun PlaylistDetailScreen(
                 verticalArrangement = Arrangement.Center,
             ) {
                 Text(
-                    text = "No playlist loaded",
+                    text = stringResource(R.string.settings_playlist_detail_no_playlist),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -195,13 +197,11 @@ fun PlaylistDetailScreen(
         ) {
             item {
                 Section(
-                    header = "Connection Details",
+                    header = stringResource(R.string.settings_playlist_detail_connection_header),
                     // Only worth explaining when there are two URLs to
                     // choose between.
                     footer = if (!playlist.lanUrlString.isNullOrBlank()) {
-                        "A checkmark marks the connection in use right now. The local URL is used " +
-                            "automatically whenever the server answers on your home network; run " +
-                            "Refresh LAN Detection below after a network change."
+                        stringResource(R.string.settings_playlist_detail_connection_footer)
                     } else {
                         null
                     },
@@ -231,26 +231,26 @@ fun PlaylistDetailScreen(
                             )
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                     ) {
-                        DetailRow("Type", playlist.sourceTypeDisplayLabel())
+                        DetailRow(stringResource(R.string.settings_playlist_detail_type), playlist.sourceTypeDisplayLabel())
                         // Checkmark marks whichever URL is currently in effect
                         // per PlaylistRepository.effectiveBaseUrl's decision.
                         val activeRoute = state.activeRoute
                         DetailRow(
-                            label = "Remote URL",
+                            label = stringResource(R.string.settings_playlist_detail_remote_url),
                             value = playlist.urlString,
                             icon = Icons.Filled.CheckCircle.takeIf { activeRoute?.isLan == false },
                             iconTint = MaterialTheme.colorScheme.primary,
                         )
                         playlist.lanUrlString?.takeIf { it.isNotBlank() }?.let { lan ->
                             DetailRow(
-                                label = "Local URL",
+                                label = stringResource(R.string.settings_playlist_detail_local_url),
                                 value = lan,
                                 icon = Icons.Filled.CheckCircle.takeIf { activeRoute?.isLan == true },
                                 iconTint = MaterialTheme.colorScheme.primary,
                             )
                         }
                         playlist.username?.takeIf { it.isNotBlank() }?.let { user ->
-                            DetailRow("Username", user)
+                            DetailRow(stringResource(R.string.settings_playlist_detail_username), user)
                         }
                         // Reflect a real signal -- whether the source has ever
                         // loaded channels -- instead of asserting "Verified"
@@ -259,8 +259,8 @@ fun PlaylistDetailScreen(
                         // Connected" row below dates the last successful load.
                         val hasConnected = playlist.channelCount > 0
                         DetailRow(
-                            label = "Status",
-                            value = if (hasConnected) "Connected" else "Not connected yet",
+                            label = stringResource(R.string.settings_playlist_detail_status),
+                            value = stringResource(if (hasConnected) R.string.settings_playlist_detail_connected else R.string.settings_playlist_detail_not_connected),
                             valueColor = if (hasConnected) {
                                 MaterialTheme.colorScheme.primary
                             } else {
@@ -270,12 +270,12 @@ fun PlaylistDetailScreen(
                         )
                         playlist.lastRefreshedAt?.let { ts ->
                             DetailRow(
-                                "Last Connected",
+                                stringResource(R.string.settings_playlist_detail_last_connected),
                                 DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
                                     .format(Date(ts)),
                             )
                         }
-                        DetailRow("Channels", playlist.channelCount.toString())
+                        DetailRow(stringResource(R.string.settings_playlist_detail_channels), playlist.channelCount.toString())
                         if (!playlist.epgUrl.isNullOrBlank()) {
                             DetailRow("EPG", playlist.epgUrl!!)
                         }
@@ -284,7 +284,7 @@ fun PlaylistDetailScreen(
             }
 
             item {
-                Section(header = "Actions", footer = null) {
+                Section(header = stringResource(R.string.settings_playlist_detail_actions_header), footer = null) {
                     // Rev 2 canon amendment 1: activation lives here on every
                     // form factor. The rail and sidebar make selection show the
                     // detail, so OK-to-activate cannot survive on those roots;
@@ -293,7 +293,7 @@ fun PlaylistDetailScreen(
                     ActionRow(
                         icon = if (isActivePlaylist) Icons.Filled.CheckCircle
                         else Icons.Outlined.PowerSettingsNew,
-                        label = if (isActivePlaylist) "Active Playlist" else "Set Active",
+                        label = stringResource(if (isActivePlaylist) R.string.settings_playlist_detail_active else R.string.settings_playlist_detail_set_active),
                         onClick = { playlist?.id?.let { viewModel.switchToPlaylist(it) } },
                         enabled = !isActivePlaylist,
                     )
@@ -301,7 +301,7 @@ fun PlaylistDetailScreen(
                     if (isTv && isActivePlaylist) {
                         ActionRow(
                             icon = Icons.Outlined.Edit,
-                            label = "Edit Playlist",
+                            label = stringResource(R.string.settings_playlist_detail_edit_playlist),
                             onClick = onEdit,
                         )
                         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
@@ -309,7 +309,7 @@ fun PlaylistDetailScreen(
                     if (isActivePlaylist) {
                     ActionRow(
                         icon = Icons.Outlined.Public,
-                        label = "Test Connection",
+                        label = stringResource(R.string.settings_playlist_detail_test_connection),
                         onClick = { viewModel.testConnection() },
                         running = state.testStatus is PlaylistViewModel.ActionStatus.Running,
                         status = state.testStatus,
@@ -317,7 +317,7 @@ fun PlaylistDetailScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
                     ActionRow(
                         icon = Icons.Filled.Refresh,
-                        label = "Refresh Playlist",
+                        label = stringResource(R.string.settings_playlist_detail_refresh_playlist),
                         onClick = { viewModel.refreshPlaylist() },
                         running = state.playlistRefreshStatus is PlaylistViewModel.ActionStatus.Running,
                         status = state.playlistRefreshStatus,
@@ -327,7 +327,7 @@ fun PlaylistDetailScreen(
                         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
                         ActionRow(
                             icon = Icons.Outlined.Wifi,
-                            label = "Refresh LAN Detection",
+                            label = stringResource(R.string.settings_playlist_detail_refresh_lan),
                             onClick = { viewModel.refreshLanDetection() },
                             running = state.lanRefreshStatus is PlaylistViewModel.ActionStatus.Running,
                             status = state.lanRefreshStatus,
@@ -338,19 +338,19 @@ fun PlaylistDetailScreen(
 
             if (isActivePlaylist) item {
                 Section(
-                    header = "EPG Cache",
-                    footer = "Clears this playlist's cached guide data and downloads it fresh from the server. Use this if program cells look wrong or are missing. Takes a few minutes on large playlists.",
+                    header = stringResource(R.string.settings_playlist_detail_epg_cache_header),
+                    footer = stringResource(R.string.settings_playlist_detail_epg_cache_footer),
                 ) {
                     ActionRow(
                         icon = Icons.Filled.Refresh,
-                        label = "Refresh EPG Data",
+                        label = stringResource(R.string.settings_playlist_detail_refresh_epg),
                         onClick = { viewModel.refreshEpg() },
                         running = state.epgRefreshStatus is PlaylistViewModel.ActionStatus.Running,
                         status = state.epgRefreshStatus,
                     )
                     playlist.lastEpgRefreshedAt?.let { ts ->
                         Text(
-                            text = "Last refreshed: ${DateFormat.getDateTimeInstance().format(Date(ts))}",
+                            text = stringResource(R.string.settings_playlist_detail_last_refreshed, DateFormat.getDateTimeInstance().format(Date(ts))),
                             style = MaterialTheme.typography.bodySmall.subtext(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
@@ -361,12 +361,12 @@ fun PlaylistDetailScreen(
 
             if (isActivePlaylist) item {
                 Section(
-                    header = "Full Refresh",
-                    footer = "Clears every cache (channels, guide data, and On Demand) and reloads this playlist from scratch. Use this if newly-added channels, guide data, or movies and shows are missing or stale after changes on the server.",
+                    header = stringResource(R.string.settings_playlist_detail_full_refresh_header),
+                    footer = stringResource(R.string.settings_playlist_detail_full_refresh_footer),
                 ) {
                     ActionRow(
                         icon = Icons.Filled.Refresh,
-                        label = "Refresh Everything",
+                        label = stringResource(R.string.settings_playlist_detail_refresh_everything),
                         destructive = true,
                         onClick = { confirmRefreshAll = true },
                         running = state.refreshAllStatus is PlaylistViewModel.ActionStatus.Running,
@@ -377,12 +377,12 @@ fun PlaylistDetailScreen(
 
             item {
                 Section(
-                    header = "Danger Zone",
-                    footer = "Removes this playlist and its credentials from this device. Your server data will not be affected.",
+                    header = stringResource(R.string.settings_playlist_detail_danger_header),
+                    footer = stringResource(R.string.settings_playlist_detail_danger_footer),
                 ) {
                     ActionRow(
                         icon = Icons.Outlined.Delete,
-                        label = "Delete Playlist",
+                        label = stringResource(R.string.settings_playlist_detail_delete_playlist),
                         destructive = true,
                         onClick = { confirmDelete = true },
                     )
@@ -395,16 +395,15 @@ fun PlaylistDetailScreen(
     if (confirmDelete && playlist != null) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("Delete playlist?") },
+            title = { Text(stringResource(R.string.settings_playlist_detail_delete_title)) },
             text = {
                 Text(
-                    "This removes \"${playlist.name}\" and its credentials from this " +
-                        "device. If another playlist is saved, it becomes active.",
+                    stringResource(R.string.settings_playlist_detail_delete_text, playlist.name),
                 )
             },
             confirmButton = {
                 SettingsDialogTextButton(
-                    label = "Delete",
+                    label = stringResource(R.string.common_delete),
                     destructive = true,
                     onClick = {
                         confirmDelete = false
@@ -414,7 +413,7 @@ fun PlaylistDetailScreen(
                 )
             },
             dismissButton = {
-                SettingsDialogTextButton(label = "Cancel", onClick = { confirmDelete = false })
+                SettingsDialogTextButton(label = stringResource(R.string.common_cancel), onClick = { confirmDelete = false })
             },
         )
     }
@@ -422,18 +421,15 @@ fun PlaylistDetailScreen(
     if (confirmRefreshAll && playlist != null) {
         AlertDialog(
             onDismissRequest = { confirmRefreshAll = false },
-            title = { Text("Refresh Everything?") },
+            title = { Text(stringResource(R.string.settings_playlist_detail_refresh_all_title)) },
             text = {
                 Text(
-                    "Clears all cached channels, guide data, and On Demand, then " +
-                        "reloads \"${playlist.name}\" from scratch. Use this if " +
-                        "channels or guide data are missing or stale. May take a " +
-                        "few minutes on large playlists.",
+                    stringResource(R.string.settings_playlist_detail_refresh_all_text, playlist.name),
                 )
             },
             confirmButton = {
                 SettingsDialogTextButton(
-                    label = "Refresh",
+                    label = stringResource(R.string.settings_playlist_detail_refresh),
                     destructive = true,
                     onClick = {
                         confirmRefreshAll = false
@@ -442,7 +438,7 @@ fun PlaylistDetailScreen(
                 )
             },
             dismissButton = {
-                SettingsDialogTextButton(label = "Cancel", onClick = { confirmRefreshAll = false })
+                SettingsDialogTextButton(label = stringResource(R.string.common_cancel), onClick = { confirmRefreshAll = false })
             },
         )
     }

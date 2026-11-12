@@ -1,5 +1,7 @@
 package com.aeriotv.android.core.network
 
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -102,7 +104,7 @@ sealed interface DispatcharrLiveEvent {
                 )
                 "lookback_moved" -> LookBackMoved(
                     data.string("channel") ?: return null,
-                    data.string("text") ?: "Moved to another stream for another viewer",
+                    data.string("text") ?: AppText.get(R.string.core_live_lookback_moved),
                 )
                 in RECORDING_TYPES -> RecordingsChanged
                 else -> null

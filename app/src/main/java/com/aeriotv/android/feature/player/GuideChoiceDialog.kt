@@ -1,5 +1,8 @@
 package com.aeriotv.android.feature.player
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -93,7 +96,7 @@ internal fun GuideChoiceDialog(
             val listed = (answer as? DispatcharrClient.GuideAnswer.Listed)?.choices
             if (listed == null) {
                 if (page == 0 && !loaded) failed = (answer as? DispatcharrClient.GuideAnswer.Refused)?.message
-                    ?: "Unexpected answer"
+                    ?: AppText.get(R.string.player_guide_unexpected_answer)
                 return
             }
             if (page == 0) current = listed.current
@@ -125,7 +128,7 @@ internal fun GuideChoiceDialog(
             modifier = Modifier.widthIn(min = 420.dp, max = 640.dp).heightIn(max = maxHeight),
         ) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Wrong guide? Choose another", style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.player_wrong_guide_choose), style = MaterialTheme.typography.titleLarge)
                 // Which channel this is about: the list is compared with its picture
                 if (request.channelName.isNotBlank()) {
                     Text(
@@ -139,7 +142,7 @@ internal fun GuideChoiceDialog(
                 when {
                     failed != null -> Text(failed.orEmpty())
                     !loaded -> {
-                        Text("Looking for the guides ${request.channelName} could be on…")
+                        Text(stringResource(R.string.player_guide_looking_for, request.channelName))
                         CircularProgressIndicator(Modifier.padding(8.dp))
                     }
                     else -> GuideList(
@@ -161,11 +164,11 @@ internal fun GuideChoiceDialog(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (onCouldNotFind != null) {
                         TextButton(onClick = { onCouldNotFind(); onDismiss() }) {
-                            Text("Could not find the guide")
+                            Text(stringResource(R.string.player_guide_not_found))
                         }
                     }
                     TextButton(onClick = onDismiss, modifier = Modifier.focusRequester(closeButton)) {
-                        Text("Close")
+                        Text(stringResource(R.string.common_close))
                     }
                 }
             }
@@ -209,16 +212,16 @@ private fun androidx.compose.foundation.layout.ColumnScope.GuideList(
 ) {
     Text(
         when {
-            current == null -> "Guide now: none"
-            current.now == null -> "Guide now: ${current.name} — no information"
-            else -> "Guide now: ${current.name} — ${current.now.title} (${span(current.now)})"
+            current == null -> stringResource(R.string.player_guide_now_none)
+            current.now == null -> stringResource(R.string.player_guide_now_no_info, current.name)
+            else -> stringResource(R.string.player_guide_now, current.name, current.now.title, span(current.now))
         },
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     val all = pages.flatten()
     val firstOfLastPage = pages.lastOrNull()?.firstOrNull()
     if (all.isEmpty() && !reading && !more) {
-        Text("No other guide has anything on for this channel right now.")
+        Text(stringResource(R.string.player_guide_none_other))
     }
     if (all.isNotEmpty() || more || loadingMore) {
         LazyColumn(
@@ -235,19 +238,19 @@ private fun androidx.compose.foundation.layout.ColumnScope.GuideList(
             }
             if (loadingMore) {
                 item(key = "loading-more") {
-                    Text("Loading more…", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.player_guide_loading_more), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else if (more) {
                 item(key = "load-more") {
                     TextButton(onClick = onLoadMore, modifier = Modifier.focusRequester(loadMoreButton)) {
-                        Text("Load more")
+                        Text(stringResource(R.string.player_guide_load_more))
                     }
                 }
             }
         }
     }
     if (reading) {
-        Text("Looking for more guides…", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.player_guide_looking_more), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -276,7 +279,7 @@ private fun GuideRow(option: DispatcharrClient.GuideOption, modifier: Modifier, 
                 listOfNotNull(
                     option.name.ifBlank { null },
                     option.source.ifBlank { null },
-                    option.now?.endMs?.let { "until ${time(it)}" },
+                    option.now?.endMs?.let { AppText.get(R.string.player_guide_until, time(it)) },
                 ).joinToString(" · "),
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -285,7 +288,7 @@ private fun GuideRow(option: DispatcharrClient.GuideOption, modifier: Modifier, 
             )
             option.next?.let { next ->
                 Text(
-                    "Next: ${next.title}" + (next.startMs?.let { " (${time(it)})" } ?: ""),
+                    stringResource(R.string.player_guide_next, next.title) + (next.startMs?.let { " (${time(it)})" } ?: ""),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,

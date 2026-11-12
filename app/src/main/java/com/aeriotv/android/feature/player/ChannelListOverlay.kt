@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.player
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -183,7 +185,7 @@ internal fun ChannelListOverlay(
                 Spacer(Modifier.height(14.dp))
                 if (entries.isEmpty()) {
                     Text(
-                        text = "No channels in this group.",
+                        text = stringResource(R.string.player_no_channels_in_group),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.White.copy(alpha = 0.7f),
                     )

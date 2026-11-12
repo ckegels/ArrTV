@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.ondemand
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import com.aeriotv.android.ui.scale.subtext
 import com.aeriotv.android.ui.theme.textAccent
 import androidx.compose.foundation.background
@@ -73,7 +75,7 @@ internal fun ExpandablePlot(plot: String, maxWidth: Dp) {
         )
         if (overflows || expanded) {
             Text(
-                text = if (expanded) "Less" else "More",
+                text = stringResource(if (expanded) R.string.ondemand_less else R.string.ondemand_more),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.textAccent,
                 fontWeight = FontWeight.SemiBold,
@@ -93,7 +95,7 @@ internal fun ExpandablePlot(plot: String, maxWidth: Dp) {
 internal fun PhoneMetaRow(label: String, value: String) {
     Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            text = "$label:",
+            text = stringResource(R.string.ondemand_label_colon, label),
             style = MaterialTheme.typography.labelSmall.subtext(),
             color = MaterialTheme.colorScheme.tertiary,
             modifier = Modifier.width(60.dp),
@@ -119,7 +121,7 @@ internal fun PhoneVersionPill(
     onSelect: (VodProviderOption?) -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
-    val currentLabel = selected?.label ?: "Auto"
+    val currentLabel = selected?.label ?: stringResource(R.string.ondemand_version_auto)
     Box {
         Row(
             modifier = Modifier
@@ -137,7 +139,7 @@ internal fun PhoneVersionPill(
                 modifier = Modifier.size(16.dp),
             )
             Text(
-                text = "Version: $currentLabel",
+                text = stringResource(R.string.ondemand_version_value, currentLabel),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onBackground,
             )
@@ -150,7 +152,7 @@ internal fun PhoneVersionPill(
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             VersionMenuItem(
-                label = "Auto (recommended)",
+                label = stringResource(R.string.ondemand_version_auto_recommended),
                 checked = selected == null,
                 onClick = { menu = false; onSelect(null) },
             )
@@ -210,28 +212,27 @@ internal fun TmdbSourceNote(
         tmdbPosterUsed && tmdbDetailsPresent -> TmdbNoteRow(
             icon = Icons.Filled.Verified,
             tint = accent,
-            text = "Poster and missing details pulled from TMDB using your API key.",
+            text = stringResource(R.string.ondemand_tmdb_poster_and_details),
         )
         tmdbPosterUsed -> TmdbNoteRow(
             icon = Icons.Filled.Verified,
             tint = accent,
-            text = "Poster pulled from TMDB using your API key.",
+            text = stringResource(R.string.ondemand_tmdb_poster),
         )
         tmdbDetailsPresent -> TmdbNoteRow(
             icon = Icons.Filled.Verified,
             tint = accent,
-            text = "Missing details filled in from TMDB using your API key.",
+            text = stringResource(R.string.ondemand_tmdb_details),
         )
         !hasProviderArt && !tmdbConfigured -> TmdbNoteRow(
             icon = Icons.Filled.AutoAwesome,
             tint = accent,
-            text = "No artwork from your provider. Enter a TMDB API key in Settings > App Behaviors " +
-                "to fill it in automatically. Only works when TMDB has a matching title.",
+            text = stringResource(R.string.ondemand_tmdb_no_key),
         )
         !hasProviderArt && lookupDone -> TmdbNoteRow(
             icon = Icons.Filled.Search,
             tint = MaterialTheme.colorScheme.tertiary,
-            text = "No matching title found on TMDB.",
+            text = stringResource(R.string.ondemand_tmdb_no_match),
         )
     }
 }
@@ -285,7 +286,7 @@ internal fun EpisodeProgressChrome(progress: WatchProgressEntity) {
             modifier = Modifier.size(10.dp),
         )
         Text(
-            text = if (finished) "Watched" else "Currently Watching",
+            text = stringResource(if (finished) R.string.ondemand_watched else R.string.ondemand_currently_watching),
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
             color = fg,

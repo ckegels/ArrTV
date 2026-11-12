@@ -1,5 +1,8 @@
 package com.aeriotv.android.feature.settings
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import com.aeriotv.android.ui.scale.subtext
 import android.content.Intent
 import androidx.compose.foundation.background
@@ -127,7 +130,7 @@ fun DeveloperSettingsScreen(
     val logFileExists = sizeBytes > 0L || debugLogger.logFile().exists()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        SettingsDetailTopBar(title = "Developer", onBack = onBack)
+        SettingsDetailTopBar(title = stringResource(R.string.settings_developer_title), onBack = onBack)
 
         androidx.compose.foundation.layout.Box(
             modifier = Modifier.fillMaxSize(),
@@ -182,19 +185,15 @@ fun DeveloperSettingsScreen(
     if (pendingEnable) {
         AlertDialog(
             onDismissRequest = { pendingEnable = false },
-            title = { Text("Enable Debug Logging?") },
+            title = { Text(stringResource(R.string.settings_developer_enable_title)) },
             text = {
                 Text(
-                    "AerioTV will write detailed diagnostic logs to a file in the app's " +
-                        "private storage.\n\nLogs include network requests, playback events, " +
-                        "and error details. They never leave the device unless you share the " +
-                        "file from this screen.\n\nLogging has a minor impact on performance " +
-                        "and storage. You can disable it at any time.",
+                    stringResource(R.string.settings_developer_enable_text),
                 )
             },
             confirmButton = {
                 SettingsDialogTextButton(
-                    label = "Enable Logging",
+                    label = stringResource(R.string.settings_developer_enable_confirm),
                     onClick = {
                         pendingEnable = false
                         settingsVm.setDebugLoggingEnabled(true)
@@ -202,7 +201,7 @@ fun DeveloperSettingsScreen(
                 )
             },
             dismissButton = {
-                SettingsDialogTextButton(label = "Cancel", onClick = { pendingEnable = false })
+                SettingsDialogTextButton(label = stringResource(R.string.common_cancel), onClick = { pendingEnable = false })
             },
         )
     }
@@ -210,13 +209,13 @@ fun DeveloperSettingsScreen(
     if (pendingDisable) {
         AlertDialog(
             onDismissRequest = { pendingDisable = false },
-            title = { Text("Disable Debug Logging?") },
+            title = { Text(stringResource(R.string.settings_developer_disable_title)) },
             text = {
-                Text("The existing log file will be kept. You can share or clear it at any time.")
+                Text(stringResource(R.string.settings_developer_disable_text))
             },
             confirmButton = {
                 SettingsDialogTextButton(
-                    label = "Disable",
+                    label = stringResource(R.string.settings_developer_disable_confirm),
                     onClick = {
                         pendingDisable = false
                         settingsVm.setDebugLoggingEnabled(false)
@@ -225,7 +224,7 @@ fun DeveloperSettingsScreen(
                 )
             },
             dismissButton = {
-                SettingsDialogTextButton(label = "Keep Logging", onClick = { pendingDisable = false })
+                SettingsDialogTextButton(label = stringResource(R.string.settings_developer_keep_logging), onClick = { pendingDisable = false })
             },
         )
     }
@@ -233,16 +232,15 @@ fun DeveloperSettingsScreen(
     if (pendingClear) {
         AlertDialog(
             onDismissRequest = { pendingClear = false },
-            title = { Text("Delete All Logs?") },
+            title = { Text(stringResource(R.string.settings_developer_delete_all_title)) },
             text = {
                 Text(
-                    "This permanently deletes the current log and any rotated " +
-                        "archives. This cannot be undone.",
+                    stringResource(R.string.settings_developer_delete_all_text),
                 )
             },
             confirmButton = {
                 SettingsDialogTextButton(
-                    label = "Delete All Logs",
+                    label = stringResource(R.string.settings_developer_delete_all),
                     onClick = {
                         pendingClear = false
                         debugLogger.deleteAllLogs()
@@ -251,7 +249,7 @@ fun DeveloperSettingsScreen(
                 )
             },
             dismissButton = {
-                SettingsDialogTextButton(label = "Cancel", onClick = { pendingClear = false })
+                SettingsDialogTextButton(label = stringResource(R.string.common_cancel), onClick = { pendingClear = false })
             },
         )
     }
@@ -271,15 +269,13 @@ private fun LoggingSection(
     onRequestDisable: () -> Unit,
 ) {
     SettingsSection(
-        header = "Logging",
-        footer = "When enabled, detailed logs are written to a file in the app's private " +
-            "storage. Logs include network requests, playback events, EPG activity, errors, " +
-            "and app lifecycle events. No personally identifiable information is collected.",
+        header = stringResource(R.string.settings_developer_logging_header),
+        footer = stringResource(R.string.settings_developer_logging_footer),
     ) {
         SettingsToggleRow(
-            title = "Debug Logging",
-            subtitle = if (enabled) "Active, writing to aerio_debug_logs.txt"
-            else "Off, no data is collected",
+            title = stringResource(R.string.settings_developer_debug_logging),
+            subtitle = if (enabled) stringResource(R.string.settings_developer_logging_active)
+            else stringResource(R.string.settings_developer_logging_off),
             leadingIcon = Icons.Filled.BugReport,
             checked = enabled,
             // Route through the confirm dialogs instead of flipping directly.
@@ -297,30 +293,29 @@ private fun LogFileSection(
     onClear: () -> Unit,
 ) {
     SettingsSection(
-        header = "Log File",
-        footer = "Logs rotate automatically when the file exceeds 10 MB. The previous log is " +
-            "preserved as aerio_debug_logs_archive.txt.",
+        header = stringResource(R.string.settings_developer_log_file),
+        footer = stringResource(R.string.settings_developer_log_file_footer),
     ) {
         SettingsInfoRow(
-            label = "Total Log Size",
+            label = stringResource(R.string.settings_developer_total_log_size),
             value = formatBytes(sizeBytes),
             leadingIcon = Icons.Outlined.Description,
         )
         SettingsActionRow(
-            label = "View Log File",
-            subtitle = "Scroll through entries in the app",
+            label = stringResource(R.string.settings_developer_view_log),
+            subtitle = stringResource(R.string.settings_developer_view_log_subtitle),
             leadingIcon = Icons.Outlined.Article,
             onClick = onView,
         )
         SettingsActionRow(
-            label = "Share Log File",
-            subtitle = if (isTv) "Scan a QR code with your phone" else "Email, Messages, Drive, etc.",
+            label = stringResource(R.string.settings_developer_share_log),
+            subtitle = stringResource(if (isTv) R.string.settings_developer_share_log_tv else R.string.settings_developer_share_log_phone),
             leadingIcon = Icons.Filled.Share,
             onClick = onShare,
         )
         SettingsActionRow(
-            label = "Delete All Logs",
-            subtitle = "Removes the current log and rotated archives",
+            label = stringResource(R.string.settings_developer_delete_all),
+            subtitle = stringResource(R.string.settings_developer_delete_all_subtitle),
             leadingIcon = Icons.Filled.Delete,
             onClick = onClear,
             destructive = true,
@@ -331,68 +326,67 @@ private fun LogFileSection(
 @Composable
 private fun WhatsCapturedSection() {
     DevSectionGroup(
-        header = "What's Captured",
-        footer = "Logs include only diagnostic context. AerioTV never logs your Dispatcharr " +
-            "credentials, watch progress identifiers, or any payload that would identify you.",
+        header = stringResource(R.string.settings_developer_captured_header),
+        footer = stringResource(R.string.settings_developer_captured_footer),
     ) {
         CategoryRow(
             icon = Icons.Outlined.NetworkCheck,
-            title = "Network",
-            detail = "All API requests: URL, method, status code, duration, payload size",
+            title = stringResource(R.string.settings_developer_captured_network),
+            detail = stringResource(R.string.settings_developer_captured_network_detail),
         )
         DevRowDivider()
         CategoryRow(
             icon = Icons.Filled.PlayArrow,
-            title = "Playback",
-            detail = "Stream URLs loaded, player state transitions, DVR mode, failover attempts",
+            title = stringResource(R.string.settings_developer_captured_playback),
+            detail = stringResource(R.string.settings_developer_captured_playback_detail),
         )
         DevRowDivider()
         CategoryRow(
             icon = Icons.Filled.CalendarMonth,
             title = "EPG",
-            detail = "Current program fetches, upcoming program loads, decode errors",
+            detail = stringResource(R.string.settings_developer_captured_epg_detail),
         )
         DevRowDivider()
         CategoryRow(
             icon = Icons.Outlined.LiveTv,
-            title = "Channels",
-            detail = "Channel list loads, source type, item counts, timing",
+            title = stringResource(R.string.settings_developer_captured_channels),
+            detail = stringResource(R.string.settings_developer_captured_channels_detail),
         )
         DevRowDivider()
         CategoryRow(
             icon = Icons.Outlined.OpenInNew,
-            title = "Lifecycle",
-            detail = "App foreground/background, launch, scene transitions",
+            title = stringResource(R.string.settings_developer_captured_lifecycle),
+            detail = stringResource(R.string.settings_developer_captured_lifecycle_detail),
         )
         DevRowDivider()
         CategoryRow(
             icon = Icons.Outlined.WarningAmber,
-            title = "Errors",
-            detail = "Caught exceptions with full context, source file and line number",
+            title = stringResource(R.string.settings_developer_captured_errors),
+            detail = stringResource(R.string.settings_developer_captured_errors_detail),
         )
         DevRowDivider()
         CategoryRow(
             icon = Icons.Outlined.Speed,
-            title = "Performance",
-            detail = "Timed operations: parse time, load time, memory at session start",
+            title = stringResource(R.string.settings_developer_captured_performance),
+            detail = stringResource(R.string.settings_developer_captured_performance_detail),
         )
     }
 }
 
 @Composable
 private fun BuildInfoSection() {
-    DevSectionGroup(header = "Build") {
-        InfoRow(icon = Icons.Outlined.Build, label = "Application ID", value = BuildConfig.APPLICATION_ID)
+    DevSectionGroup(header = stringResource(R.string.settings_developer_build_header)) {
+        InfoRow(icon = Icons.Outlined.Build, label = stringResource(R.string.settings_developer_application_id), value = BuildConfig.APPLICATION_ID)
         DevRowDivider()
-        InfoRow(icon = null, label = "Version", value = BuildConfig.VERSION_NAME)
+        InfoRow(icon = null, label = stringResource(R.string.settings_developer_version), value = BuildConfig.VERSION_NAME)
         DevRowDivider()
-        InfoRow(icon = null, label = "Version Code", value = BuildConfig.VERSION_CODE.toString())
+        InfoRow(icon = null, label = stringResource(R.string.settings_developer_version_code), value = BuildConfig.VERSION_CODE.toString())
         DevRowDivider()
-        InfoRow(icon = null, label = "Build Type", value = BuildConfig.BUILD_TYPE)
+        InfoRow(icon = null, label = stringResource(R.string.settings_developer_build_type), value = BuildConfig.BUILD_TYPE)
         DevRowDivider()
-        InfoRow(icon = null, label = "Manufacturer", value = android.os.Build.MANUFACTURER)
+        InfoRow(icon = null, label = stringResource(R.string.settings_developer_manufacturer), value = android.os.Build.MANUFACTURER)
         DevRowDivider()
-        InfoRow(icon = null, label = "Model", value = android.os.Build.MODEL)
+        InfoRow(icon = null, label = stringResource(R.string.settings_developer_model), value = android.os.Build.MODEL)
         DevRowDivider()
         InfoRow(
             icon = null,
@@ -516,7 +510,7 @@ private fun shareLogFile(
 ) {
     val file = debugLogger.logFile()
     if (!file.exists() || file.length() == 0L) {
-        android.widget.Toast.makeText(context, "No log file to share yet.", android.widget.Toast.LENGTH_SHORT).show()
+        android.widget.Toast.makeText(context, context.getString(R.string.settings_developer_no_log_to_share), android.widget.Toast.LENGTH_SHORT).show()
         return
     }
     val uri = runCatching {
@@ -524,7 +518,7 @@ private fun shareLogFile(
     }.getOrElse {
         android.widget.Toast.makeText(
             context,
-            "Couldn't prepare log for share: ${it.message ?: it::class.simpleName}",
+            context.getString(R.string.settings_developer_share_prepare_failed, it.message ?: it::class.simpleName),
             android.widget.Toast.LENGTH_SHORT,
         ).show()
         return
@@ -532,25 +526,25 @@ private fun shareLogFile(
     val sendIntent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_STREAM, uri)
-        putExtra(Intent.EXTRA_SUBJECT, "AerioTV debug logs")
+        putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.settings_developer_share_subject))
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
-    val chooser = Intent.createChooser(sendIntent, "Share Log File")
+    val chooser = Intent.createChooser(sendIntent, context.getString(R.string.settings_developer_share_log))
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     runCatching { context.startActivity(chooser) }
         .onFailure {
             android.widget.Toast.makeText(
                 context,
-                "No app available to receive the log file.",
+                context.getString(R.string.settings_developer_share_no_app),
                 android.widget.Toast.LENGTH_SHORT,
             ).show()
         }
 }
 
 private fun formatBytes(bytes: Long): String {
-    if (bytes <= 0L) return "Empty"
+    if (bytes <= 0L) return AppText.get(R.string.settings_developer_size_empty)
     val kb = bytes / 1024.0
-    if (kb < 1024.0) return String.format(java.util.Locale.US, "%.1f KB", kb)
+    if (kb < 1024.0) return AppText.get(R.string.settings_developer_size_kb, String.format("%.1f", kb))
     val mb = kb / 1024.0
-    return String.format(java.util.Locale.US, "%.2f MB", mb)
+    return AppText.get(R.string.settings_developer_size_mb, String.format("%.2f", mb))
 }

@@ -1,5 +1,8 @@
 package com.aeriotv.android.feature.collections
 
+import com.aeriotv.android.core.locale.AppText
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
@@ -76,7 +79,7 @@ class CollectionsViewModel @Inject constructor(
             prefs.updateChannelCollections { list ->
                 list + ChannelCollection(
                     id = UUID.randomUUID().toString(),
-                    name = name.trim().ifEmpty { "New Collection" },
+                    name = name.trim().ifEmpty { AppText.get(R.string.livetv_new_collection) },
                     memberIds = listOf(firstMemberId),
                     placement = placement,
                 )
@@ -277,14 +280,14 @@ fun CollectionPill(
                     title = collection.name,
                     actions = listOf(
                         TvMenuAction(
-                            if (atEnd) "Move to Front" else "Move to Back",
+                            stringResource(if (atEnd) R.string.livetv_move_to_front else R.string.livetv_move_to_back),
                         ) {
                             onSetPlacement(
                                 if (atEnd) ChannelCollection.PLACEMENT_BEGINNING
                                 else ChannelCollection.PLACEMENT_END,
                             )
                         },
-                        TvMenuAction("Delete Collection", destructive = true) { onDelete() },
+                        TvMenuAction(stringResource(R.string.livetv_delete_collection), destructive = true) { onDelete() },
                     ),
                     guard = manageGuard,
                     onDismiss = { manageOpen = false },
@@ -297,7 +300,7 @@ fun CollectionPill(
                 containerColor = MaterialTheme.colorScheme.surface,
             ) {
                 DropdownMenuItem(
-                    text = { Text(if (atEnd) "Move to Front" else "Move to Back") },
+                    text = { Text(stringResource(if (atEnd) R.string.livetv_move_to_front else R.string.livetv_move_to_back)) },
                     onClick = {
                         manageOpen = false
                         onSetPlacement(
@@ -307,7 +310,7 @@ fun CollectionPill(
                     },
                 )
                 DropdownMenuItem(
-                    text = { Text("Delete Collection", color = MaterialTheme.colorScheme.error) },
+                    text = { Text(stringResource(R.string.livetv_delete_collection), color = MaterialTheme.colorScheme.error) },
                     onClick = {
                         manageOpen = false
                         onDelete()
@@ -356,18 +359,18 @@ fun AddToCollectionFlow(
     if (!naming) {
         if (isTv) {
             TvActionMenuDialog(
-                title = "Add to Collection",
+                title = stringResource(R.string.livetv_add_to_collection),
                 actions = buildList {
                     collections.forEach { c ->
                         val member = channelId in c.memberIds
                         add(
                             // iOS marks membership with a literal check prefix.
-                            TvMenuAction(if (member) "✓ ${c.name}" else c.name) {
+                            TvMenuAction(if (member) stringResource(R.string.livetv_member_check, c.name) else c.name) {
                                 onToggleMember(c.id, channelId)
                             },
                         )
                     }
-                    add(TvMenuAction("New Collection…") { naming = true })
+                    add(TvMenuAction(stringResource(R.string.livetv_new_collection_ellipsis)) { naming = true })
                 },
                 guard = pickerGuard,
                 onDismiss = { pendingClose = true },
@@ -375,7 +378,7 @@ fun AddToCollectionFlow(
         } else {
             AlertDialog(
                 onDismissRequest = onClose,
-                title = { Text("Add to Collection") },
+                title = { Text(stringResource(R.string.livetv_add_to_collection)) },
                 text = {
                     Column {
                         collections.forEach { c ->
@@ -388,7 +391,7 @@ fun AddToCollectionFlow(
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text(
-                                    text = if (member) "✓ ${c.name}" else c.name,
+                                    text = if (member) stringResource(R.string.livetv_member_check, c.name) else c.name,
                                     modifier = Modifier.fillMaxWidth(),
                                     textAlign = TextAlign.Start,
                                 )
@@ -399,7 +402,7 @@ fun AddToCollectionFlow(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(
-                                text = "New Collection…",
+                                text = stringResource(R.string.livetv_new_collection_ellipsis),
                                 modifier = Modifier.fillMaxWidth(),
                                 textAlign = TextAlign.Start,
                             )
@@ -408,25 +411,24 @@ fun AddToCollectionFlow(
                 },
                 confirmButton = {},
                 dismissButton = {
-                    TextButton(onClick = onClose) { Text("Cancel") }
+                    TextButton(onClick = onClose) { Text(stringResource(R.string.common_cancel)) }
                 },
             )
         }
     } else {
         AlertDialog(
             onDismissRequest = onClose,
-            title = { Text("New Collection") },
+            title = { Text(stringResource(R.string.livetv_new_collection)) },
             text = {
                 Column {
                     Text(
-                        "Name the collection and choose where its pill appears " +
-                            "in the Live TV row.",
+                        stringResource(R.string.livetv_collection_name_hint),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     OutlinedTextField(
                         value = newName,
                         onValueChange = { newName = it },
-                        placeholder = { Text("Name") },
+                        placeholder = { Text(stringResource(R.string.livetv_collection_name)) },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -440,16 +442,16 @@ fun AddToCollectionFlow(
                         onCreate(newName, channelId, ChannelCollection.PLACEMENT_BEGINNING)
                         onClose()
                     },
-                ) { Text("Add at Beginning") }
+                ) { Text(stringResource(R.string.livetv_add_at_beginning)) }
                 TextButton(
                     onClick = {
                         onCreate(newName, channelId, ChannelCollection.PLACEMENT_END)
                         onClose()
                     },
-                ) { Text("Add at End") }
+                ) { Text(stringResource(R.string.livetv_add_at_end)) }
             },
             dismissButton = {
-                TextButton(onClick = onClose) { Text("Cancel") }
+                TextButton(onClick = onClose) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }

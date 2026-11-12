@@ -1,5 +1,9 @@
 package com.aeriotv.android.feature.livetv
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
+import androidx.annotation.StringRes
 import com.aeriotv.android.ui.scale.subtext
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -164,7 +168,7 @@ fun RecordProgramSheet(
                     if (usedMB >= storageCapMB) {
                         Toast.makeText(
                             context,
-                            "Local storage cap reached. Free space or raise the cap in Settings -> DVR.",
+                            context.getString(R.string.livetv_rec_cap_reached),
                             Toast.LENGTH_LONG,
                         ).show()
                         onDismiss()
@@ -179,7 +183,7 @@ fun RecordProgramSheet(
                     if (streamUrl.isNullOrBlank()) {
                         Toast.makeText(
                             context,
-                            "Couldn't locate stream URL for ${target.channelName}.",
+                            context.getString(R.string.livetv_rec_no_stream_url, target.channelName),
                             Toast.LENGTH_SHORT,
                         ).show()
                     } else {
@@ -195,7 +199,7 @@ fun RecordProgramSheet(
                         )
                         Toast.makeText(
                             context,
-                            "Recording started locally.",
+                            context.getString(R.string.livetv_rec_started_locally),
                             Toast.LENGTH_SHORT,
                         ).show()
                     }
@@ -205,7 +209,7 @@ fun RecordProgramSheet(
                 if (dispatcharrId == null) {
                     Toast.makeText(
                         context,
-                        "Recording requires a Dispatcharr playlist.",
+                        context.getString(R.string.livetv_rec_needs_dispatcharr),
                         Toast.LENGTH_SHORT,
                     ).show()
                     onDismiss()
@@ -230,8 +234,8 @@ fun RecordProgramSheet(
                         )
                         submitting = false
                         val msg = result.fold(
-                            onSuccess = { n -> if (n >= 0) "Rule saved: $n recording(s) scheduled" else "Rule saved: ${target.title}" },
-                            onFailure = { t -> "Rule failed: ${t.message ?: t::class.simpleName}" },
+                            onSuccess = { n -> if (n >= 0) context.resources.getQuantityString(R.plurals.livetv_rec_rule_saved_count, n, n) else context.getString(R.string.livetv_rec_rule_saved, target.title) },
+                            onFailure = { t -> context.getString(R.string.livetv_rec_rule_failed, t.message ?: t::class.simpleName) },
                         )
                         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                         onDismiss()
@@ -252,8 +256,8 @@ fun RecordProgramSheet(
                     )
                     submitting = false
                     val msg = result.fold(
-                        onSuccess = { "Scheduled: ${target.title.ifBlank { "recording" }}" },
-                        onFailure = { t -> "Schedule failed: ${t.message ?: t::class.simpleName}" },
+                        onSuccess = { context.getString(R.string.livetv_rec_scheduled, target.title.ifBlank { context.getString(R.string.livetv_rec_recording_fallback) }) },
+                        onFailure = { t -> context.getString(R.string.livetv_rec_schedule_failed, t.message ?: t::class.simpleName) },
                     )
                     Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     onDismiss()
@@ -296,11 +300,11 @@ fun RecordProgramSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 TextButton(onClick = onDismiss) {
-                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.common_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Spacer(Modifier.weight(1f))
                 Text(
-                    text = if (isLive) "Record from Now" else "Record Program",
+                    text = stringResource(if (isLive) R.string.livetv_rec_record_from_now else R.string.livetv_rec_record_program),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.SemiBold,
@@ -312,9 +316,9 @@ fun RecordProgramSheet(
                 ) {
                     Text(
                         text = when {
-                            submitting -> "Scheduling…"
-                            usingRule -> "Save Rule"
-                            else -> "Record"
+                            submitting -> stringResource(R.string.livetv_rec_scheduling)
+                            usingRule -> stringResource(R.string.livetv_rec_save_rule)
+                            else -> stringResource(R.string.livetv_rec_record)
                         },
                         color = LIVE_RED,
                         fontWeight = FontWeight.Bold,
@@ -326,13 +330,13 @@ fun RecordProgramSheet(
             Spacer(Modifier.height(12.dp))
 
             Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                LabeledValue("Program", target.title.ifBlank { "Untitled" })
-                LabeledValue("Channel", target.channelName)
-                LabeledValue("Time", formatTimeRange(target))
+                LabeledValue(stringResource(R.string.livetv_rec_program), target.title.ifBlank { stringResource(R.string.livetv_untitled) })
+                LabeledValue(stringResource(R.string.livetv_rec_channel), target.channelName)
+                LabeledValue(stringResource(R.string.livetv_rec_time), formatTimeRange(target))
 
                 if (canOfferSeriesRule) {
                     Spacer(Modifier.height(18.dp))
-                    SectionLabel("Record")
+                    SectionLabel(stringResource(R.string.livetv_rec_record))
                     Spacer(Modifier.height(6.dp))
                     Column {
                         RuleMode.entries.forEach { mode ->
@@ -349,19 +353,19 @@ fun RecordProgramSheet(
                                     colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary),
                                 )
                                 Column {
-                                    Text(mode.label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground)
-                                    Text(mode.detail, style = MaterialTheme.typography.bodySmall.subtext(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(stringResource(mode.labelRes), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground)
+                                    Text(stringResource(mode.detailRes), style = MaterialTheme.typography.bodySmall.subtext(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }
                     }
                     if (ruleMode == RuleMode.Custom) {
                         Spacer(Modifier.height(10.dp))
-                        SectionLabel("Rule Options")
+                        SectionLabel(stringResource(R.string.livetv_rec_rule_options))
                         Spacer(Modifier.height(6.dp))
-                        Text("Title match", style = MaterialTheme.typography.bodySmall.subtext(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.livetv_rec_title_match), style = MaterialTheme.typography.bodySmall.subtext(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                            val modes = listOf("exact" to "Exact", "contains" to "Contains", "search" to "Search", "regex" to "Regex")
+                            val modes = listOf("exact" to stringResource(R.string.livetv_rec_match_exact), "contains" to stringResource(R.string.livetv_rec_match_contains), "search" to stringResource(R.string.livetv_rec_match_search), "regex" to stringResource(R.string.livetv_rec_match_regex))
                             modes.forEachIndexed { i, (wire, label) ->
                                 SegmentedButton(
                                     selected = ruleTitleMode == wire,
@@ -374,14 +378,14 @@ fun RecordProgramSheet(
                         androidx.compose.material3.OutlinedTextField(
                             value = ruleDescription,
                             onValueChange = { ruleDescription = it },
-                            label = { Text("Description contains (optional)") },
+                            label = { Text(stringResource(R.string.livetv_rec_description_contains)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
                         if (ruleDescription.isNotBlank()) {
                             Spacer(Modifier.height(6.dp))
                             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                                val modes = listOf("contains" to "Contains", "search" to "Search", "regex" to "Regex")
+                                val modes = listOf("contains" to stringResource(R.string.livetv_rec_match_contains), "search" to stringResource(R.string.livetv_rec_match_search), "regex" to stringResource(R.string.livetv_rec_match_regex))
                                 modes.forEachIndexed { i, (wire, label) ->
                                     SegmentedButton(
                                         selected = ruleDescriptionMode == wire,
@@ -396,8 +400,8 @@ fun RecordProgramSheet(
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Untagged episodes count as new", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground)
-                                Text("For guides that only tag repeats.", style = MaterialTheme.typography.bodySmall.subtext(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(stringResource(R.string.livetv_rec_untagged_new), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground)
+                                Text(stringResource(R.string.livetv_rec_untagged_new_hint), style = MaterialTheme.typography.bodySmall.subtext(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Switch(checked = ruleUntaggedIsNew, onCheckedChange = { ruleUntaggedIsNew = it })
                         }
@@ -406,8 +410,8 @@ fun RecordProgramSheet(
                         Spacer(Modifier.height(8.dp))
                         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Match on every channel", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground)
-                                Text("Off records only on ${target.channelName}.", style = MaterialTheme.typography.bodySmall.subtext(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(stringResource(R.string.livetv_rec_every_channel), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground)
+                                Text(stringResource(R.string.livetv_rec_only_on, target.channelName), style = MaterialTheme.typography.bodySmall.subtext(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Switch(checked = ruleAllChannels, onCheckedChange = { ruleAllChannels = it })
                         }
@@ -416,11 +420,11 @@ fun RecordProgramSheet(
 
                 if (!usingRule) {
                 Spacer(Modifier.height(18.dp))
-                SectionLabel("Start Early")
+                SectionLabel(stringResource(R.string.livetv_rec_start_early))
                 Spacer(Modifier.height(6.dp))
                 if (isLive) {
                     Text(
-                        text = "Pre-roll unavailable (program already started).",
+                        text = stringResource(R.string.livetv_rec_preroll_unavailable),
                         style = MaterialTheme.typography.bodySmall.subtext(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -437,7 +441,7 @@ fun RecordProgramSheet(
                 }
 
                 Spacer(Modifier.height(18.dp))
-                SectionLabel("End Late")
+                SectionLabel(stringResource(R.string.livetv_rec_end_late))
                 Spacer(Modifier.height(6.dp))
                 MinuteRadioFlow(
                     options = ROLL_OPTIONS,
@@ -455,19 +459,19 @@ fun RecordProgramSheet(
                 // forced local (destinationServer seeded false above).
                 if (canRecordToServer) {
                     Spacer(Modifier.height(18.dp))
-                    SectionLabel("Destination")
+                    SectionLabel(stringResource(R.string.livetv_rec_destination))
                     Spacer(Modifier.height(6.dp))
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                         SegmentedButton(
                             selected = destinationServer,
                             onClick = { destinationServer = true },
                             shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                        ) { Text("Dispatcharr server") }
+                        ) { Text(stringResource(R.string.livetv_rec_dispatcharr_server)) }
                         SegmentedButton(
                             selected = !destinationServer,
                             onClick = { destinationServer = false },
                             shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                        ) { Text("This device") }
+                        ) { Text(stringResource(R.string.livetv_rec_this_device)) }
                     }
                 }
 
@@ -490,13 +494,13 @@ fun RecordProgramSheet(
                         Spacer(Modifier.size(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Saving to this device",
+                                text = stringResource(R.string.livetv_rec_saving_to_device),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onBackground,
                                 fontWeight = FontWeight.Bold,
                             )
                             Text(
-                                text = "Recording to the Dispatcharr server needs DVR manage access on your account. Contact your server administrator for more information.",
+                                text = stringResource(R.string.livetv_rec_needs_manage),
                                 style = MaterialTheme.typography.bodySmall.subtext(),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -514,13 +518,13 @@ fun RecordProgramSheet(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Remove commercials (Comskip)",
+                                text = stringResource(R.string.livetv_rec_remove_commercials),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onBackground,
                                 fontWeight = FontWeight.Medium,
                             )
                             Text(
-                                text = "Detect and remove ad breaks after recording. Processed server-side.",
+                                text = stringResource(R.string.livetv_rec_remove_commercials_hint),
                                 style = MaterialTheme.typography.bodySmall.subtext(),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -559,7 +563,7 @@ fun RecordProgramSheet(
         } else 1
         AlertDialog(
             onDismissRequest = { customBufferTarget = null },
-            title = { Text("Custom Buffer") },
+            title = { Text(stringResource(R.string.livetv_rec_custom_buffer)) },
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(
@@ -573,8 +577,8 @@ fun RecordProgramSheet(
                     }) { Text("−", style = MaterialTheme.typography.titleLarge) }
                     Text(
                         text = if (customBufferDraft < 0)
-                            "${-customBufferDraft} min after start"
-                        else "$customBufferDraft minutes",
+                            stringResource(R.string.livetv_rec_min_after_start, -customBufferDraft)
+                        else stringResource(R.string.livetv_rec_minutes, customBufferDraft),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.padding(horizontal = 16.dp),
@@ -586,7 +590,7 @@ fun RecordProgramSheet(
                 }
                 if (editTarget == CustomBufferTarget.PreRoll && floor < 0) {
                     Text(
-                        text = "Step below zero to start the recording after the listed start time.",
+                        text = stringResource(R.string.livetv_rec_below_zero_hint),
                         style = MaterialTheme.typography.bodySmall.subtext(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 8.dp),
@@ -601,10 +605,10 @@ fun RecordProgramSheet(
                         CustomBufferTarget.PostRoll -> postRoll = customBufferDraft
                     }
                     customBufferTarget = null
-                }) { Text("Set") }
+                }) { Text(stringResource(R.string.livetv_rec_set)) }
             },
             dismissButton = {
-                TextButton(onClick = { customBufferTarget = null }) { Text("Cancel") }
+                TextButton(onClick = { customBufferTarget = null }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -673,91 +677,91 @@ private fun TvRecordForm(
                         )
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(if (isLive) "Record from Now" else "Record Program", fontSize = 19.sp, fontWeight = FontWeight.Bold, color = colors.onSurface)
-                        Text(target.title.ifBlank { "Untitled" }, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.onSurface, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                        Text(stringResource(if (isLive) R.string.livetv_rec_record_from_now else R.string.livetv_rec_record_program), fontSize = 19.sp, fontWeight = FontWeight.Bold, color = colors.onSurface)
+                        Text(target.title.ifBlank { stringResource(R.string.livetv_untitled) }, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.onSurface, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                         Text("${target.channelName} · ${formatTimeRange(target)}", fontSize = 11.sp.subtext(), color = colors.onSurfaceVariant)
                     }
                 }
 
                 if (canOfferSeriesRule) {
-                    TvSectionTitle("Record")
+                    TvSectionTitle(stringResource(R.string.livetv_rec_record))
                     TvPillRow {
                         listOf(RuleMode.Once, RuleMode.All, RuleMode.NewOnly).forEach { m ->
-                            SheetPill(m.label, selected = ruleMode == m, onClick = { onRuleMode(m) })
+                            SheetPill(stringResource(m.labelRes), selected = ruleMode == m, onClick = { onRuleMode(m) })
                         }
                         if (ruleMode != RuleMode.Once) {
-                            SheetPill(if (showCustomRule) "Hide Options" else "Customize", selected = showCustomRule, onClick = { showCustomRule = !showCustomRule })
+                            SheetPill(stringResource(if (showCustomRule) R.string.livetv_rec_hide_options else R.string.livetv_rec_customize), selected = showCustomRule, onClick = { showCustomRule = !showCustomRule })
                         }
                     }
                     if (ruleMode != RuleMode.Once && showCustomRule) {
-                        Text("Title Match", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 2.dp))
+                        Text(stringResource(R.string.livetv_rec_title_match_tv), fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 2.dp))
                         TvPillRow {
-                            listOf("exact" to "Exact", "contains" to "Contains", "search" to "Search", "regex" to "Regex").forEach { (wire, label) ->
+                            listOf("exact" to stringResource(R.string.livetv_rec_match_exact), "contains" to stringResource(R.string.livetv_rec_match_contains), "search" to stringResource(R.string.livetv_rec_match_search), "regex" to stringResource(R.string.livetv_rec_match_regex)).forEach { (wire, label) ->
                                 SheetPill(label, selected = ruleTitleMode == wire, onClick = { onRuleTitleMode(wire) })
                             }
                         }
                         TvPillRow {
                             if (ruleMode == RuleMode.NewOnly) {
-                                SheetPill("Untagged Counts as New", selected = ruleUntaggedIsNew, onClick = { onRuleUntaggedIsNew(!ruleUntaggedIsNew) })
+                                SheetPill(stringResource(R.string.livetv_rec_untagged_new_tv), selected = ruleUntaggedIsNew, onClick = { onRuleUntaggedIsNew(!ruleUntaggedIsNew) })
                             }
-                            SheetPill("Every Channel", selected = ruleAllChannels, onClick = { onRuleAllChannels(!ruleAllChannels) })
+                            SheetPill(stringResource(R.string.livetv_rec_every_channel_tv), selected = ruleAllChannels, onClick = { onRuleAllChannels(!ruleAllChannels) })
                         }
                     }
                 }
 
                 if (!usingRule && !hasNoRecordingPath) {
-                    TvSectionTitle("Options")
+                    TvSectionTitle(stringResource(R.string.livetv_rec_options))
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             tvOptionsSummary(isLive, preRoll, postRoll, destinationServer, removeCommercials && isDispatcharr),
                             fontSize = 11.sp.subtext(), color = colors.onSurfaceVariant, modifier = Modifier.weight(1f),
                         )
-                        SheetPill(if (adjusting) "Done" else "Adjust", selected = adjusting, onClick = { adjusting = !adjusting })
+                        SheetPill(stringResource(if (adjusting) R.string.common_done else R.string.livetv_rec_adjust), selected = adjusting, onClick = { adjusting = !adjusting })
                     }
                 }
                 if (usingRule) {
                     Text(
-                        "Series rules start, end and remove commercials as set on the Dispatcharr server.",
+                        stringResource(R.string.livetv_rec_rules_server_note),
                         fontSize = 10.sp.subtext(), color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 2.dp),
                     )
                 }
 
                 if (adjusting && !isLive && !usingRule) {
-                    TvSectionTitle("Start Early")
+                    TvSectionTitle(stringResource(R.string.livetv_rec_start_early))
                     TvMinutePills(options = listOf(0, 5, 10, 15, 30), selected = preRoll, onSelect = onPreRoll, onCustom = onCustomPreRoll)
                 }
                 if (adjusting && !usingRule) {
-                    TvSectionTitle("End Late")
+                    TvSectionTitle(stringResource(R.string.livetv_rec_end_late))
                     TvMinutePills(options = ROLL_OPTIONS, selected = postRoll, onSelect = onPostRoll, onCustom = onCustomPostRoll)
                 }
                 if (adjusting && isDispatcharr && isLive && canRecordToServer && !usingRule) {
-                    TvSectionTitle("Destination")
+                    TvSectionTitle(stringResource(R.string.livetv_rec_destination))
                     TvPillRow {
-                        SheetPill("Dispatcharr server", selected = destinationServer, onClick = { onDestinationServer(true) })
-                        SheetPill("This device", selected = !destinationServer, onClick = { onDestinationServer(false) })
+                        SheetPill(stringResource(R.string.livetv_rec_dispatcharr_server), selected = destinationServer, onClick = { onDestinationServer(true) })
+                        SheetPill(stringResource(R.string.livetv_rec_this_device), selected = !destinationServer, onClick = { onDestinationServer(false) })
                     }
                 }
                 if (adjusting && isDispatcharr && !usingRule) {
                     val disabled = !destinationServer
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        TvSectionTitle("Mark Ad Breaks (Comskip)", dim = disabled)
+                        TvSectionTitle(stringResource(R.string.livetv_rec_mark_ad_breaks), dim = disabled)
                         Spacer(Modifier.height(3.dp))
                         TvPillRow(alpha = if (disabled) 0.45f else 1f) {
-                            SheetPill("Off", selected = !removeCommercials, onClick = { if (!disabled) onRemoveCommercials(false) })
-                            SheetPill("On", selected = removeCommercials, onClick = { if (!disabled) onRemoveCommercials(true) })
+                            SheetPill(stringResource(R.string.common_off), selected = !removeCommercials, onClick = { if (!disabled) onRemoveCommercials(false) })
+                            SheetPill(stringResource(R.string.common_on), selected = removeCommercials, onClick = { if (!disabled) onRemoveCommercials(true) })
                         }
                         Text(
-                            if (disabled) "Comskip runs server-side. Switch the destination to Dispatcharr server to enable."
-                            else "Server-side: finds the ad breaks after the recording completes, when Comskip is set up on the Dispatcharr server; the player skips them.",
+                            if (disabled) stringResource(R.string.livetv_rec_comskip_server_only)
+                            else stringResource(R.string.livetv_rec_comskip_hint),
                             fontSize = 9.sp.subtext(), lineHeight = 12.sp.subtext(), color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 2.dp, top = 1.dp),
                         )
                     }
                 }
                 if (!destinationServer && !usingRule) {
-                    TvNoteBox("Keep AerioTV open. Closing the app will stop this recording.")
+                    TvNoteBox(stringResource(R.string.livetv_rec_keep_open))
                 }
                 if (hasNoRecordingPath) {
-                    TvNoteBox("Recording requires DVR access on Dispatcharr", "Scheduling a recording on the Dispatcharr server needs DVR manage access on your account. Your account can watch and record live programs to this device, but not schedule server recordings. Contact your server administrator for more information, or wait until the program is airing to record it on this device.")
+                    TvNoteBox(stringResource(R.string.livetv_rec_needs_dvr_title), stringResource(R.string.livetv_rec_needs_dvr_text))
                 }
 
                 if (!hasNoRecordingPath) {
@@ -767,7 +771,7 @@ private fun TvRecordForm(
                             fontSize = 11.sp.subtext(), color = colors.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         )
                         TvRecordPill(
-                            label = when { submitting -> "Scheduling…"; usingRule -> "Save Rule"; else -> "Record" },
+                            label = when { submitting -> stringResource(R.string.livetv_rec_scheduling); usingRule -> stringResource(R.string.livetv_rec_save_rule); else -> stringResource(R.string.livetv_rec_record) },
                             enabled = !submitting, onClick = onSubmit,
                         )
                     }
@@ -818,12 +822,12 @@ private fun TvPillRow(alpha: Float = 1f, content: @Composable () -> Unit) {
 private fun TvMinutePills(options: List<Int>, selected: Int, onSelect: (Int) -> Unit, onCustom: () -> Unit) {
     val custom = selected !in options
     TvPillRow {
-        options.forEach { m -> SheetPill(if (m == 0) "None" else "$m min", selected = selected == m, onClick = { onSelect(m) }) }
+        options.forEach { m -> SheetPill(if (m == 0) stringResource(R.string.livetv_rec_none) else stringResource(R.string.livetv_rec_n_min, m), selected = selected == m, onClick = { onSelect(m) }) }
         SheetPill(
             when {
-                custom && selected < 0 -> "Custom (${-selected} min after start)"
-                custom -> "Custom ($selected min)"
-                else -> "Custom"
+                custom && selected < 0 -> stringResource(R.string.livetv_rec_custom_after_start, -selected)
+                custom -> stringResource(R.string.livetv_rec_custom_min, selected)
+                else -> stringResource(R.string.livetv_rec_custom)
             },
             selected = custom, onClick = onCustom,
         )
@@ -865,9 +869,9 @@ private fun TvRecordPill(label: String, enabled: Boolean, onClick: () -> Unit) {
 /** "5 min early · 5 min late · commercials removed" -- what Settings -> DVR set for this one. */
 private fun tvOptionsSummary(isLive: Boolean, preRoll: Int, postRoll: Int, toServer: Boolean, comskip: Boolean): String =
     listOfNotNull(
-        if (isLive) "from now" else if (preRoll > 0) "$preRoll min early" else "on time",
-        if (postRoll > 0) "$postRoll min late" else "ends on time",
-        if (!toServer) "on this device" else if (comskip) "ad breaks marked" else "ad breaks not marked",
+        if (isLive) AppText.get(R.string.livetv_rec_from_now) else if (preRoll > 0) AppText.get(R.string.livetv_rec_min_early, preRoll) else AppText.get(R.string.livetv_rec_on_time),
+        if (postRoll > 0) AppText.get(R.string.livetv_rec_min_late, postRoll) else AppText.get(R.string.livetv_rec_ends_on_time),
+        AppText.get(if (!toServer) R.string.livetv_rec_on_this_device else if (comskip) R.string.livetv_rec_ad_breaks_marked else R.string.livetv_rec_ad_breaks_not_marked),
     ).joinToString(" · ").replaceFirstChar { it.uppercase() }
 
 /** "Records 12:00 PM to 3:35 PM · 3 h 35 min" (tvOS recordingWindowSummary). */
@@ -876,14 +880,16 @@ private fun tvRecordingWindowSummary(target: ProgramInfoTarget, isLive: Boolean,
     val end = target.endMillis + postRoll * 60_000L
     val f = com.aeriotv.android.core.ui.ClockFormat.short()
     val minutes = ((end - start) / 60_000L).toInt().coerceAtLeast(1)
-    val length = if (minutes >= 60) "${minutes / 60} h ${minutes % 60} min" else "$minutes min"
-    return "Records ${f.format(Date(start))} to ${f.format(Date(end))} · $length"
+    val length = if (minutes >= 60) AppText.get(R.string.livetv_rec_length_h_min, minutes / 60, minutes % 60) else AppText.get(R.string.livetv_rec_length_min, minutes)
+    return AppText.get(R.string.livetv_rec_window, f.format(Date(start)), f.format(Date(end)), length)
 }
 
 private fun tvSeriesRuleSummary(target: ProgramInfoTarget, mode: RuleMode, allChannels: Boolean): String {
-    val what = if (mode == RuleMode.NewOnly) "New episodes of" else "Every episode of"
-    val scope = if (allChannels) "on any channel" else "on ${target.channelName}"
-    return "$what \"${target.title}\" $scope, scheduled by the Dispatcharr server"
+val newOnly = mode == RuleMode.NewOnly
+    return when {
+        allChannels -> AppText.get(if (newOnly) R.string.livetv_rec_rule_new_any else R.string.livetv_rec_rule_all_any, target.title)
+        else -> AppText.get(if (newOnly) R.string.livetv_rec_rule_new_on else R.string.livetv_rec_rule_all_on, target.title, target.channelName)
+    }
 }
 
 private enum class CustomBufferTarget { PreRoll, PostRoll }
@@ -939,7 +945,7 @@ private fun MinuteRadioFlow(
         modifier = Modifier.fillMaxWidth(),
     ) {
         options.forEach { mins ->
-            val label = if (mins == 0) "None" else "$mins min"
+            val label = if (mins == 0) stringResource(R.string.livetv_rec_none) else stringResource(R.string.livetv_rec_n_min, mins)
             Row(
                 modifier = Modifier
                     .selectable(
@@ -984,9 +990,9 @@ private fun MinuteRadioFlow(
                 // listed start" (a 9:00 listing whose kickoff is 9:50); echo it
                 // in plain words instead of a minus sign.
                 text = when {
-                    isCustomSelected && selected < 0 -> "Custom (${-selected} min after start)"
-                    isCustomSelected -> "Custom ($selected min)"
-                    else -> "Custom"
+                    isCustomSelected && selected < 0 -> stringResource(R.string.livetv_rec_custom_after_start, -selected)
+                    isCustomSelected -> stringResource(R.string.livetv_rec_custom_min, selected)
+                    else -> stringResource(R.string.livetv_rec_custom)
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onBackground,
@@ -998,18 +1004,21 @@ private fun MinuteRadioFlow(
 private fun formatTimeRange(target: ProgramInfoTarget): String {
     val timeFormat = com.aeriotv.android.core.ui.ClockFormat.short()
     val dateFormat = DateFormat.getDateInstance(DateFormat.MEDIUM)
-    return "${dateFormat.format(Date(target.startMillis))} at " +
-            "${timeFormat.format(Date(target.startMillis))} – " +
-            timeFormat.format(Date(target.endMillis))
+    return AppText.get(
+        R.string.livetv_rec_date_time_range,
+        dateFormat.format(Date(target.startMillis)),
+        timeFormat.format(Date(target.startMillis)),
+        timeFormat.format(Date(target.endMillis)),
+    )
 }
 
 private val ROLL_OPTIONS = listOf(0, 5, 10, 15, 30, 60)
 private val LIVE_RED = Color(0xFFFF4757)
 
 /** Series recording rule choices (Apple parity: RecordProgramSheet.RuleMode). */
-private enum class RuleMode(val label: String, val detail: String) {
-    Once("This episode", "Record this airing only."),
-    All("All episodes", "A series rule on the server records every airing of this title."),
-    NewOnly("New episodes only", "Skips airings the guide marks as repeats."),
-    Custom("Customize rule", "Choose how the title and description are matched."),
+private enum class RuleMode(@StringRes val labelRes: Int, @StringRes val detailRes: Int) {
+    Once(R.string.livetv_rec_mode_once, R.string.livetv_rec_mode_once_detail),
+    All(R.string.livetv_rec_mode_all, R.string.livetv_rec_mode_all_detail),
+    NewOnly(R.string.livetv_rec_mode_new, R.string.livetv_rec_mode_new_detail),
+    Custom(R.string.livetv_rec_mode_custom, R.string.livetv_rec_mode_custom_detail),
 }

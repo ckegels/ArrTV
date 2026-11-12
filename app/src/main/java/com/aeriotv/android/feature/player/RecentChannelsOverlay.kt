@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.player
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -105,7 +107,7 @@ internal fun RecentChannelsOverlay(
                 .padding(start = 40.dp, top = 32.dp, bottom = 32.dp),
         ) {
             Text(
-                text = "Recently Watched",
+                text = stringResource(R.string.player_recent_title),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White,
@@ -113,7 +115,7 @@ internal fun RecentChannelsOverlay(
             Spacer(Modifier.height(14.dp))
             if (entries.isEmpty()) {
                 Text(
-                    text = "Channels you watch will show up here.",
+                    text = stringResource(R.string.player_recent_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.White.copy(alpha = 0.7f),
                 )
@@ -275,7 +277,7 @@ internal fun ChannelPickRow(
         if (isPlaying) {
             Spacer(Modifier.width(8.dp))
             Text(
-                text = "Watching",
+                text = stringResource(R.string.player_recent_watching),
                 style = MaterialTheme.typography.labelSmall,
                 color = accent,
             )

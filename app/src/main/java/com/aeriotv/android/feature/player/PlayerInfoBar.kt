@@ -1,5 +1,8 @@
 package com.aeriotv.android.feature.player
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -401,7 +404,7 @@ private fun InfoBarHeader(
                 }
                 sleepRemainingMillis?.let { remaining ->
                     Spacer(Modifier.width(10.dp))
-                    InfoBarChip("SLEEP ${(remaining / 60_000L).coerceAtLeast(0L)} MIN")
+                    InfoBarChip(stringResource(R.string.player_sleep_chip, (remaining / 60_000L).coerceAtLeast(0L).toInt()))
                 }
             }
             val description = programme?.description?.takeIf { it.isNotBlank() }
@@ -482,12 +485,12 @@ private fun InfoBarCardRow(
     ) {
         item(key = "guide") {
             InfoBarCard(onClick = model.onOpenGuide, onInteraction = onInteraction, modifier = Modifier.focusRequester(guideFocus).then(upToPlayPause)) {
-                ActionCardContent(Icons.Filled.ViewList, "TV guide")
+                ActionCardContent(Icons.Filled.ViewList, stringResource(R.string.player_tv_guide))
             }
         }
         item(key = "history") {
             InfoBarCard(onClick = model.onOpenHistory, onInteraction = onInteraction, modifier = upToPlayPause) {
-                ActionCardContent(Icons.Filled.History, "History")
+                ActionCardContent(Icons.Filled.History, stringResource(R.string.player_history))
             }
         }
         itemsIndexed(model.upcoming, key = { _, c -> c.id }) { _, c ->
@@ -637,7 +640,7 @@ private fun TransportRow(
             val forward = SkipIntervals.forwardMs
             TransportButton(
                 icon = Icons.Filled.SkipPrevious,
-                label = "Start",
+                label = stringResource(R.string.player_start),
                 enabled = transport != null,
                 onInteraction = onInteraction,
                 modifier = upTo,
@@ -646,7 +649,7 @@ private fun TransportRow(
             }
             TransportButton(
                 icon = Icons.Filled.FastRewind,
-                label = "Back",
+                label = stringResource(R.string.player_back),
                 enabled = transport != null,
                 onInteraction = onInteraction,
                 modifier = upTo,
@@ -661,7 +664,7 @@ private fun TransportRow(
             )
             TransportButton(
                 icon = Icons.Filled.FastForward,
-                label = "Forward",
+                label = stringResource(R.string.player_forward),
                 enabled = transport?.behind == true,
                 onInteraction = onInteraction,
                 modifier = upTo,
@@ -671,7 +674,7 @@ private fun TransportRow(
             if (!replay) {
                 TransportButton(
                     icon = Icons.Filled.SkipNext,
-                    label = "Live",
+                    label = stringResource(R.string.player_live_label),
                     enabled = transport?.behind == true,
                     onInteraction = onInteraction,
                     modifier = upTo,
@@ -752,7 +755,7 @@ private fun PlayPauseButton(
     ) {
         Icon(
             imageVector = if (paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-            contentDescription = if (paused) "Play" else "Pause",
+            contentDescription = stringResource(if (paused) R.string.common_play else R.string.common_pause),
             tint = Color.Black,
             modifier = Modifier.size(34.dp),
         )
@@ -764,7 +767,7 @@ private fun PlayPauseButton(
 private fun LiveBadge(live: Boolean, modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(6.dp)
     Text(
-        text = "LIVE",
+        text = stringResource(R.string.player_live_badge),
         style = MaterialTheme.typography.labelLarge,
         fontWeight = FontWeight.Bold,
         color = if (live) Color.Black else Color.White.copy(alpha = 0.8f),
@@ -846,7 +849,7 @@ private fun ClockLabel(modifier: Modifier = Modifier) {
     }
     val timeFormat = remember(clockMode) { ClockFormat.short(clockMode) }
     Text(
-        text = "${dateFormat.format(Date(now))}, ${timeFormat.format(Date(now))}",
+        text = stringResource(R.string.player_date_time, dateFormat.format(Date(now)), timeFormat.format(Date(now))),
         style = MaterialTheme.typography.titleLarge.merge(LABEL_SHADOW),
         color = Color.White,
         modifier = modifier,
@@ -863,7 +866,7 @@ private fun progressOf(p: EPGProgramme, now: Long): Float {
 
 private fun remainingLabel(p: EPGProgramme, now: Long): String {
     val minutes = ((p.endMillis - now).coerceAtLeast(0L) + 59_999L) / 60_000L
-    return if (minutes < 60) "$minutes min" else "${minutes / 60} h ${minutes % 60} min"
+    return if (minutes < 60) AppText.get(R.string.player_duration_min, minutes.toInt()) else AppText.get(R.string.player_duration_h_min, (minutes / 60).toInt(), (minutes % 60).toInt())
 }
 
 private val EDGE = 40.dp

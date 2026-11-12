@@ -27,7 +27,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.aeriotv.android.R
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.aeriotv.android.BuildConfig
@@ -62,7 +64,7 @@ fun AppUpdatesScreen(
     val autoCheck by viewModel.autoCheck.collectAsStateWithLifecycle(initialValue = true)
 
     Column(modifier = Modifier.fillMaxSize()) {
-        SettingsDetailTopBar(title = "App Updates", onBack = onBack)
+        SettingsDetailTopBar(title = stringResource(R.string.settings2_updates_title), onBack = onBack)
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             Column(
                 modifier = Modifier
@@ -73,28 +75,33 @@ fun AppUpdatesScreen(
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 SettingsSection(
-                    header = "This device",
-                    footer = "Updates on this channel come from the project's GitHub " +
-                        "releases. Installing keeps your channels, settings, and " +
-                        "recordings; AerioTV closes during the install and you reopen " +
-                        "it from your home screen.",
+                    header = stringResource(R.string.settings2_this_device),
+                    footer = stringResource(R.string.settings2_updates_device_footer),
                 ) {
-                    SettingsInfoRow(label = "Version", value = BuildConfig.VERSION_NAME)
-                    SettingsInfoRow(label = "Channel", value = "GitHub releases")
+                    SettingsInfoRow(
+                        label = stringResource(R.string.settings2_updates_version),
+                        value = BuildConfig.VERSION_NAME,
+                    )
+                    SettingsInfoRow(
+                        label = stringResource(R.string.settings2_updates_channel),
+                        value = stringResource(R.string.settings2_updates_channel_github),
+                    )
                     // The result shows on the row itself, so every tap gives
                     // visible feedback even when the answer did not change.
                     val s = state
                     SettingsActionRow(
-                        label = "Check for updates",
+                        label = stringResource(R.string.settings2_updates_check),
                         leadingIcon = Icons.Filled.Refresh,
                         onClick = { viewModel.manualCheck() },
                         running = checking,
                         statusLine = when {
-                            checking -> "Checking GitHub..."
+                            checking -> stringResource(R.string.settings2_updates_checking)
                             s is UpdateState.UpToDate ->
-                                "You're on the latest version (checked ${timeOf(s.checkedAtMs)})."
-                            s is UpdateState.Available -> "Version ${s.info.versionName} is available below."
-                            s is UpdateState.Error && s.info == null -> "The check failed. See below."
+                                stringResource(R.string.settings2_updates_up_to_date, timeOf(s.checkedAtMs))
+                            s is UpdateState.Available ->
+                                stringResource(R.string.settings2_updates_version_available_below, s.info.versionName)
+                            s is UpdateState.Error && s.info == null ->
+                                stringResource(R.string.settings2_updates_check_failed)
                             else -> null
                         },
                         statusIsError = !checking && s is UpdateState.Error && s.info == null,
@@ -102,13 +109,11 @@ fun AppUpdatesScreen(
                 }
 
                 SettingsSection(
-                    header = "Automatic checks",
-                    footer = "When on, AerioTV looks for a new version when you open it " +
-                        "and offers it. Off: nothing is checked " +
-                        "until you tap Check for updates.",
+                    header = stringResource(R.string.settings2_updates_auto_header),
+                    footer = stringResource(R.string.settings2_updates_auto_footer),
                 ) {
                     SettingsToggleRow(
-                        title = "Check for updates automatically",
+                        title = stringResource(R.string.settings2_updates_auto_toggle),
                         checked = autoCheck,
                         onCheckedChange = { viewModel.setAutoCheck(it) },
                     )
@@ -117,18 +122,27 @@ fun AppUpdatesScreen(
                 when (val s = state) {
                     is UpdateState.UpToDate -> Unit // shown on the Check for updates row
                     is UpdateState.Available -> SettingsSection(
-                        header = "Update available",
+                        header = stringResource(R.string.settings2_updates_available_header),
                         footer = s.info.notes.ifBlank { null },
                     ) {
                         SettingsActionRow(
-                            label = "Download AerioTV ${s.info.versionName}",
-                            subtitle = "${s.info.apkSizeBytes / (1024 * 1024)} MB from GitHub",
+                            label = stringResource(R.string.settings2_updates_download, s.info.versionName),
+                            subtitle = stringResource(
+                                R.string.settings2_updates_download_size,
+                                s.info.apkSizeBytes / (1024 * 1024),
+                            ),
                             leadingIcon = Icons.Filled.Download,
                             onClick = { viewModel.download() },
                         )
                     }
                     is UpdateState.Downloading -> Column {
-                        StatusText("Downloading AerioTV ${s.info.versionName}... ${s.progressPercent}%")
+                        StatusText(
+                            stringResource(
+                                R.string.settings2_updates_downloading,
+                                s.info.versionName,
+                                s.progressPercent,
+                            ),
+                        )
                         Spacer(Modifier.height(8.dp))
                         LinearProgressIndicator(
                             progress = { s.progressPercent / 100f },
@@ -138,48 +152,45 @@ fun AppUpdatesScreen(
                     is UpdateState.Verifying -> Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(modifier = Modifier.width(22.dp).height(22.dp))
                         Spacer(Modifier.width(10.dp))
-                        StatusText("Verifying download...")
+                        StatusText(stringResource(R.string.settings2_updates_verifying))
                     }
                     is UpdateState.ReadyToInstall -> SettingsSection(
-                        header = "Ready to install",
-                        footer = "Your data is kept. AerioTV will close to install; reopen " +
-                            "it from your home screen.",
+                        header = stringResource(R.string.settings2_updates_ready_header),
+                        footer = stringResource(R.string.settings2_updates_ready_footer),
                     ) {
                         SettingsActionRow(
-                            label = "Install AerioTV ${s.info.versionName}",
+                            label = stringResource(R.string.settings2_updates_install_version, s.info.versionName),
                             leadingIcon = Icons.Filled.SystemUpdate,
                             onClick = { viewModel.install() },
                         )
                     }
                     is UpdateState.AwaitingInstallPermission -> SettingsSection(
-                        header = "One-time permission needed",
-                        footer = "Allow AerioTV to install updates in the Settings screen, " +
-                            "then come back. If you've already allowed it, Install " +
-                            "continues right away.",
+                        header = stringResource(R.string.settings2_updates_permission_header),
+                        footer = stringResource(R.string.settings2_updates_permission_footer),
                     ) {
                         SettingsActionRow(
-                            label = "Install",
+                            label = stringResource(R.string.settings2_updates_install),
                             leadingIcon = Icons.Filled.SystemUpdate,
                             onClick = { viewModel.install() },
                         )
                     }
                     is UpdateState.Installing -> StatusText(
-                        "Confirm the update in the Android dialog. AerioTV will close to " +
-                            "install.",
+                        stringResource(R.string.settings2_updates_installing),
                     )
                     is UpdateState.Error -> SettingsSection(
-                        header = "Update problem",
+                        header = stringResource(R.string.settings2_updates_problem_header),
                         footer = s.message,
                     ) {
                         SettingsActionRow(
-                            label = if (s.info != null) "Try again" else "Check again",
+                            label = if (s.info != null) stringResource(R.string.settings2_updates_try_again)
+                            else stringResource(R.string.settings2_updates_check_again),
                             leadingIcon = Icons.Filled.Refresh,
                             onClick = {
                                 if (s.info != null) viewModel.download() else viewModel.manualCheck()
                             },
                         )
                         SettingsActionRow(
-                            label = "Dismiss",
+                            label = stringResource(R.string.settings2_updates_dismiss),
                             leadingIcon = Icons.Filled.Close,
                             onClick = { viewModel.dismissError() },
                         )

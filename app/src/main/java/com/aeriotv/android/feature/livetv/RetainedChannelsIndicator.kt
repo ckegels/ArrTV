@@ -23,6 +23,9 @@ import com.aeriotv.android.core.tv.TvMenuAction
 import com.aeriotv.android.core.tv.rememberTvMenuGuard
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.aeriotv.android.R
 
 /**
  * Keep Recent Channels Live (iOS parity): thin surface over the
@@ -58,7 +61,7 @@ fun RetainedChannelsAction(
     IconButton(onClick = { dialogOpen = true }, modifier = Modifier.size(buttonSize)) {
         Icon(
             imageVector = Icons.Filled.FiberSmartRecord,
-            contentDescription = "${retained.size} channels kept live",
+            contentDescription = pluralStringResource(R.plurals.livetv_channels_kept_live, retained.size, retained.size),
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(iconSize),
         )
@@ -84,13 +87,13 @@ fun RetainedChannelsDialog(
         retained.asReversed().forEach { ch ->
             add(
                 TvMenuAction(
-                    label = "Watch ${ch.channelName}",
+                    label = stringResource(R.string.livetv_watch_channel, ch.channelName),
                     icon = Icons.Filled.PlayArrow,
                 ) { onJumpToChannel(ch.channelId) },
             )
             add(
                 TvMenuAction(
-                    label = "Stop ${ch.channelName}",
+                    label = stringResource(R.string.livetv_stop_channel, ch.channelName),
                     icon = Icons.Filled.Stop,
                     destructive = true,
                 ) { viewModel.stop(ch.channelId) },
@@ -99,7 +102,7 @@ fun RetainedChannelsDialog(
         if (retained.size > 1) {
             add(
                 TvMenuAction(
-                    label = "Stop All",
+                    label = stringResource(R.string.livetv_stop_all),
                     icon = Icons.Filled.Stop,
                     destructive = true,
                 ) { viewModel.stopAll() },
@@ -107,7 +110,7 @@ fun RetainedChannelsDialog(
         }
     }
     TvActionMenuDialog(
-        title = "Kept Live",
+        title = stringResource(R.string.livetv_kept_live_title),
         actions = actions,
         guard = guard,
         onDismiss = onDismiss,

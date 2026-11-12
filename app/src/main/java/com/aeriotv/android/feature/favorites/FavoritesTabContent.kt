@@ -52,6 +52,8 @@ import com.aeriotv.android.ui.settings.rememberIsTvDevice
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import com.aeriotv.android.ui.adaptive.LocalTabBarBottomInset
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * Favorites tab. Mirrors iOS FavoritesView (ChannelListView.swift:2596): the
@@ -144,7 +146,7 @@ fun FavoritesTabContent(
         CenterAlignedTopAppBar(
             title = {
                 Text(
-                    text = "Favorites",
+                    text = stringResource(R.string.livetv_group_favorites),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
@@ -169,14 +171,14 @@ fun FavoritesTabContent(
                 )
                 Spacer(Modifier.height(14.dp))
                 Text(
-                    text = "No Favorites",
+                    text = stringResource(R.string.livetv_favorites_empty_title),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "Long-press a channel in Live TV and tap Add to Favorites.",
+                    text = stringResource(R.string.livetv_favorites_empty_body),
                     style = MaterialTheme.typography.bodyMedium.subtext(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -219,7 +221,7 @@ fun FavoritesTabContent(
                         reorderHandle = {
                             Icon(
                                 imageVector = Icons.Filled.Menu,
-                                contentDescription = "Drag to reorder",
+                                contentDescription = stringResource(R.string.livetv_drag_to_reorder),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier
                                     .draggableHandle(

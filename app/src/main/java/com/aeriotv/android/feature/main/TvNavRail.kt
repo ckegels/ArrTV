@@ -45,6 +45,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 
 /**
  * Compact modern layout: opens the left navigation rail and focuses the
@@ -119,7 +121,7 @@ internal fun TvNavRail(
             if (tab == AppTab.Settings && onApplyLook != null) {
                 TvNavRailRow(
                     icon = Icons.Filled.AutoAwesome,
-                    label = "ArrTV look",
+                    label = stringResource(R.string.main_rail_arrtv_look),
                     selected = false,
                     onClick = onApplyLook,
                 )
@@ -135,7 +137,7 @@ internal fun TvNavRail(
             Spacer(Modifier.weight(1f))
             TvNavRailRow(
                 icon = Icons.Filled.SystemUpdate,
-                label = "Update",
+                label = stringResource(R.string.main_rail_update),
                 selected = false,
                 onClick = onUpdate,
             )
@@ -151,7 +153,7 @@ private fun TvNavRailItem(
     modifier: Modifier = Modifier,
 ) = TvNavRailRow(
     icon = if (selected) tab.iconSelected else tab.iconUnselected,
-    label = tab.label,
+    label = tab.displayLabel(),
     selected = selected,
     onClick = onClick,
     modifier = modifier,

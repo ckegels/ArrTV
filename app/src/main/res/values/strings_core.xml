@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- SourceType.kt -->
+    <string name="core_source_type_m3u_url">M3U URL</string>
+    <string name="core_source_type_dispatcharr_api_key">Dispatcharr (API Key)</string>
+    <string name="core_source_type_dispatcharr_user_pass">Dispatcharr (Username &amp; Password)</string>
+
+    <!-- PlaylistEntity.kt -->
+    <string name="core_source_label_dispatcharr_user_pass">Dispatcharr Direct Connect - Username &amp; Password</string>
+    <string name="core_source_label_dispatcharr_admin_key">Dispatcharr Direct Connect - Admin API Key</string>
+    <string name="core_source_label_dispatcharr_standard_key">Dispatcharr Direct Connect - Standard API Key</string>
+
+    <!-- ProgramInfoTarget.kt -->
+    <string name="core_recording_fact_recorded">Recorded</string>
+    <string name="core_recording_fact_window">Window</string>
+    <string name="core_recording_fact_window_range">%1$s to %2$s</string>
+    <string name="core_recording_fact_quality">Quality</string>
+    <string name="core_recording_fact_audio">Audio</string>
+    <string name="core_recording_fact_size">Size</string>
+    <string name="core_recording_fact_bitrate">Bitrate</string>
+    <string name="core_recording_fact_format">Format</string>
+    <string name="core_recording_fact_location">Location</string>
+    <string name="core_recording_fact_status">Status</string>
+    <string name="core_unit_fps_whole">%1$.0f fps</string>
+    <string name="core_unit_fps_fraction">%1$.2f fps</string>
+    <string name="core_unit_size_gb">%1$.2f GB</string>
+    <string name="core_unit_size_mb">%1$.1f MB</string>
+    <string name="core_unit_mbps_whole">%1$.0f Mbps</string>
+    <string name="core_unit_mbps_fraction">%1$.1f Mbps</string>
+
+    <!-- DispatcharrCapability.kt -->
+    <string name="core_capability_denied_manage_dvr">Your Dispatcharr account can view recordings but not manage them. Ask your server administrator for DVR manage access.</string>
+    <string name="core_capability_denied_view_dvr">Your Dispatcharr account does not have DVR access. Ask your server administrator to enable it.</string>
+    <string name="core_capability_denied_view_vod">Your Dispatcharr account does not have access to movies. Ask your server administrator to enable it.</string>
+    <string name="core_capability_denied_view_series">Your Dispatcharr account does not have access to TV shows. Ask your server administrator to enable it.</string>
+    <string name="core_capability_denied_catchup">Catch-up is not enabled for your Dispatcharr account. Ask your server administrator to enable it.</string>
+    <string name="core_capability_denied_switch_stream">Switching streams needs a Dispatcharr administrator account. Ask your server administrator for access.</string>
+    <string name="core_capability_denied_manage_playlists">Your Dispatcharr account cannot change server playlists. Ask your server administrator for access.</string>
+    <string name="core_capability_denied_read_server_settings">Your Dispatcharr account cannot read server settings. Ask your server administrator for access.</string>
+    <string name="core_capability_network_restricted">The server refused this even though your Dispatcharr account has permission. This usually means a network restriction on the account (allowed networks). Ask your server administrator to allow this device\'s network.</string>
+
+    <!-- DispatcharrClient.kt -->
+    <string name="core_dispatcharr_login_transport_error">Login transport error: %1$s</string>
+    <string name="core_dispatcharr_invalid_credentials">Invalid username or password. AerioTV uses your Dispatcharr Dashboard password (System -> Users -> Account tab), not your Dispatcharr XC password.</string>
+    <string name="core_dispatcharr_login_rate_limited">The server is rate-limiting login attempts (HTTP 429). Wait a minute and try again.</string>
+    <string name="core_dispatcharr_login_http_error">Login transport error: HTTP %1$d</string>
+    <string name="core_dispatcharr_login_unexpected">Server returned an unexpected response shape during login. Verify the URL points at a Dispatcharr 0.23.0 or newer instance.</string>
+    <string name="core_dispatcharr_refresh_transport_error">Refresh transport error: %1$s</string>
+    <string name="core_dispatcharr_refresh_expired">Refresh token expired. AerioTV will re-authenticate from saved credentials.</string>
+    <string name="core_dispatcharr_refresh_http_error">Refresh transport error: HTTP %1$d</string>
+    <string name="core_dispatcharr_refresh_unexpected">Refresh returned an unexpected response shape.</string>
+    <string name="core_dispatcharr_profile_read_failed">Couldn\'t read user profile: %1$s</string>
+    <string name="core_dispatcharr_profile_read_http">Couldn\'t read user profile: HTTP %1$d</string>
+    <string name="core_dispatcharr_profile_unexpected">Server returned an unexpected user profile shape. Verify the URL points at a Dispatcharr 0.23.0 or newer instance.</string>
+    <string name="core_dispatcharr_no_api_key">The Dispatcharr account \'%1$s\' has no API key. In Dispatcharr, open System, then Users, edit this user, and generate an API key, then try again.</string>
+    <string name="core_dispatchmore_unreachable">Could not reach the server: %1$s</string>
+    <string name="core_dispatchmore_reports_not_taken">This server does not take reports</string>
+    <string name="core_dispatchmore_server_answered">The server answered %1$d</string>
+    <string name="core_dispatchmore_guide_switched_off">Changing the guide is switched off on the server</string>
+    <string name="core_dispatchmore_guide_gone">That channel or guide no longer exists</string>
+    <string name="core_dispatcharr_dvr_unauthorized">Dispatcharr rejected this request as unauthorized. Your session or API key may have expired.</string>
+    <string name="core_dispatcharr_connection_check_failed">Connection check failed: HTTP %1$d %2$s</string>
+    <string name="core_dispatcharr_channel_profile_read_failed">Couldn\'t read channel profile %1$s: HTTP %2$d</string>
+    <string name="core_dispatcharr_channel_profile_unexpected">Server returned an unexpected channel-profile shape for id %1$s.</string>
+    <string name="core_dispatcharr_program_detail_failed">Program detail failed: HTTP %1$d</string>
+    <string name="core_dispatcharr_programs_by_tvg_failed">Programs-by-tvg-id failed: HTTP %1$d</string>
+    <string name="core_dispatcharr_epg_grid_failed">EPG grid failed: HTTP %1$d %2$s</string>
+    <string name="core_dispatcharr_current_programs_failed">Current programs failed: HTTP %1$d %2$s</string>
+    <string name="core_http_error_from_url">HTTP %1$d %2$s from %3$s</string>
+    <string name="core_dispatcharr_unexpected_shape_from">Unexpected response shape from %1$s: %2$s</string>
+    <string name="core_dispatcharr_api_key_rejected">Dispatcharr rejected the api_key for %1$s (HTTP %2$d). Admin probably rotated it.</string>
+    <string name="core_dispatcharr_catchup_unavailable">Unavailable due to current viewing priorities</string>
+    <string name="core_dispatcharr_recording_create_failed">Recording create failed: HTTP %1$d %2$s</string>
+    <string name="core_dispatcharr_series_rule_create_failed">Series rule create failed: HTTP %1$d %2$s</string>
+    <string name="core_dispatcharr_series_rule_evaluate_failed">Series rule evaluate failed: HTTP %1$d %2$s</string>
+    <string name="core_dispatcharr_recording_fetch_failed">Recording fetch failed: HTTP %1$d</string>
+    <string name="core_dispatcharr_recording_update_failed">Recording update failed: HTTP %1$d %2$s</string>
+    <string name="core_dispatcharr_vod_movies_failed">VOD movies fetch failed: HTTP %1$d</string>
+    <string name="core_dispatcharr_vod_movies_unexpected">Unexpected /api/vod/movies/ shape: %1$s</string>
+    <string name="core_dispatcharr_vod_series_item_failed">VOD series %1$s fetch failed: HTTP %2$d</string>
+    <string name="core_dispatcharr_vod_series_failed">VOD series fetch failed: HTTP %1$d</string>
+    <string name="core_dispatcharr_vod_series_unexpected">Unexpected /api/vod/series/ shape: %1$s</string>
+    <string name="core_dispatcharr_movie_provider_info_failed">Movie provider-info failed: HTTP %1$d</string>
+    <string name="core_dispatcharr_series_provider_info_failed">Series provider-info failed: HTTP %1$d</string>
+    <string name="core_dispatcharr_movie_provider_media_failed">Movie provider-media failed: HTTP %1$d</string>
+    <string name="core_dispatcharr_series_episodes_failed">Series episodes fetch failed: HTTP %1$d</string>
+    <string name="core_dispatcharr_remove_commercials_failed">Remove Commercials failed: HTTP %1$d %2$s</string>
+    <string name="core_dispatcharr_stop_recording_failed">Stop Recording failed: HTTP %1$d %2$s</string>
+    <string name="core_dispatcharr_switch_stream_failed">Switch Stream failed: HTTP %1$d %2$s body=%3$s</string>
+    <string name="core_dispatcharr_recording_delete_failed">Recording delete failed: HTTP %1$d %2$s</string>
+
+    <!-- PlaylistFetcher.kt -->
+    <string name="core_fetch_no_data_204">The server accepted the request but returned no data (HTTP 204) from %1$s. That usually means it could not build the playlist for these credentials: check the username and password, and that this device is allowed to connect.</string>
+    <string name="core_fetch_empty_response">The server returned an empty response from %1$s.</string>
+    <string name="core_fetch_not_enough_space">Not enough free space to download this playlist: it needs about %1$dMB but only %2$dMB is free. Free up some space and try again.</string>
+    <string name="core_fetch_stalled">Download stalled: only %1$dKB arrived in the last %2$ds (%3$dMB downloaded so far). The server is barely responding; try again later.</string>
+    <string name="core_fetch_ended_early">The playlist download ended early (%1$dMB of %2$dMB). The connection dropped part-way through; please try again.</string>
+
+    <!-- PlaylistRepository.kt -->
+    <string name="core_playlist_source_type_later">%1$s support lands in a later phase</string>
+    <string name="core_playlist_username_required">Username is required</string>
+    <string name="core_playlist_password_required">Password is required</string>
+    <string name="core_playlist_no_active_for_switch">No active playlist for stream switch</string>
+    <string name="core_playlist_xc_no_live_channels">The server returned no live channels for these credentials. Check the username and password, and that this device is allowed to connect.</string>
+    <string name="core_playlist_imported_file_missing">Imported file is missing: %1$s. Re-import it from Edit Playlist.</string>
+    <string name="core_playlist_api_key_required">Dispatcharr API key is required</string>
+    <string name="core_playlist_xc_username_required">Xtream Codes username is required</string>
+
+    <!-- XtreamCodesApi.kt -->
+    <string name="core_xc_episode_fallback">Episode %1$s</string>
+    <string name="core_xc_empty_response">The server returned an empty response for %1$s.</string>
+    <string name="core_xc_server_error">The server returned an error for %1$s: %2$s</string>
+
+    <!-- DispatchMoreGuides.kt -->
+    <string name="core_guide_changed_to">Guide changed to %1$s</string>
+    <string name="core_dispatchmore_not_a_channel">Not a channel of this server</string>
+    <string name="core_dispatchmore_no_login_guide">No Dispatcharr login to ask with</string>
+    <string name="core_dispatchmore_unreachable_plain">Could not reach the server</string>
+
+    <!-- DispatchMoreReports.kt -->
+    <string name="core_report_sent">Report sent (report %1$s)</string>
+    <string name="core_report_not_sent">Report not sent: %1$s</string>
+    <string name="core_dispatchmore_no_login_report">No Dispatcharr login to send it with</string>
+    <string name="core_report_could_not_send">Could not send the report</string>
+
+    <!-- DispatcharrLiveEvent.kt -->
+    <string name="core_live_lookback_moved">Moved to another stream for another viewer</string>
+
+    <!-- TMDBService.kt -->
+    <string name="core_tmdb_role_director">Director</string>
+    <string name="core_tmdb_role_creator">Creator</string>
+
+    <!-- DriveSyncManager.kt -->
+    <string name="core_sync_restore_nothing_in_drive">Nothing in Drive yet</string>
+    <string name="core_sync_restore_failed">Couldn\'t restore</string>
+
+    <!-- SyncCategory.kt -->
+    <string name="core_sync_category_playlists">Playlists &amp; Servers</string>
+    <string name="core_sync_category_playlists_subtitle">M3U URLs, Dispatcharr servers, Xtream credentials (server-side only)</string>
+    <string name="core_sync_category_watch_progress">Watch Progress</string>
+    <string name="core_sync_category_watch_progress_subtitle">Resume points for movies, episodes, and recordings</string>
+    <string name="core_sync_category_reminders">Reminders</string>
+    <string name="core_sync_category_reminders_subtitle">Scheduled program reminders</string>
+    <string name="core_sync_category_favorites">Favorites</string>
+    <string name="core_sync_category_favorites_subtitle">Favorite channels + your manual order</string>
+    <string name="core_sync_category_watchlist">Watchlist</string>
+    <string name="core_sync_category_watchlist_subtitle">Movies and TV shows you saved for later, plus titles you hid</string>
+    <string name="core_sync_category_preferences">App Preferences</string>
+    <string name="core_sync_category_preferences_subtitle">Theme, appearance mode, accent color, default tab, hidden groups, palette overrides</string>
+    <string name="core_sync_category_credentials">Credentials</string>
+    <string name="core_sync_category_credentials_subtitle">Server passwords + API keys (Drive AppData is private to the app)</string>
+
+    <!-- EpgBadges.kt -->
+    <string name="core_epg_badge_live">LIVE</string>
+    <string name="core_epg_badge_new">NEW</string>
+    <string name="core_epg_badge_premiere">PREMIERE</string>
+    <string name="core_epg_badge_finale">FINALE</string>
+    <string name="core_epg_badge_repeat">REPEAT</string>
+    <string name="core_epg_badge_on_now">ON NOW</string>
+
+    <!-- SkipIntervals.kt -->
+    <plurals name="core_skip_back_seconds">
+        <item quantity="one">Back %d second</item>
+        <item quantity="other">Back %d seconds</item>
+    </plurals>
+    <plurals name="core_skip_forward_seconds">
+        <item quantity="one">Forward %d second</item>
+        <item quantity="other">Forward %d seconds</item>
+    </plurals>
+</resources>

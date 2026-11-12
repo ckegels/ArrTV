@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.playlist
 
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -820,7 +822,7 @@ class PlaylistViewModel @Inject constructor(
                             it.copy(
                                 phase = Phase.NeedsUrl,
                                 isLoading = false,
-                                error = "Failed to refresh saved source: ${LogSanitizer.redact(t.message ?: t::class.simpleName ?: "unknown error")}",
+                                error = AppText.get(R.string.main_pl_refresh_saved_failed, LogSanitizer.redact(t.message ?: t::class.simpleName ?: AppText.get(R.string.main_pl_unknown_error))),
                             )
                         }
                     }
@@ -940,7 +942,7 @@ class PlaylistViewModel @Inject constructor(
     fun loadPlaylist() {
         val s = _state.value
         if (s.url.trim().isEmpty()) {
-            _state.update { it.copy(error = "Enter a URL") }
+            _state.update { it.copy(error = AppText.get(R.string.main_pl_enter_url)) }
             return
         }
         // Auto-prepend the scheme so users can type "dispatcharr.example.com"
@@ -953,7 +955,7 @@ class PlaylistViewModel @Inject constructor(
         val url = normalizeSchemedUrl(s.url)
         if (!s.sourceType.isImplemented) {
             _state.update {
-                it.copy(error = "${s.sourceType.displayName} support is coming in a later phase.")
+                it.copy(error = AppText.get(R.string.main_pl_source_later, s.sourceType.displayName))
             }
             return
         }
@@ -970,7 +972,7 @@ class PlaylistViewModel @Inject constructor(
                     hasApiKey -> SourceType.DispatcharrApiKey
                     hasUserPass -> SourceType.DispatcharrUserPass
                     else -> {
-                        _state.update { it.copy(error = "Enter an API key, or a username and password.") }
+                        _state.update { it.copy(error = AppText.get(R.string.main_pl_enter_key_or_login)) }
                         return
                     }
                 }
@@ -979,7 +981,7 @@ class PlaylistViewModel @Inject constructor(
         }
         if (s.sourceType == SourceType.XtreamCodes &&
             (s.username.isBlank() || s.password.isBlank())) {
-            _state.update { it.copy(error = "Username and password are required") }
+            _state.update { it.copy(error = AppText.get(R.string.main_pl_user_pass_required)) }
             return
         }
         // EPG URL gets the same scheme-normalization as the server URL.
@@ -1013,7 +1015,7 @@ class PlaylistViewModel @Inject constructor(
                             draftPlaylistId = entity.id,
                             channels = channels,
                             isLoading = false,
-                            error = if (channels.isEmpty()) "No channels found." else null,
+                            error = if (channels.isEmpty()) AppText.get(R.string.main_pl_no_channels) else null,
                         )
                     }
                     loadEpgIfConfigured(entity)
@@ -1037,7 +1039,7 @@ class PlaylistViewModel @Inject constructor(
                         it.copy(
                             isLoading = false,
                             channels = emptyList(),
-                            error = loadFailureMessage("Failed to load", t),
+                            error = loadFailureMessage(AppText.get(R.string.main_pl_failed_to_load), t),
                         )
                     }
                 },
@@ -1055,10 +1057,9 @@ class PlaylistViewModel @Inject constructor(
      */
     private fun loadFailureMessage(prefix: String, t: Throwable): String =
         if (t is OutOfMemoryError) {
-            "$prefix: playlist is too large for this device's memory. If this is an " +
-                "Xtream Codes get.php link, add it with the Xtream Codes source type instead."
+            AppText.get(R.string.main_pl_too_large, prefix)
         } else {
-            "$prefix: ${LogSanitizer.redact(t.message ?: t::class.simpleName ?: "unknown error")}"
+            AppText.get(R.string.main_pl_prefixed_error, prefix, LogSanitizer.redact(t.message ?: t::class.simpleName ?: AppText.get(R.string.main_pl_unknown_error)))
         }
 
     private fun loadEpgIfConfigured(playlist: PlaylistEntity, forceRefresh: Boolean = false) {
@@ -1741,7 +1742,7 @@ class PlaylistViewModel @Inject constructor(
         viewModelScope.launch {
             val active = repository.activePlaylist()
                 ?: return@launch onResult(
-                    Result.failure(IllegalStateException("No active playlist")),
+                    Result.failure(IllegalStateException(AppText.get(R.string.main_pl_no_active))),
                 )
             onResult(
                 catchupResolver.resolve(
@@ -1852,9 +1853,9 @@ class PlaylistViewModel @Inject constructor(
                             isLoading = false,
                             playlist = updated ?: it.playlist,
                             playlistRefreshStatus = ActionStatus.Success(
-                                "${channels.size} channels loaded",
+                                AppText.plural(R.plurals.main_pl_channels_loaded, channels.size, channels.size),
                             ),
-                            error = if (channels.isEmpty()) "No channels found." else null,
+                            error = if (channels.isEmpty()) AppText.get(R.string.main_pl_no_channels) else null,
                         )
                     }
                     loadEpgIfConfigured(active, forceRefresh = true)
@@ -1865,9 +1866,9 @@ class PlaylistViewModel @Inject constructor(
                         it.copy(
                             isLoading = false,
                             playlistRefreshStatus = ActionStatus.Failure(
-                                "Refresh failed: ${LogSanitizer.redact(t.message ?: t::class.simpleName ?: "unknown error")}",
+                                AppText.get(R.string.main_pl_refresh_failed, LogSanitizer.redact(t.message ?: t::class.simpleName ?: AppText.get(R.string.main_pl_unknown_error))),
                             ),
-                            error = "Refresh failed: ${LogSanitizer.redact(t.message ?: t::class.simpleName ?: "unknown error")}",
+                            error = AppText.get(R.string.main_pl_refresh_failed, LogSanitizer.redact(t.message ?: t::class.simpleName ?: AppText.get(R.string.main_pl_unknown_error))),
                         )
                     }
                 },
@@ -1955,12 +1956,12 @@ class PlaylistViewModel @Inject constructor(
                 it.copy(
                     playlist = updated ?: it.playlist,
                     epgRefreshStatus = when {
-                        outcome == null -> ActionStatus.Failure("No EPG source configured")
+                        outcome == null -> ActionStatus.Failure(AppText.get(R.string.main_pl_no_epg_source))
                         outcome.isSuccess -> ActionStatus.Success(
-                            "EPG updated (${outcome.getOrThrow()} programmes)",
+                            outcome.getOrThrow().let { n -> AppText.plural(R.plurals.main_pl_epg_updated, n, n) },
                         )
                         else -> ActionStatus.Failure(
-                            "EPG refresh failed: ${LogSanitizer.redact(outcome.exceptionOrNull()?.message ?: "unknown error")}",
+                            AppText.get(R.string.main_pl_epg_refresh_failed, LogSanitizer.redact(outcome.exceptionOrNull()?.message ?: AppText.get(R.string.main_pl_unknown_error))),
                         )
                     },
                 )
@@ -2013,9 +2014,9 @@ class PlaylistViewModel @Inject constructor(
                             isLoading = false,
                             playlist = updated ?: it.playlist,
                             refreshAllStatus = ActionStatus.Success(
-                                "${channels.size} channels reloaded",
+                                AppText.plural(R.plurals.main_pl_channels_reloaded, channels.size, channels.size),
                             ),
-                            error = if (channels.isEmpty()) "No channels found." else null,
+                            error = if (channels.isEmpty()) AppText.get(R.string.main_pl_no_channels) else null,
                         )
                     }
                     // 4. Force-reload the guide from scratch.
@@ -2027,9 +2028,9 @@ class PlaylistViewModel @Inject constructor(
                         it.copy(
                             isLoading = false,
                             refreshAllStatus = ActionStatus.Failure(
-                                "Refresh failed: ${LogSanitizer.redact(t.message ?: t::class.simpleName ?: "unknown error")}",
+                                AppText.get(R.string.main_pl_refresh_failed, LogSanitizer.redact(t.message ?: t::class.simpleName ?: AppText.get(R.string.main_pl_unknown_error))),
                             ),
-                            error = "Refresh failed: ${LogSanitizer.redact(t.message ?: t::class.simpleName ?: "unknown error")}",
+                            error = AppText.get(R.string.main_pl_refresh_failed, LogSanitizer.redact(t.message ?: t::class.simpleName ?: AppText.get(R.string.main_pl_unknown_error))),
                         )
                     }
                 },
@@ -2187,7 +2188,7 @@ class PlaylistViewModel @Inject constructor(
                             playlist = entity,
                             channels = channels,
                             isLoading = false,
-                            error = if (channels.isEmpty()) "No channels found." else null,
+                            error = if (channels.isEmpty()) AppText.get(R.string.main_pl_no_channels) else null,
                         )
                     }
                     loadEpgIfConfigured(entity)
@@ -2198,7 +2199,7 @@ class PlaylistViewModel @Inject constructor(
                         it.copy(
                             playlist = active,
                             isLoading = false,
-                            error = loadFailureMessage("Save failed", t),
+                            error = loadFailureMessage(AppText.get(R.string.main_pl_save_failed), t),
                         )
                     }
                 },
@@ -2223,7 +2224,7 @@ class PlaylistViewModel @Inject constructor(
                     _state.update {
                         it.copy(
                             testStatus = ActionStatus.Success(
-                                "Connected OK (${channels.size} channels)",
+                                AppText.plural(R.plurals.main_pl_connected_ok, channels.size, channels.size),
                             ),
                         )
                     }
@@ -2233,7 +2234,7 @@ class PlaylistViewModel @Inject constructor(
                     _state.update {
                         it.copy(
                             testStatus = ActionStatus.Failure(
-                                "Connection failed: ${LogSanitizer.redact(t.message ?: t::class.simpleName ?: "unknown error")}",
+                                AppText.get(R.string.main_pl_connection_failed, LogSanitizer.redact(t.message ?: t::class.simpleName ?: AppText.get(R.string.main_pl_unknown_error))),
                             ),
                         )
                     }
@@ -2275,7 +2276,7 @@ class PlaylistViewModel @Inject constructor(
                 it.copy(
                     activeRoute = ActiveRoute(isLan = isLan, url = url),
                     lanRefreshStatus = ActionStatus.Success(
-                        if (isLan) "Local server reachable, using local URL" else "Using remote URL",
+                        AppText.get(if (isLan) R.string.main_pl_using_local else R.string.main_pl_using_remote),
                     ),
                 )
             }
@@ -2359,7 +2360,7 @@ class PlaylistViewModel @Inject constructor(
                             playlist = entity,
                             channels = channels,
                             isLoading = false,
-                            error = if (channels.isEmpty()) "No channels found." else null,
+                            error = if (channels.isEmpty()) AppText.get(R.string.main_pl_no_channels) else null,
                         )
                     }
                     // GH #81 + per-playlist scoping: group selection belongs to
@@ -2393,7 +2394,7 @@ class PlaylistViewModel @Inject constructor(
                     _state.update {
                         it.copy(
                             isLoading = false,
-                            error = "Switch failed: ${LogSanitizer.redact(t.message ?: t::class.simpleName ?: "unknown error")}",
+                            error = AppText.get(R.string.main_pl_switch_failed, LogSanitizer.redact(t.message ?: t::class.simpleName ?: AppText.get(R.string.main_pl_unknown_error))),
                         )
                     }
                 },

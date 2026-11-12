@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.ondemand
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import com.aeriotv.android.ui.scale.subtext
 import android.content.Intent
 import android.net.Uri
@@ -123,11 +125,11 @@ fun PersonBioDialog(
                         if (isTv) {
                             android.widget.Toast.makeText(
                                 context,
-                                "Not in your library.",
+                                context.getString(R.string.ondemand_not_in_library),
                                 android.widget.Toast.LENGTH_SHORT,
                             ).show()
                         } else {
-                            missText = "Not in your library."
+                            missText = context.getString(R.string.ondemand_not_in_library)
                             delay(2_000L)
                             missText = null
                         }
@@ -194,9 +196,9 @@ fun PersonBioDialog(
                                 color = MaterialTheme.colorScheme.onBackground,
                                 fontWeight = FontWeight.Bold,
                             )
-                            bio?.birthday?.let { LifeDetailLine("Born", formatBioDate(it)) }
-                            bio?.deathday?.let { LifeDetailLine("Died", formatBioDate(it)) }
-                            bio?.placeOfBirth?.let { LifeDetailLine("Birthplace", it) }
+                            bio?.birthday?.let { LifeDetailLine(stringResource(R.string.ondemand_born), formatBioDate(it)) }
+                            bio?.deathday?.let { LifeDetailLine(stringResource(R.string.ondemand_died), formatBioDate(it)) }
+                            bio?.placeOfBirth?.let { LifeDetailLine(stringResource(R.string.ondemand_birthplace), it) }
                             Spacer(Modifier.height(10.dp))
                             val biography = bio?.biography
                             when {
@@ -205,7 +207,7 @@ fun PersonBioDialog(
                                     modifier = Modifier.size(24.dp),
                                 )
                                 biography.isNullOrBlank() -> Text(
-                                    text = "No biography available.",
+                                    text = stringResource(R.string.ondemand_no_biography),
                                     style = MaterialTheme.typography.bodyMedium.subtext(),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -233,7 +235,7 @@ fun PersonBioDialog(
                     if (knownFor.isNotEmpty()) {
                         Spacer(Modifier.height(18.dp))
                         Text(
-                            text = "Known For",
+                            text = stringResource(R.string.ondemand_known_for),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onBackground,
                             fontWeight = FontWeight.Bold,
@@ -273,7 +275,7 @@ fun PersonBioDialog(
                     // opens the person's TMDB page in the browser.
                     if (!isTv) {
                         SettingsDialogTextButton(
-                            label = "View on TMDB",
+                            label = stringResource(R.string.ondemand_view_on_tmdb),
                             onClick = {
                                 val url = "https://www.themoviedb.org/person/${person.id}"
                                 runCatching {
@@ -286,7 +288,7 @@ fun PersonBioDialog(
                         )
                         Spacer(Modifier.width(8.dp))
                     }
-                    SettingsDialogTextButton(label = "Close", onClick = onDismiss)
+                    SettingsDialogTextButton(label = stringResource(R.string.common_close), onClick = onDismiss)
                 }
             }
         }
@@ -313,14 +315,14 @@ private fun TmdbPersonQr(personId: String) {
         ) {
             Image(
                 bitmap = qr.asImageBitmap(),
-                contentDescription = "TMDB page QR code",
+                contentDescription = stringResource(R.string.ondemand_tmdb_qr),
                 modifier = Modifier.size(72.dp),
                 filterQuality = FilterQuality.None,
             )
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            text = "View on TMDB",
+            text = stringResource(R.string.ondemand_view_on_tmdb),
             style = MaterialTheme.typography.labelSmall.subtext(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -397,7 +399,7 @@ private fun KnownForCard(title: String, posterUrl: String?, onClick: (() -> Unit
 @Composable
 private fun LifeDetailLine(label: String, value: String) {
     Text(
-        text = "$label: $value",
+        text = stringResource(R.string.ondemand_label_value, label, value),
         style = MaterialTheme.typography.bodyMedium.subtext(),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(top = 4.dp),

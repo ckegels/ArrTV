@@ -1,5 +1,6 @@
 package com.aeriotv.android.feature.settings
 
+import androidx.annotation.StringRes
 import com.aeriotv.android.ui.scale.subtext
 import com.aeriotv.android.ui.theme.textAccent
 import androidx.compose.foundation.background
@@ -42,6 +43,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppLanguage
+import com.aeriotv.android.core.locale.AppLocale
+import com.aeriotv.android.core.pip.findActivity
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -136,9 +143,14 @@ fun AppearanceSettingsScreen(
     val compactModernLayout by viewModel.compactModernLayout.collectAsStateWithLifecycle(initialValue = false)
 
     var accentPickerOpen by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val language = remember { AppLocale.current(context) }
+    val languageHeader = stringResource(R.string.language_header)
+    val languageFooter = stringResource(R.string.language_footer)
+    val languageSystem = stringResource(R.string.language_system)
 
     Column(modifier = Modifier.fillMaxSize()) {
-        SettingsDetailTopBar(title = "Appearance", onBack = onBack)
+        SettingsDetailTopBar(title = stringResource(R.string.settings_appearance_title), onBack = onBack)
 
         val vp = rememberViewport()
         Box(
@@ -165,18 +177,29 @@ fun AppearanceSettingsScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
+                // LANGUAGE card: the device's language, or one for this app only.
+                settingsCard(header = languageHeader, footer = languageFooter) {
+                    AppLanguage.entries.forEachIndexed { i, option ->
+                        if (i > 0) DividerRow()
+                        CheckRow(
+                            title = option.nativeName ?: languageSystem,
+                            selected = option == language,
+                            onClick = {
+                                if (option != language) {
+                                    context.findActivity()?.let { AppLocale.set(it, option) }
+                                }
+                            },
+                        )
+                    }
+                }
                 // LAYOUT card (TV only) — the compact modern layout switch.
                 if (isTvDevice) {
                     settingsCard(
-                        header = "Layout",
-                        footer = "A TiviMate-style Live TV: the guide fills the screen below a preview of the highlighted " +
-                            "program, groups open with Left from the program airing now, Left again opens the menu, and " +
-                            "holding Left goes back in time. It sets Guide Layout to Channel Preview, Group Selection to " +
-                            "the shifting sidebar, the Live TV display scale to 85% and the guide's Left buttons. " +
-                            "Turning it off restores your previous values of those settings.",
+                        header = context.getString(R.string.settings_appearance_layout_header),
+                        footer = context.getString(R.string.settings_appearance_layout_footer),
                     ) {
                         SettingsToggleRow(
-                            title = "Compact modern layout",
+                            title = stringResource(R.string.settings_appearance_compact_layout),
                             checked = compactModernLayout,
                             onCheckedChange = viewModel::setCompactModernLayout,
                         )
@@ -184,8 +207,8 @@ fun AppearanceSettingsScreen(
                 }
                 // THEME card — six brand presets + Custom Accent override row.
                 settingsCard(
-                    header = "Theme",
-                    footer = "Choose the palette and the light or dark appearance. Theme sets the color; Appearance sets light vs dark. They are independent, so any theme works in either appearance. Changes apply live; the preset accent kicks in unless Custom Accent is on.",
+                    header = context.getString(R.string.settings_appearance_theme_header),
+                    footer = context.getString(R.string.settings_appearance_theme_footer),
                 ) {
                     // Plan B5: "theme swatch grid at doubled density" on
                     // tablet. A theme row is a 36dp swatch plus two short
@@ -265,11 +288,11 @@ fun AppearanceSettingsScreen(
                 // at the composition root). The Display Scale sliders below
                 // still multiply on top for their own surfaces.
                 settingsCard(
-                    header = "Text Size",
-                    footer = "Scales all text in AerioTV, on top of your device's font size. Changes apply live.",
+                    header = context.getString(R.string.settings_appearance_text_size),
+                    footer = context.getString(R.string.settings_appearance_text_size_footer),
                 ) {
                     TextSizeSliderRow(
-                        label = "Text Size",
+                        label = stringResource(R.string.settings_appearance_text_size),
                         stops = TEXT_SCALE_STOPS,
                         value = textScale,
                         onValueChange = viewModel::setTextScale,
@@ -279,11 +302,11 @@ fun AppearanceSettingsScreen(
                 // SUBTEXT SIZE card: extra multiplier for secondary copy only
                 // (descriptions, subtitles, metadata), stacking on Text Size.
                 settingsCard(
-                    header = "Subtext Size",
-                    footer = "Scales only secondary text such as descriptions, program details, and captions, on top of Text Size. Titles and buttons stay the same. Changes apply live.",
+                    header = context.getString(R.string.settings_appearance_subtext_size),
+                    footer = context.getString(R.string.settings_appearance_subtext_size_footer),
                 ) {
                     TextSizeSliderRow(
-                        label = "Subtext Size",
+                        label = stringResource(R.string.settings_appearance_subtext_size),
                         stops = TEXT_SCALE_STOPS,
                         value = subtextScale,
                         onValueChange = viewModel::setSubtextScale,
@@ -293,11 +316,11 @@ fun AppearanceSettingsScreen(
                 // TEXT CONTRAST card: blends dimmed and accent-tinted text
                 // toward plain white (dark) / black (light).
                 settingsCard(
-                    header = "Text Contrast",
-                    footer = "Makes dimmed and accent-colored text brighter in dark mode and darker in light mode. 0% keeps the theme's look, 100% uses plain white or black text. Changes apply live.",
+                    header = context.getString(R.string.settings_appearance_text_contrast),
+                    footer = context.getString(R.string.settings_appearance_text_contrast_footer),
                 ) {
                     TextSizeSliderRow(
-                        label = "Text Contrast",
+                        label = stringResource(R.string.settings_appearance_text_contrast),
                         stops = TEXT_CONTRAST_STOPS,
                         value = textContrast,
                         onValueChange = viewModel::setTextContrast,
@@ -307,13 +330,13 @@ fun AppearanceSettingsScreen(
                 // TIME FORMAT card: every clock in the app (guide header,
                 // cell ranges, program info, DVR) follows this.
                 settingsCard(
-                    header = "Time Format",
-                    footer = "System follows your device's clock setting. Applies to the Guide, program info, and recordings.",
+                    header = context.getString(R.string.settings_appearance_time_format),
+                    footer = context.getString(R.string.settings_appearance_time_format_footer),
                 ) {
                     TIME_FORMAT_OPTIONS.forEachIndexed { i, (value, label) ->
                         if (i > 0) DividerRow()
                         CheckRow(
-                            title = label,
+                            title = stringResource(label),
                             selected = timeFormat == value,
                             onClick = { viewModel.setTimeFormat(value) },
                         )
@@ -390,9 +413,9 @@ internal fun LazyListScope.settingsCard(
 }
 
 private val TIME_FORMAT_OPTIONS = listOf(
-    "system" to "System",
-    "12" to "12-hour",
-    "24" to "24-hour",
+    "system" to R.string.common_system,
+    "12" to R.string.settings_appearance_time_12h,
+    "24" to R.string.settings_appearance_time_24h,
 )
 
 @Composable
@@ -440,7 +463,7 @@ internal fun ThemeRow(
         Spacer(Modifier.size(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = theme.displayName,
+                text = stringResource(theme.displayNameRes),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.Medium,
@@ -454,32 +477,36 @@ internal fun ThemeRow(
         if (selected) {
             Icon(
                 imageVector = Icons.Filled.Check,
-                contentDescription = "Selected",
+                contentDescription = stringResource(R.string.common_selected),
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
     }
 }
 
-private fun themeSubtitle(theme: AppTheme): String = themeDescription(theme) +
-    if (theme == AppTheme.Default) " (default)" else ""
+@Composable
+private fun themeSubtitle(theme: AppTheme): String {
+    val description = stringResource(themeDescription(theme))
+    return if (theme == AppTheme.Default) stringResource(R.string.settings_appearance_theme_default_suffix, description) else description
+}
 
-private fun themeDescription(theme: AppTheme): String = when (theme) {
-    AppTheme.Aerio -> "Cyan on deep navy"
-    AppTheme.Midnight -> "Cool blue on near-black"
-    AppTheme.Sunset -> "Warm orange on near-black"
-    AppTheme.Forest -> "Green on near-black"
-    AppTheme.Lavender -> "Purple on near-black"
-    AppTheme.Monochrome -> "Greyscale on near-black"
-    AppTheme.Slate -> "Light blue on blue-grey"
-    AppTheme.Light -> "Neutral teal-grey on white"
+@StringRes
+private fun themeDescription(theme: AppTheme): Int = when (theme) {
+    AppTheme.Aerio -> R.string.settings_appearance_theme_aerio
+    AppTheme.Midnight -> R.string.settings_appearance_theme_midnight
+    AppTheme.Sunset -> R.string.settings_appearance_theme_sunset
+    AppTheme.Forest -> R.string.settings_appearance_theme_forest
+    AppTheme.Lavender -> R.string.settings_appearance_theme_lavender
+    AppTheme.Monochrome -> R.string.settings_appearance_theme_monochrome
+    AppTheme.Slate -> R.string.settings_appearance_theme_slate
+    AppTheme.Light -> R.string.settings_appearance_theme_light
 }
 
 /** Inline sub-header for the appearance-mode group inside the Theme card. */
 @Composable
 private fun AppearanceModeHeaderRow() {
     Text(
-        text = "APPEARANCE",
+        text = stringResource(R.string.settings_appearance_title).uppercase(),
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         fontWeight = FontWeight.SemiBold,
@@ -489,16 +516,18 @@ private fun AppearanceModeHeaderRow() {
     )
 }
 
-private fun appearanceModeLabel(mode: AppearanceMode): String = when (mode) {
-    AppearanceMode.Dark -> "Dark"
-    AppearanceMode.Light -> "Light"
-    AppearanceMode.System -> "System"
+@StringRes
+private fun appearanceModeLabel(mode: AppearanceMode): Int = when (mode) {
+    AppearanceMode.Dark -> R.string.settings_appearance_mode_dark
+    AppearanceMode.Light -> R.string.settings_appearance_mode_light
+    AppearanceMode.System -> R.string.common_system
 }
 
-private fun appearanceModeSubtitle(mode: AppearanceMode): String = when (mode) {
-    AppearanceMode.Dark -> "Dark surfaces everywhere (default)"
-    AppearanceMode.Light -> "Light surfaces everywhere"
-    AppearanceMode.System -> "Follow the device light or dark setting"
+@StringRes
+private fun appearanceModeSubtitle(mode: AppearanceMode): Int = when (mode) {
+    AppearanceMode.Dark -> R.string.settings_appearance_mode_dark_subtitle
+    AppearanceMode.Light -> R.string.settings_appearance_mode_light_subtitle
+    AppearanceMode.System -> R.string.settings_appearance_mode_system_subtitle
 }
 
 /**
@@ -522,13 +551,13 @@ private fun AppearanceModeRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = appearanceModeLabel(mode),
+                text = stringResource(appearanceModeLabel(mode)),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.Medium,
             )
             Text(
-                text = appearanceModeSubtitle(mode),
+                text = stringResource(appearanceModeSubtitle(mode)),
                 style = MaterialTheme.typography.bodySmall.subtext(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -536,7 +565,7 @@ private fun AppearanceModeRow(
         if (selected) {
             Icon(
                 imageVector = Icons.Filled.Check,
-                contentDescription = "Selected",
+                contentDescription = stringResource(R.string.common_selected),
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
@@ -573,14 +602,14 @@ private fun CustomAccentRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Custom Accent Color",
+                text = stringResource(R.string.settings_appearance_custom_accent_color),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.Medium,
             )
             Text(
-                text = if (enabled && hex.isNotBlank()) "Override active: #${hex.uppercase()}"
-                else "Override the preset accent with your own hex.",
+                text = if (enabled && hex.isNotBlank()) stringResource(R.string.settings_appearance_custom_accent_active, hex.uppercase())
+                else stringResource(R.string.settings_appearance_custom_accent_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -617,7 +646,7 @@ private fun PreviewCard(theme: AppTheme, customAccentHex: String?) {
     else theme.accentPrimary
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
-            text = "PREVIEW",
+            text = stringResource(R.string.settings_appearance_preview).uppercase(),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.SemiBold,
@@ -645,26 +674,26 @@ private fun PreviewCard(theme: AppTheme, customAccentHex: String?) {
                 )
                 Spacer(Modifier.size(8.dp))
                 Text(
-                    text = "LIVE",
+                    text = stringResource(R.string.settings_appearance_preview_live),
                     style = MaterialTheme.typography.labelSmall,
                     color = Color(0xFFFF4757),
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(Modifier.size(10.dp))
                 Text(
-                    text = "Channel 042",
+                    text = stringResource(R.string.settings_appearance_preview_channel),
                     style = MaterialTheme.typography.labelSmall,
                     color = accent.copy(alpha = 0.65f),
                 )
             }
             Text(
-                text = "AerioTV Sample Program",
+                text = stringResource(R.string.settings_appearance_preview_program),
                 style = MaterialTheme.typography.bodyLarge,
                 color = Color.White,
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = "8:00 PM - 9:00 PM  ·  30m remaining",
+                text = stringResource(R.string.settings_appearance_preview_time),
                 style = MaterialTheme.typography.bodySmall,
                 color = accent.copy(alpha = 0.65f),
             )
@@ -714,7 +743,7 @@ internal fun CheckRow(
         if (selected) {
             Icon(
                 imageVector = Icons.Filled.Check,
-                contentDescription = "Selected",
+                contentDescription = stringResource(R.string.common_selected),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(22.dp),
             )
@@ -942,7 +971,7 @@ internal fun CategoryPaletteRow(
         )
         Spacer(Modifier.size(12.dp))
         Text(
-            text = bucket.displayName,
+            text = stringResource(bucket.labelRes),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.weight(1f),
@@ -969,8 +998,8 @@ internal fun AddMoreCategoriesRow(
     onClick: () -> Unit,
 ) {
     val subtitle = when {
-        extraOn == 0 && customCount == 0 -> "Documentary, Drama, Comedy, Reality, + 3 more, plus custom."
-        else -> "$extraOn extra on · $customCount custom"
+        extraOn == 0 && customCount == 0 -> stringResource(R.string.settings_appearance_add_more_default)
+        else -> stringResource(R.string.settings_appearance_add_more_counts, extraOn, customCount)
     }
     Row(
         modifier = Modifier
@@ -982,7 +1011,7 @@ internal fun AddMoreCategoriesRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Add More Categories",
+                text = stringResource(R.string.settings_appearance_add_more_categories),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.Medium,
@@ -1018,18 +1047,18 @@ private fun AccentPickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             SettingsDialogTextButton(
-                label = "Save",
+                label = stringResource(R.string.common_save),
                 onClick = { if (isValid) onSave(sanitized) },
                 enabled = isValid,
             )
         },
         dismissButton = {
             Row {
-                SettingsDialogTextButton(label = "Reset", onClick = onReset)
-                SettingsDialogTextButton(label = "Cancel", onClick = onDismiss)
+                SettingsDialogTextButton(label = stringResource(R.string.settings_appearance_reset), onClick = onReset)
+                SettingsDialogTextButton(label = stringResource(R.string.common_cancel), onClick = onDismiss)
             }
         },
-        title = { Text("Custom Accent") },
+        title = { Text(stringResource(R.string.settings_appearance_custom_accent)) },
         text = {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1046,7 +1075,7 @@ private fun AccentPickerDialog(
                     )
                     Spacer(Modifier.size(12.dp))
                     Text(
-                        text = if (isValid) "Preview $sanitized" else "Enter 6-char hex",
+                        text = if (isValid) stringResource(R.string.settings_appearance_accent_preview, sanitized) else stringResource(R.string.settings_appearance_accent_enter_hex),
                         style = MaterialTheme.typography.bodySmall.subtext(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1057,7 +1086,7 @@ private fun AccentPickerDialog(
                     onValueChange = { raw ->
                         input = raw.removePrefix("#").uppercase().filter { it in HEX_CHARS_ACCENT }.take(6)
                     },
-                    label = { Text("Hex color (e.g. 1AC4D8)") },
+                    label = { Text(stringResource(R.string.settings_appearance_accent_hex_label)) },
                     singleLine = true,
                     keyboardOptions = com.aeriotv.android.ui.textfield.aerioTextFieldKeyboardOptions(
                         keyboardType = androidx.compose.ui.text.input.KeyboardType.Ascii,

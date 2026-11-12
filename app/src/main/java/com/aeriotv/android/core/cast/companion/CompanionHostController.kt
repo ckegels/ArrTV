@@ -422,7 +422,7 @@ class CompanionHostController @Inject constructor(
                             scope.launch {
                                 runCatching {
                                     android.widget.Toast.makeText(
-                                        context, "Phone connected", android.widget.Toast.LENGTH_SHORT,
+                                        context, context.getString(com.aeriotv.android.R.string.player_companion_phone_connected), android.widget.Toast.LENGTH_SHORT,
                                     ).show()
                                 }
                             }

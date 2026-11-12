@@ -1,5 +1,9 @@
 package com.aeriotv.android.feature.multiview
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
+import com.aeriotv.android.core.locale.AppText
+import androidx.annotation.StringRes
 import com.aeriotv.android.ui.scale.subtext
 import com.aeriotv.android.ui.theme.textAccent
 import androidx.compose.foundation.background
@@ -301,11 +305,11 @@ fun AddToMultiviewSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 TextButton(onClick = onCancel) {
-                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.common_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Spacer(Modifier.weight(1f))
                 Text(
-                    text = "Add to Multiview",
+                    text = stringResource(R.string.multiview_add_to),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.SemiBold,
@@ -313,7 +317,7 @@ fun AddToMultiviewSheet(
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = onLaunch, enabled = canLaunch) {
                     Text(
-                        text = "Play (${selected.size})",
+                        text = stringResource(R.string.multiview_play_count, selected.size),
                         color = if (canLaunch) MaterialTheme.colorScheme.textAccent
                         else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                         fontWeight = FontWeight.SemiBold,
@@ -355,7 +359,7 @@ fun AddToMultiviewSheet(
                                 pickerSource = src
                                 drillSeriesId = null
                             },
-                            label = { Text(src.label, maxLines = 1) },
+                            label = { Text(stringResource(src.labelRes), maxLines = 1) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
                                 selectedLabelColor = MaterialTheme.colorScheme.primary,
@@ -385,7 +389,7 @@ fun AddToMultiviewSheet(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Search,
-                            contentDescription = if (searchActive) "Close search" else "Search channels",
+                            contentDescription = stringResource(if (searchActive) R.string.multiview_close_search else R.string.multiview_search_channels),
                         )
                     }
                     Spacer(Modifier.width(8.dp))
@@ -395,12 +399,12 @@ fun AddToMultiviewSheet(
                         OutlinedTextField(
                             value = query,
                             onValueChange = { query = it },
-                            placeholder = { Text("Search channels") },
+                            placeholder = { Text(stringResource(R.string.multiview_search_channels)) },
                             singleLine = true,
                             trailingIcon = {
                                 if (query.isNotEmpty()) {
                                     IconButton(onClick = { query = "" }) {
-                                        Icon(Icons.Filled.Close, contentDescription = "Clear search")
+                                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.media_clear_search))
                                     }
                                 }
                             },
@@ -497,7 +501,7 @@ fun AddToMultiviewSheet(
                             val isSel = tileId in selectedIds
                             VodPickerRow(
                                 title = item.title,
-                                subtitle = item.year?.let { "Movie · $it" } ?: "Movie",
+                                subtitle = item.year?.let { stringResource(R.string.multiview_movie_year, it.toString()) } ?: stringResource(R.string.multiview_movie),
                                 posterUrl = item.posterUrl,
                                 selected = isSel,
                                 resolving = movieUuid in resolving,
@@ -540,7 +544,7 @@ fun AddToMultiviewSheet(
                                 val seriesId = series.seriesId ?: 0
                                 VodPickerRow(
                                     title = series.title,
-                                    subtitle = "Series",
+                                    subtitle = stringResource(R.string.multiview_series),
                                     posterUrl = series.posterUrl,
                                     selected = false,
                                     resolving = false,
@@ -559,7 +563,7 @@ fun AddToMultiviewSheet(
                             onDemandState.episodesErrorFor[drillId]?.let { err ->
                                 item(key = "sr_err") {
                                     Text(
-                                        text = "Couldn't load episodes: $err",
+                                        text = stringResource(R.string.multiview_load_episodes_failed, err),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.error,
                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -587,8 +591,8 @@ fun AddToMultiviewSheet(
                                 val s = ep.seasonNumber ?: 0
                                 val e = ep.episodeNumber ?: 0
                                 VodPickerRow(
-                                    title = ep.displayName.ifBlank { "Episode $e" },
-                                    subtitle = "S${s} E${e}",
+                                    title = ep.displayName.ifBlank { stringResource(R.string.multiview_episode_n, e) },
+                                    subtitle = stringResource(R.string.multiview_season_episode, s, e),
                                     posterUrl = ep.stillImageUrl,
                                     selected = isSel,
                                     resolving = ep.uuid in resolving,
@@ -605,7 +609,7 @@ fun AddToMultiviewSheet(
                                                             MultiviewTile(
                                                                 id = tileId,
                                                                 kind = TileKind.Vod,
-                                                                displayName = ep.displayName.ifBlank { "Episode $e" },
+                                                                displayName = ep.displayName.ifBlank { AppText.get(R.string.multiview_episode_n, e) },
                                                                 resolvedUrl = r.url,
                                                                 // Audit #53/#38: no API key to
                                                                 // an off-origin session URL.
@@ -649,7 +653,7 @@ fun AddToMultiviewSheet(
                                 playUrl.startsWith("https://", ignoreCase = true)
                             VodPickerRow(
                                 title = rec.title,
-                                subtitle = "Recording",
+                                subtitle = stringResource(R.string.multiview_recording),
                                 posterUrl = null,
                                 selected = isSel,
                                 resolving = false,
@@ -719,11 +723,10 @@ fun AddToMultiviewSheet(
     pendingWarnedAdd?.let { commit ->
         AlertDialog(
             onDismissRequest = { pendingWarnedAdd = null },
-            title = { Text("Performance may degrade") },
+            title = { Text(stringResource(R.string.multiview_perf_title)) },
             text = {
                 Text(
-                    "Adding more than ${multiviewStore.softLimit} streams may cause " +
-                        "audio drops, buffering, or overheating on some devices.",
+                    stringResource(R.string.multiview_perf_text, multiviewStore.softLimit),
                 )
             },
             confirmButton = {
@@ -732,7 +735,7 @@ fun AddToMultiviewSheet(
                         pendingWarnedAdd = null
                         commit()
                     },
-                ) { Text("Continue", color = MaterialTheme.colorScheme.error) }
+                ) { Text(stringResource(R.string.common_continue), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
                 TextButton(
@@ -741,8 +744,8 @@ fun AddToMultiviewSheet(
                         pendingWarnedAdd = null
                         commit()
                     },
-                ) { Text("Don't Show Again") }
-                TextButton(onClick = { pendingWarnedAdd = null }) { Text("Cancel") }
+                ) { Text(stringResource(R.string.multiview_dont_show_again)) }
+                TextButton(onClick = { pendingWarnedAdd = null }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -819,8 +822,8 @@ private fun NowPlayingPinnedRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = if (nowTitle.isNotBlank()) "Tile 1 · Now playing · $nowTitle"
-                else "Tile 1 · Now playing",
+                text = if (nowTitle.isNotBlank()) stringResource(R.string.multiview_tile1_now_playing_title, nowTitle)
+                else stringResource(R.string.multiview_tile1_now_playing),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.textAccent,
                 maxLines = 1,
@@ -834,7 +837,7 @@ private fun NowPlayingPinnedRow(
         ) {
             Icon(
                 imageVector = Icons.Filled.Check,
-                contentDescription = "Included as Tile 1",
+                contentDescription = stringResource(R.string.multiview_included_tile1),
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
@@ -919,13 +922,13 @@ private fun ChannelPickerRow(
             if (selected) {
                 Icon(
                     imageVector = Icons.Filled.Check,
-                    contentDescription = "Selected",
+                    contentDescription = stringResource(R.string.common_selected),
                     tint = MaterialTheme.colorScheme.primary,
                 )
             } else {
                 Icon(
                     imageVector = Icons.Filled.Add,
-                    contentDescription = "Add",
+                    contentDescription = stringResource(R.string.common_add),
                     tint = if (atCap)
                         MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                     else
@@ -937,11 +940,11 @@ private fun ChannelPickerRow(
 }
 
 /** Multiview picker content source. Mirrors iOS PickerSource. */
-private enum class PickerSource(val label: String) {
-    Channels("Channels"),
-    Movies("Movies"),
-    Series("Series"),
-    Recordings("Recordings"),
+private enum class PickerSource(@StringRes val labelRes: Int) {
+    Channels(R.string.multiview_source_channels),
+    Movies(R.string.multiview_source_movies),
+    Series(R.string.multiview_source_series),
+    Recordings(R.string.multiview_source_recordings),
 }
 
 /**
@@ -1029,17 +1032,17 @@ private fun VodPickerRow(
                 )
                 chevron -> Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = "Open",
+                    contentDescription = stringResource(R.string.multiview_open),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 selected -> Icon(
                     imageVector = Icons.Filled.Check,
-                    contentDescription = "Selected",
+                    contentDescription = stringResource(R.string.common_selected),
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 else -> Icon(
                     imageVector = Icons.Filled.Add,
-                    contentDescription = "Add",
+                    contentDescription = stringResource(R.string.common_add),
                     tint = if (atCap)
                         MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                     else
@@ -1063,13 +1066,13 @@ private fun BackRow(onClick: () -> Unit) {
     ) {
         Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-            contentDescription = "Back",
+            contentDescription = stringResource(R.string.common_back),
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(20.dp),
         )
         Spacer(Modifier.width(10.dp))
         Text(
-            text = "All Series",
+            text = stringResource(R.string.multiview_all_series),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.textAccent,
             fontWeight = FontWeight.Medium,

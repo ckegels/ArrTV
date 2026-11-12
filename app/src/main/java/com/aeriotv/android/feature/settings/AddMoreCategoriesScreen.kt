@@ -1,5 +1,7 @@
 package com.aeriotv.android.feature.settings
 
+import androidx.compose.ui.res.stringResource
+import com.aeriotv.android.R
 import com.aeriotv.android.ui.scale.subtext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -89,7 +91,7 @@ fun AddMoreCategoriesScreen(
         CenterAlignedTopAppBar(
             title = {
                 Text(
-                    text = "Add More Categories",
+                    text = stringResource(R.string.settings2_categories_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
@@ -100,7 +102,7 @@ fun AddMoreCategoriesScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.common_back),
                             tint = MaterialTheme.colorScheme.primary,
                         )
                     }
@@ -131,13 +133,13 @@ fun AddMoreCategoriesScreen(
         ) {
             item {
                 Text(
-                    text = "Extra buckets",
+                    text = stringResource(R.string.settings2_categories_extra_header),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "Toggle a bucket on to colour matching programmes. Select the swatch to override its hex.",
+                    text = stringResource(R.string.settings2_categories_extra_text),
                     style = MaterialTheme.typography.bodySmall.subtext(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -157,13 +159,13 @@ fun AddMoreCategoriesScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Custom",
+                            text = stringResource(R.string.settings2_categories_custom_header),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.SemiBold,
                         )
                         Text(
-                            text = "Match an XMLTV category substring and pick its colour. Useful for genres outside the built-in buckets (e.g. Horror, Anime).",
+                            text = stringResource(R.string.settings2_categories_custom_text),
                             style = MaterialTheme.typography.bodySmall.subtext(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -177,7 +179,7 @@ fun AddMoreCategoriesScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Add,
-                            contentDescription = "Add custom category",
+                            contentDescription = stringResource(R.string.settings2_categories_add_custom_cd),
                             tint = MaterialTheme.colorScheme.primary,
                         )
                     }
@@ -186,7 +188,7 @@ fun AddMoreCategoriesScreen(
             if (palette.custom.isEmpty()) {
                 item {
                     Text(
-                        text = "No custom categories yet. Select + above to add one.",
+                        text = stringResource(R.string.settings2_categories_no_custom),
                         style = MaterialTheme.typography.bodySmall.subtext(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(vertical = 8.dp),
@@ -279,7 +281,7 @@ private fun AdditionalBucketRow(
         )
         Spacer(Modifier.width(12.dp))
         Text(
-            text = bucket.displayName,
+            text = stringResource(bucket.labelRes),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.weight(1f),
@@ -332,7 +334,7 @@ private fun CustomEntryRow(
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = entry.match.ifBlank { "(unnamed)" },
+                text = entry.match.ifBlank { stringResource(R.string.settings2_categories_unnamed) },
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onBackground,
             )
@@ -351,7 +353,7 @@ private fun CustomEntryRow(
         ) {
             Icon(
                 imageVector = Icons.Filled.Delete,
-                contentDescription = "Delete",
+                contentDescription = stringResource(R.string.common_delete),
                 tint = MaterialTheme.colorScheme.error,
             )
         }
@@ -373,13 +375,13 @@ private fun CustomEntryDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (initial == null) "Add Custom Category" else "Edit Custom Category") },
+        title = { Text(stringResource(if (initial == null) R.string.settings2_categories_add_custom_title else R.string.settings2_categories_edit_custom_title)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = match,
                     onValueChange = { match = it },
-                    label = { Text("Match (substring, case-insensitive)") },
+                    label = { Text(stringResource(R.string.settings2_categories_match_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = aerioTextFieldKeyboardOptions(
@@ -405,7 +407,7 @@ private fun CustomEntryDialog(
                         onValueChange = {
                             hex = it.removePrefix("#").uppercase().filter { c -> c in HEX_CHARS_FOR_CUSTOM }.take(6)
                         },
-                        label = { Text("Hex color") },
+                        label = { Text(stringResource(R.string.settings2_categories_hex_label)) },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                         keyboardOptions = aerioTextFieldKeyboardOptions(
@@ -418,13 +420,13 @@ private fun CustomEntryDialog(
         },
         confirmButton = {
             SettingsDialogTextButton(
-                label = "Save",
+                label = stringResource(R.string.common_save),
                 onClick = { if (canSave) onSave(match.trim(), sanitizedHex) },
                 enabled = canSave,
             )
         },
         dismissButton = {
-            SettingsDialogTextButton(label = "Cancel", onClick = onDismiss)
+            SettingsDialogTextButton(label = stringResource(R.string.common_cancel), onClick = onDismiss)
         },
         containerColor = MaterialTheme.colorScheme.surface,
         titleContentColor = MaterialTheme.colorScheme.onBackground,

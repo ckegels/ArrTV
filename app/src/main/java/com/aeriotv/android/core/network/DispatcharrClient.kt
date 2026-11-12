@@ -528,6 +528,9 @@ class DispatcharrClient @Inject constructor() {
                     guideChoice = (root["guide_choice"] as? JsonPrimitive)?.booleanOrNull == true,
                     guideChoicePath = (root["guide_choice_url"] as? JsonPrimitive)?.contentOrNull
                         ?.takeIf { it.startsWith("/") } ?: DispatchMore.DEFAULT_GUIDE_CHOICE_PATH,
+                    rewind = (root["rewind"] as? JsonPrimitive)?.booleanOrNull == true,
+                    rewindPath = (root["rewind_url"] as? JsonPrimitive)?.contentOrNull
+                        ?.takeIf { it.startsWith("/") } ?: DispatchMore.DEFAULT_REWIND_PATH,
                 ),
             )
         }.getOrNull()
@@ -1461,6 +1464,40 @@ class DispatcharrClient @Inject constructor() {
     suspend fun stopLiveCaptions(baseUrl: String, apiKey: String, channelUuid: String) {
         runCatching {
             client.delete("${baseUrl.trimEnd('/')}/api/channels/captions/live/$channelUuid/") { applyAuth(apiKey) }
+        }
+    }
+
+    /**
+     * Server rewind (Dispatch More v248): this device watches [channelUuid] (paused at
+     * [pausedAtMs], wall clock, while paused or rewound). Starts the server's recording and keeps
+     * it; the answer is what can be rewound into. Null on a failed call.
+     */
+    suspend fun rewindWatch(
+        baseUrl: String, apiKey: String, path: String, channelUuid: String, viewer: String, pausedAtMs: Long?,
+    ): RewindWindow? = runCatching {
+        val url = "${baseUrl.trimEnd('/')}${path.trimEnd('/')}/$channelUuid/"
+        val response = client.post(url) {
+            applyAuth(apiKey)
+            contentType(ContentType.Application.Json)
+            setBody(
+                buildJsonObject {
+                    put("viewer", JsonPrimitive(viewer))
+                    if (pausedAtMs != null) put("paused_at", JsonPrimitive(pausedAtMs))
+                },
+            )
+        }
+        if (!response.status.isSuccess()) return@runCatching RewindWindow(enabled = false)
+        json.decodeFromString(RewindWindow.serializer(), response.bodyAsText())
+    }.getOrNull()
+
+    /** Server rewind: this device left the channel. */
+    suspend fun rewindLeave(baseUrl: String, apiKey: String, path: String, channelUuid: String, viewer: String) {
+        runCatching {
+            client.delete("${baseUrl.trimEnd('/')}${path.trimEnd('/')}/$channelUuid/") {
+                applyAuth(apiKey)
+                contentType(ContentType.Application.Json)
+                setBody(buildJsonObject { put("viewer", JsonPrimitive(viewer)) })
+            }
         }
     }
 
@@ -3666,3 +3703,14 @@ data class LiveCaptionTranslation(
     val engine: String = "",
     val reason: String = "",
 )
+
+/** What the server's rewind holds for a channel (Dispatch More v248, rewindWatch). */
+@kotlinx.serialization.Serializable
+data class RewindWindow(
+    val enabled: Boolean = false,
+    val recording: Boolean = false,
+    @kotlinx.serialization.SerialName("tail_wall_ms") val tailWallMs: Long = 0,
+    @kotlinx.serialization.SerialName("head_wall_ms") val headWallMs: Long = 0,
+    val playlist: String = "",
+)
+

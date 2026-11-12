@@ -35,6 +35,8 @@ import javax.inject.Singleton
 class TimeshiftController @Inject constructor(
     private val store: TimeshiftBufferStore,
     private val prefs: AppPreferences,
+    /** Server rewind (Dispatch More v248): the server keeps the recording instead. */
+    val serverRewind: ServerRewind,
 ) {
     companion object {
         private const val TAG = "TimeshiftController"
@@ -181,6 +183,47 @@ class TimeshiftController @Inject constructor(
     val state: StateFlow<State> = _state
 
     /**
+     * True while the current channel's rewind is the server's (ServerRewind) instead of this
+     * device's ring: a Dispatch More server offering it. The device's own buffer is bounded by
+     * its free space (`freeSpaceBudgetBytes`: free minus 2 GB) -- on a Shield with 1 GB free one
+     * segment deep, so every pause resumed at live (2026-10-02).
+     */
+    @Volatile
+    var serverMode = false
+        private set
+    private var serverWindowJob: kotlinx.coroutines.Job? = null
+
+    private fun startServerMode(channelId: String, channelName: String, streamUrl: String) {
+        stopSessionInternal()
+        serverMode = true
+        currentChannelId = channelId
+        currentChannelName = channelName
+        _state.value = State()
+        serverRewind.start(streamUrl)
+        serverWindowJob?.cancel()
+        serverWindowJob = fillScope.launch {
+            serverRewind.window.collect { w ->
+                _state.update {
+                    if (w == null || !w.enabled || !w.recording || w.headWallMs <= w.tailWallMs) {
+                        it.copy(buffering = false)
+                    } else {
+                        it.copy(buffering = true, tailWallMs = w.tailWallMs, headWallMs = w.headWallMs)
+                    }
+                }
+            }
+        }
+        Log.i(TAG, "server rewind for $channelName")
+    }
+
+    private fun stopServerMode() {
+        if (!serverMode) return
+        serverMode = false
+        serverWindowJob?.cancel()
+        serverWindowJob = null
+        serverRewind.stop()
+    }
+
+    /**
      * Begin buffering [channelId] if Live Rewind is enabled. Called by
      * PlayerScreen when fullscreen live playback starts (and on channel
      * change, which implicitly ends the previous session).
@@ -207,7 +250,16 @@ class TimeshiftController @Inject constructor(
                     retained.clear()
                     publishRetained()
                 }
-                if (!enabled) return@launch
+                if (!enabled) {
+                    stopServerMode()
+                    return@launch
+                }
+                // A Dispatch More server keeping the recording: nothing is buffered here
+                if (serverRewind.offeredFor(streamUrl)) {
+                    startServerMode(channelId, channelName, streamUrl)
+                    return@launch
+                }
+                stopServerMode()
                 val depthMin = prefs.liveRewindDepthMinutes.first()
                 val keepCount = prefs.liveRewindKeepCount.first()
                 if (keepRecent) demoteCurrentSession(keepCount) else stopSessionInternal()
@@ -435,6 +487,7 @@ class TimeshiftController @Inject constructor(
         // Through the same serial scope as start so a fast tune-then-back
         // can never stop BEFORE the pending start runs.
         scope.launch {
+            stopServerMode()
             stopSessionInternal()
             _state.value = State()
         }
@@ -526,6 +579,11 @@ class TimeshiftController @Inject constructor(
      * writer's trimmer removes.
      */
     fun onLivePaused() {
+        if (serverMode) {
+            // The server keeps recording from here; nothing to fill on this device
+            serverRewind.setBehind(System.currentTimeMillis())
+            return
+        }
         if (pauseFillJob?.isActive == true || fillJob?.isActive == true) return
         pauseFillJob = scope.launch {
             while (true) {
@@ -546,6 +604,10 @@ class TimeshiftController @Inject constructor(
      *  the tee's next append follows the filler's bytes from a different
      *  connection - mark the splice so the writer realigns and trims. */
     fun onLiveResumedAtEdge() {
+        if (serverMode) {
+            serverRewind.setBehind(null)
+            return
+        }
         scope.launch {
             val fillerRan = fillJob?.isActive == true
             stopIndependentFill()
@@ -555,6 +617,11 @@ class TimeshiftController @Inject constructor(
 
     /** Playback switched onto the buffer at [atWallMs]. */
     fun onEnterTimeshift(atWallMs: Long) {
+        if (serverMode) {
+            serverRewind.setBehind(atWallMs)
+            _state.update { it.copy(timeshifting = true, baseWallMs = atWallMs) }
+            return
+        }
         val w = activeWriter ?: return
         scope.launch {
             // Retire a pending pause-stall watcher (its job is starting
@@ -575,12 +642,21 @@ class TimeshiftController @Inject constructor(
 
     /** Playback returned to the direct live stream. */
     fun onGoLive() {
+        if (serverMode) serverRewind.setBehind(null)
         scope.launch { stopIndependentFill() }
         _state.update { it.copy(timeshifting = false, baseWallMs = 0) }
     }
 
     /** Poll tick from the chrome while visible: refresh window bounds. */
     fun refreshWindow() {
+        if (serverMode) {
+            // The server's window, its head moved on by the time since it answered
+            val w = serverRewind.window.value ?: return
+            if (!w.recording) return
+            val head = w.headWallMs + (System.currentTimeMillis() - serverRewind.windowAtMs).coerceAtLeast(0L)
+            _state.update { it.copy(tailWallMs = w.tailWallMs, headWallMs = head) }
+            return
+        }
         val w = activeWriter ?: return
         if (w.closed) {
             // Disk-full (or any write failure) self-closed the writer;

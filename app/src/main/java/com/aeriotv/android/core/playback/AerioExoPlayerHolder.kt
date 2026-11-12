@@ -235,6 +235,10 @@ class AerioExoPlayerHolder @Inject constructor(
     @Volatile private var cachedBufferFloorMs: Int = com.aeriotv.android.feature.settings.bufferMillisFor("default")
 
     init {
+        // Server rewind keeps from where playback is while behind live
+        prefScope.launch {
+            runCatching { timeshift.get().serverRewind.positionProvider = { currentRewindWallMs() } }
+        }
         prefScope.launch {
             appPreferences.audioPassthroughEnabled.collect { cachedAudioPassthrough = it }
         }
@@ -1413,7 +1417,11 @@ class AerioExoPlayerHolder @Inject constructor(
             if (resumeGateActive) return
             if (isTimeshifting || isCatchup) return
             val ts = timeshift.get()
-            if (ts.activeWriter == null) return
+            // Server rewind has no ring on this device (no writer), but a media-key pause
+            // must still tell the server where it paused and a long one resume there: this
+            // returned early and a remote's play/pause resumed the stale live connection
+            // (Shield, 2026-10-02, a 4 min pause)
+            if (ts.activeWriter == null && !ts.serverMode) return
             if (playWhenReady) {
                 // GH #62: a MediaSession resume (remote play/pause key, QS
                 // card, notification, Bluetooth) after a LONG pause used to
@@ -1431,8 +1439,10 @@ class AerioExoPlayerHolder @Inject constructor(
                 val pausedAt = mediaPauseWallMs
                 mediaPauseWallMs = 0L
                 val w = ts.activeWriter
-                if (pausedAt > 0 &&
-                    System.currentTimeMillis() - pausedAt > 6_000 &&
+                val longPause = pausedAt > 0 && System.currentTimeMillis() - pausedAt > 6_000
+                if (longPause && ts.serverMode && playTimeshift(pausedAt - 1_000)) {
+                    Log.i(TAG, "[REWIND] media-key long-pause resume -> server recording at pause point")
+                } else if (longPause &&
                     w != null && !w.closed &&
                     playTimeshift((pausedAt - 1_000).coerceAtLeast(w.tailWallMs))
                 ) {
@@ -1506,6 +1516,19 @@ class AerioExoPlayerHolder @Inject constructor(
             // never a network failover case. Recover INSIDE the buffer by
             // re-entering at the current tail; if the session is gone,
             // fall back to the live stream.
+            if (isTimeshifting && serverRewindPlaying) {
+                // Server rewind: try the same moment once more (a segment trimmed under the
+                // player, a hiccup), then live
+                val at = lastServerRewindWallMs
+                timeshiftErrorRetries += 1
+                if (timeshiftErrorRetries <= 1 && at > 0 && playServerRewind(at)) {
+                    Log.w(TAG, "[REWIND] server rewind error ${error.errorCodeName}; re-entering at $at")
+                } else {
+                    Log.w(TAG, "[REWIND] server rewind error ${error.errorCodeName}; returning to live")
+                    goLive()
+                }
+                return
+            }
             if (isTimeshifting) {
                 val ts = timeshift.get()
                 val w = ts.activeWriter
@@ -1532,6 +1555,7 @@ class AerioExoPlayerHolder @Inject constructor(
                     if (gapHops <= 2) {
                         Log.i(TAG, "[REWIND] crossing recorded splice gap at $key; re-entering past it")
                         isTimeshifting = false
+                        serverRewindPlaying = false
                         if (playTimeshiftAt(gapEx.segName, gapEx.byteOffset, gapEx.resumeWallMs)) return
                     }
                 }
@@ -1547,6 +1571,7 @@ class AerioExoPlayerHolder @Inject constructor(
                 if (w != null && !w.closed && !nearHead && timeshiftErrorRetries <= 2) {
                     Log.w(TAG, "[REWIND] buffer error ${error.errorCodeName}; re-entering at tail (retry $timeshiftErrorRetries)")
                     isTimeshifting = false
+                    serverRewindPlaying = false
                     playTimeshift(w.tailWallMs + 2_000)
                 } else {
                     Log.w(TAG, "[REWIND] buffer error ${error.errorCodeName}; returning to live (nearHead=$nearHead retries=$timeshiftErrorRetries)")
@@ -2221,6 +2246,7 @@ class AerioExoPlayerHolder @Inject constructor(
     fun playTimeshift(fromWallMs: Long): Boolean {
         val p = player ?: return false
         val ts = timeshift.get()
+        if (ts.serverMode) return playServerRewind(fromWallMs)
         if (ts.activeWriter == null) return false
         isTimeshifting = true
         val factory = com.aeriotv.android.core.timeshift.TimeshiftDataSource.Factory { ts.activeWriter }
@@ -2235,6 +2261,50 @@ class AerioExoPlayerHolder @Inject constructor(
         p.playWhenReady = true
         ts.onEnterTimeshift(fromWallMs)
         Log.i(TAG, "[REWIND] entered timeshift at $fromWallMs")
+        return true
+    }
+
+    /** Playback runs on the server's rewind recording (HLS), not this device's ring. */
+    @Volatile private var serverRewindPlaying = false
+    /** The wall time server rewind was last entered at, for one retry after an error. */
+    @Volatile private var lastServerRewindWallMs = 0L
+
+    /**
+     * Server rewind (Dispatch More v248, core/timeshift/ServerRewind.kt): play the server's
+     * recording of the channel -- an HLS event playlist whose segments carry their wall times --
+     * from [fromWallMs]. ExoPlayer knows the window's wall-clock start from
+     * #EXT-X-PROGRAM-DATE-TIME, so the seek waits for the first timeline. Pause of any length,
+     * seeking within the window and the playlist's discontinuities are ExoPlayer's HLS own.
+     */
+    private fun playServerRewind(fromWallMs: Long): Boolean {
+        val p = player ?: return false
+        val ts = timeshift.get()
+        val url = ts.serverRewind.playlistUrl() ?: return false
+        isTimeshifting = true
+        serverRewindPlaying = true
+        lastServerRewindWallMs = fromWallMs
+        val item = MediaItem.Builder()
+            .setUri(url)
+            .setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8)
+            .setMediaId("server-rewind")
+            .build()
+        val source = HlsMediaSource.Factory(httpDataSourceFactory(isLive = true)).createMediaSource(item)
+        p.playWhenReady = false
+        p.addListener(object : Player.Listener {
+            override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
+                if (timeline.isEmpty) return
+                val window = timeline.getWindow(0, androidx.media3.common.Timeline.Window())
+                if (window.windowStartTimeMs == androidx.media3.common.C.TIME_UNSET) return
+                p.removeListener(this)
+                val length = window.durationMs.takeIf { it != androidx.media3.common.C.TIME_UNSET } ?: Long.MAX_VALUE
+                p.seekTo((fromWallMs - window.windowStartTimeMs).coerceIn(0L, maxOf(0L, length - 3_000L)))
+                p.playWhenReady = true
+            }
+        })
+        p.setMediaSource(source)
+        p.prepare()
+        ts.onEnterTimeshift(fromWallMs)
+        Log.i(TAG, "[REWIND] server rewind at $fromWallMs")
         return true
     }
 
@@ -2281,6 +2351,7 @@ class AerioExoPlayerHolder @Inject constructor(
     fun goLive() {
         if (!isTimeshifting) return
         isTimeshifting = false
+        serverRewindPlaying = false
         timeshift.get().onGoLive()
         val url = lastPlayUrl ?: return
         Log.i(TAG, "[REWIND] go live -> re-tune direct stream")
@@ -2306,7 +2377,16 @@ class AerioExoPlayerHolder @Inject constructor(
     /** Current wall-clock playhead while rewound, or null at the live edge / no
      *  session. Mirrors the on-TV formula (baseWallMs + raw player position). */
     fun currentRewindWallMs(): Long? =
-        if (isTimeshifting) {
+        if (isTimeshifting && serverRewindPlaying) {
+            // The HLS window's wall-clock start plus the position within it
+            player?.let { p ->
+                val timeline = p.currentTimeline
+                if (timeline.isEmpty) return@let lastServerRewindWallMs
+                val window = timeline.getWindow(p.currentMediaItemIndex, androidx.media3.common.Timeline.Window())
+                if (window.windowStartTimeMs == androidx.media3.common.C.TIME_UNSET) lastServerRewindWallMs
+                else window.windowStartTimeMs + p.currentPosition
+            }
+        } else if (isTimeshifting) {
             timeshift.get().state.value.baseWallMs + (player?.currentPosition ?: 0L)
         } else {
             null
@@ -2315,8 +2395,15 @@ class AerioExoPlayerHolder @Inject constructor(
     /** The rewind window as [tailWallMs, headWallMs], read FRESH off the active
      *  writer (the non-lagging source the on-TV commitScrubWall also reads), or
      *  null when no rewind session is rolling. */
-    fun rewindWindow(): LongArray? =
-        timeshift.get().activeWriter?.let { longArrayOf(it.tailWallMs, it.headWallMs) }
+    fun rewindWindow(): LongArray? {
+        val ts = timeshift.get()
+        if (ts.serverMode) {
+            ts.refreshWindow()
+            val st = ts.state.value
+            return if (st.buffering) longArrayOf(st.tailWallMs, st.headWallMs) else null
+        }
+        return ts.activeWriter?.let { longArrayOf(it.tailWallMs, it.headWallMs) }
+    }
 
     /** True while the shared player runs a catch-up (server archive)
      *  replay inside the unified live player (task #148). Gates the same
@@ -2355,6 +2442,7 @@ class AerioExoPlayerHolder @Inject constructor(
         val p = player ?: appContext?.let { acquireOrCreate(it) } ?: return false
         if (isTimeshifting) {
             isTimeshifting = false
+            serverRewindPlaying = false
             timeshift.get().onGoLive()
         }
         isCatchup = true
@@ -2473,6 +2561,7 @@ class AerioExoPlayerHolder @Inject constructor(
             timeshift.get().onGoLive()
         }
         isTimeshifting = false
+        serverRewindPlaying = false
         isCatchup = false
         timeshiftErrorRetries = 0
         lastGapKey = null

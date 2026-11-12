@@ -28,10 +28,14 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -51,6 +55,11 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
@@ -66,6 +75,7 @@ import coil3.size.Size
 import com.aeriotv.android.core.data.EPGProgramme
 import com.aeriotv.android.core.data.M3UChannel
 import com.aeriotv.android.core.ui.ClockFormat
+import com.aeriotv.android.core.ui.SkipIntervals
 import com.aeriotv.android.core.ui.rememberClockMode
 import com.aeriotv.android.core.ui.seasonEpisodeLabel
 import com.aeriotv.android.ui.tv.tvFocusScale
@@ -96,14 +106,33 @@ class TvInfoBarModel(
 )
 
 /**
+ * The Live Rewind buffer the OK view's transport buttons move in; null while
+ * no buffer rolls (the buttons beside play / pause are then dimmed).
+ */
+@Immutable
+class InfoBarTransport(
+    val tailWallMs: Long,
+    val headWallMs: Long,
+    /** Where playback is, on the wall clock (the head when live). */
+    val positionWallMs: Long,
+    val onSeekWall: (Long) -> Unit,
+    val onGoLive: () -> Unit,
+) {
+    /** More than a few seconds behind the live edge. */
+    val behind: Boolean get() = headWallMs - positionWallMs > 5_000
+}
+
+/**
  * Info bar overlay (TV). Two states:
  *  - zapping / launch hint ([expanded] false): group name top left, clock top
  *    right, and along the bottom the channel logo with the programme title,
  *    time / progress / channel line, description and the next programme;
  *  - OK ([expanded] true): the same bar without the description, a timeline
- *    across the screen and a focusable row of TV guide, History and the next
- *    channels' cards.
- * Holding OK opens the options menu (PlayerScreen's key handler).
+ *    across the screen, under it the elapsed time, the transport buttons
+ *    (start, back, play / pause, forward, live) and LIVE, and a focusable row
+ *    of TV guide, History and the next channels' cards.
+ * Holding OK opens the options menu (PlayerScreen's key handler); so does
+ * Down from the card row ([onOpenOptions]).
  */
 @Composable
 internal fun PlayerInfoBarOverlay(
@@ -121,7 +150,13 @@ internal fun PlayerInfoBarOverlay(
     /** Play / pause (OK view): Up from the card row reaches the button. */
     paused: Boolean = false,
     onTogglePause: () -> Unit = {},
+    /** The transport buttons' buffer; null = only play / pause works. */
+    transport: InfoBarTransport? = null,
+    /** Down from the card row: the options menu. */
+    onOpenOptions: () -> Unit = {},
 ) {
+    // Read when the card row wants the focus, not when it was drawn
+    val visibleNow by androidx.compose.runtime.rememberUpdatedState(visible)
     AnimatedVisibility(
         visible = visible && channel != null,
         enter = fadeIn(),
@@ -186,27 +221,34 @@ internal fun PlayerInfoBarOverlay(
                     val playPauseFocus = remember { FocusRequester() }
                     val timelineFocus = remember { FocusRequester() }
                     Spacer(Modifier.height(14.dp))
-                    // Play / pause at the left of the timeline (Up from the cards).
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        PlayPauseButton(
-                            paused = paused,
-                            onClick = { onInteraction(); onTogglePause() },
-                            onInteraction = onInteraction,
-                            modifier = Modifier
-                                .padding(start = EDGE)
-                                .focusRequester(playPauseFocus)
-                                .focusProperties { if (timeline != null) up = timelineFocus },
-                        )
-                        Box(modifier = Modifier.weight(1f).focusRequester(timelineFocus).focusGroup()) {
-                            if (timeline != null) {
-                                timeline()
-                            } else {
-                                ProgrammeLine(programme, modifier = Modifier.padding(start = 16.dp, end = EDGE))
-                            }
+                    // The timeline across the screen, and under it the
+                    // transport row (Up from the cards lands on play / pause,
+                    // Up again on the timeline to seek).
+                    Box(modifier = Modifier.fillMaxWidth().focusRequester(timelineFocus).focusGroup()) {
+                        if (timeline != null) {
+                            timeline()
+                        } else {
+                            ProgrammeLine(programme, modifier = Modifier.padding(horizontal = EDGE))
                         }
                     }
-                    Spacer(Modifier.height(14.dp))
-                    InfoBarCardRow(model = model, onInteraction = onInteraction, up = playPauseFocus)
+                    Spacer(Modifier.height(8.dp))
+                    TransportRow(
+                        programme = programme,
+                        paused = paused,
+                        transport = transport,
+                        onTogglePause = { onInteraction(); onTogglePause() },
+                        onInteraction = onInteraction,
+                        playPauseModifier = Modifier.focusRequester(playPauseFocus),
+                        up = if (timeline != null) timelineFocus else null,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    InfoBarCardRow(
+                        model = model,
+                        onInteraction = onInteraction,
+                        up = playPauseFocus,
+                        onDown = onOpenOptions,
+                        active = { visibleNow },
+                    )
                     Icon(
                         imageVector = Icons.Filled.KeyboardArrowDown,
                         contentDescription = null,
@@ -361,17 +403,35 @@ private fun InfoBarHeader(
 /** Card row on OK: TV guide, History, then the next channels. Focus lands on
  *  TV guide, the first card (as in TiviMate). */
 @Composable
-private fun InfoBarCardRow(model: TvInfoBarModel, onInteraction: () -> Unit, up: FocusRequester) {
+private fun InfoBarCardRow(
+    model: TvInfoBarModel,
+    onInteraction: () -> Unit,
+    up: FocusRequester,
+    onDown: () -> Unit,
+    /** Still meant to be on screen: a row fading out (the options menu took
+     *  its place) must not take the focus from what replaced it. */
+    active: () -> Boolean,
+) {
     val upToPlayPause = Modifier.focusProperties { this.up = up }
     val guideFocus = remember { FocusRequester() }
+    val stillActive by androidx.compose.runtime.rememberUpdatedState(active)
     LaunchedEffect(Unit) {
         delay(100)
-        runCatching { guideFocus.requestFocus() }
+        if (stillActive()) runCatching { guideFocus.requestFocus() }
     }
     LazyRow(
         contentPadding = PaddingValues(horizontal = EDGE),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxWidth(),
+        // Nothing is below the cards: Down there brings up the options menu
+        modifier = Modifier.fillMaxWidth().onPreviewKeyEvent { e ->
+            if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionDown) {
+                onInteraction()
+                onDown()
+                true
+            } else {
+                false
+            }
+        },
     ) {
         item(key = "guide") {
             InfoBarCard(onClick = model.onOpenGuide, onInteraction = onInteraction, modifier = Modifier.focusRequester(guideFocus).then(upToPlayPause)) {
@@ -483,6 +543,138 @@ private fun ChannelCardContent(channel: M3UChannel, now: EPGProgramme?) {
 }
 
 /** Round play / pause control: quiet at rest, white platter with a dark glyph when focused. */
+/**
+ * Under the timeline: the programme's elapsed and whole length on the left,
+ * the transport buttons centered, LIVE on the right. Start, back, forward and
+ * live move in the Live Rewind buffer ([transport]); without one they are
+ * dimmed and skipped by the focus, and only play / pause is there.
+ */
+@Composable
+private fun TransportRow(
+    programme: EPGProgramme?,
+    paused: Boolean,
+    transport: InfoBarTransport?,
+    onTogglePause: () -> Unit,
+    onInteraction: () -> Unit,
+    playPauseModifier: Modifier,
+    up: FocusRequester?,
+) {
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1_000)
+            now = System.currentTimeMillis()
+        }
+    }
+    val position = transport?.positionWallMs ?: now
+    val upTo = Modifier.focusProperties { if (up != null) this.up = up }
+    Box(modifier = Modifier.fillMaxWidth().padding(horizontal = EDGE)) {
+        programme?.let { p ->
+            val length = (p.endMillis - p.startMillis).coerceAtLeast(0L)
+            val elapsed = (position - p.startMillis).coerceIn(0L, length)
+            Text(
+                text = "${clockOf(elapsed)} / ${clockOf(length)}",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White.copy(alpha = 0.9f),
+                modifier = Modifier.align(Alignment.CenterStart),
+            )
+        }
+        Row(
+            modifier = Modifier.align(Alignment.Center),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            val back = SkipIntervals.backMs
+            val forward = SkipIntervals.forwardMs
+            TransportButton(
+                icon = Icons.Filled.SkipPrevious,
+                label = "Start",
+                enabled = transport != null,
+                onInteraction = onInteraction,
+                modifier = upTo,
+            ) {
+                transport?.let { t -> t.onSeekWall(maxOf(t.tailWallMs, programme?.startMillis ?: t.tailWallMs)) }
+            }
+            TransportButton(
+                icon = Icons.Filled.FastRewind,
+                label = "Back",
+                enabled = transport != null,
+                onInteraction = onInteraction,
+                modifier = upTo,
+            ) {
+                transport?.let { t -> t.onSeekWall((t.positionWallMs - back).coerceAtLeast(t.tailWallMs)) }
+            }
+            PlayPauseButton(
+                paused = paused,
+                onClick = onTogglePause,
+                onInteraction = onInteraction,
+                modifier = playPauseModifier.then(upTo),
+            )
+            TransportButton(
+                icon = Icons.Filled.FastForward,
+                label = "Forward",
+                enabled = transport?.behind == true,
+                onInteraction = onInteraction,
+                modifier = upTo,
+            ) {
+                transport?.let { t -> t.onSeekWall((t.positionWallMs + forward).coerceAtMost(t.headWallMs)) }
+            }
+            TransportButton(
+                icon = Icons.Filled.SkipNext,
+                label = "Live",
+                enabled = transport?.behind == true,
+                onInteraction = onInteraction,
+                modifier = upTo,
+            ) {
+                transport?.onGoLive?.invoke()
+            }
+        }
+        LiveBadge(
+            live = transport?.behind != true,
+            modifier = Modifier.align(Alignment.CenterEnd),
+        )
+    }
+}
+
+@Composable
+private fun TransportButton(
+    icon: ImageVector,
+    label: String,
+    enabled: Boolean,
+    onInteraction: () -> Unit,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    Box(
+        modifier = modifier
+            .focusProperties { canFocus = enabled }
+            .size(44.dp)
+            .tvFocusScale(focused, focusedScale = 1.08f)
+            .clip(CircleShape)
+            .background(if (focused) Color.White else Color.Transparent)
+            .onFocusChanged { if (it.isFocused) onInteraction() }
+            .clickable(interactionSource = interaction, indication = null, enabled = enabled) {
+                onInteraction()
+                onClick()
+            }
+            .focusable(enabled = enabled, interactionSource = interaction),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = when {
+                focused -> Color.Black
+                enabled -> Color.White
+                else -> Color.White.copy(alpha = 0.35f)
+            },
+            modifier = Modifier.size(28.dp),
+        )
+    }
+}
+
 @Composable
 private fun PlayPauseButton(
     paused: Boolean,
@@ -492,12 +684,14 @@ private fun PlayPauseButton(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    // The big one in the middle: white whether focused or not, a ring when focused
     Box(
         modifier = modifier
-            .size(44.dp)
+            .size(60.dp)
             .tvFocusScale(focused, focusedScale = 1.08f)
             .clip(CircleShape)
-            .background(if (focused) Color.White else Color.White.copy(alpha = 0.18f))
+            .background(if (focused) Color.White else Color.White.copy(alpha = 0.85f))
+            .border(3.dp, if (focused) MaterialTheme.colorScheme.primary else Color.Transparent, CircleShape)
             .onFocusChanged { if (it.isFocused) onInteraction() }
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .focusable(interactionSource = interaction),
@@ -506,10 +700,37 @@ private fun PlayPauseButton(
         Icon(
             imageVector = if (paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
             contentDescription = if (paused) "Play" else "Pause",
-            tint = if (focused) Color.Black else Color.White,
-            modifier = Modifier.size(26.dp),
+            tint = Color.Black,
+            modifier = Modifier.size(34.dp),
         )
     }
+}
+
+/** LIVE on the right: filled at the live edge, an outline while behind it. */
+@Composable
+private fun LiveBadge(live: Boolean, modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(6.dp)
+    Text(
+        text = "LIVE",
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.Bold,
+        color = if (live) Color.Black else Color.White.copy(alpha = 0.8f),
+        modifier = modifier
+            .clip(shape)
+            .background(if (live) Color.White else Color.Transparent)
+            .border(2.dp, Color.White.copy(alpha = if (live) 1f else 0.6f), shape)
+            .padding(horizontal = 10.dp, vertical = 3.dp),
+    )
+}
+
+/** 1:10:00 or 23:25. */
+private fun clockOf(ms: Long): String {
+    val total = ms / 1000
+    val h = total / 3600
+    val m = (total % 3600) / 60
+    val sec = total % 60
+    return if (h > 0) String.format(Locale.getDefault(), "%d:%02d:%02d", h, m, sec)
+    else String.format(Locale.getDefault(), "%d:%02d", m, sec)
 }
 
 /** Read-only programme progress across the screen, with a dot at "now". */

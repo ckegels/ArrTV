@@ -695,6 +695,19 @@ class AppPreferences @Inject constructor(
      * and the same bar with a row of guide / history / channel cards on OK;
      * holding OK opens the options menu. Device-local, not synced.
      */
+    /**
+     * The channel list that slides in from the side over the player (Left, or the
+     * remote's Channel list action). Off by default -- a new key, so every TV is off
+     * after the update that brought it, including ones that had it -- and the action
+     * then goes to the main guide instead (the user: on a Sony, Back brought up the
+     * side list rather than the guide). Device-local.
+     */
+    val playerSideChannelList: Flow<Boolean> =
+        store.data.map { it[KEY_PLAYER_SIDE_CHANNEL_LIST] ?: false }
+    suspend fun setPlayerSideChannelList(value: Boolean) {
+        store.edit { it[KEY_PLAYER_SIDE_CHANNEL_LIST] = value }
+    }
+
     val playerInfoBarStyle: Flow<Boolean> =
         store.data.map { it[KEY_PLAYER_INFO_BAR_STYLE] ?: false }
     suspend fun setPlayerInfoBarStyle(value: Boolean) {
@@ -2127,6 +2140,7 @@ class AppPreferences @Inject constructor(
             booleanPreferencesKey("app_behaviors_auto_recover_frozen_streams")
         // TV player overlay style (info bar); device-local.
         val KEY_PLAYER_INFO_BAR_STYLE = booleanPreferencesKey("player_info_bar_style")
+        val KEY_PLAYER_SIDE_CHANNEL_LIST = booleanPreferencesKey("player_side_channel_list")
         // Player Info Card element toggles (App Behaviors); device-local.
         val KEY_PLAYER_CARD_CHANNEL_LOGO =
             booleanPreferencesKey("player_card_show_channel_logo")

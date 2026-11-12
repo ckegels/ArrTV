@@ -60,6 +60,7 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -216,6 +217,15 @@ fun GuideScreen(
     var phoneDrawerOpen by remember { mutableStateOf(false) }
     val remoteMap by settingsVm.remoteControlMap.collectAsStateWithLifecycle()
     val tabActive = com.aeriotv.android.feature.main.LocalTabIsActive.current
+    // Guide updates apply while the user watches, not while they browse:
+    // report "on screen" while this tab shows and the screen is resumed (the
+    // fullscreen player pauses it). PlaylistViewModel.setGuideOnScreen.
+    val guideLifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    val guideResumed by guideLifecycle.currentStateFlow.collectAsState()
+    val guideOnScreen = tabActive && guideResumed.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
+    val guideScreenToken = remember { Any() }
+    LaunchedEffect(guideOnScreen) { viewModel.setGuideOnScreen(guideScreenToken, guideOnScreen) }
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { viewModel.setGuideOnScreen(guideScreenToken, false) } }
     var groupSidebarOpen by remember { mutableStateOf(false) }
     var searchActive by remember { mutableStateOf(false) }
     com.aeriotv.android.ui.search.CloseSearchOnLeave(searchActive) {

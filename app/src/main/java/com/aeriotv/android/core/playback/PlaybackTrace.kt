@@ -146,6 +146,20 @@ class PlaybackTracer {
     }
 
     /** A new stream is being primed. [kind] is live / catchup / vod / dvr. */
+    /** What this tune measured, for a problem report (Dispatch More): the
+     *  decoder, stalls and dropped frames since the tune, and how long the
+     *  first byte took. Nulls for what was not measured. */
+    fun reportFacts(): Map<String, Any?> = mapOf(
+        "decoder" to videoDecoderName,
+        "stalls" to stallCount,
+        "dropped_frames" to droppedTotal,
+        "first_byte_ms" to firstByteAtMs.takeIf { it != 0L && pressAtMs != 0L }?.let { it - pressAtMs },
+        "bitrate_estimate_kbps" to bitrateEstimateBps.takeIf { it > 0L }?.let { it / 1000 },
+    )
+
+    /** A byte arrived since the last [markTuneStart]. */
+    fun hasFirstByte(): Boolean = firstByteAtMs != 0L
+
     fun markTuneStart(name: String?, kind: String) {
         val n = now()
         // A press older than this was not what caused this prime (a watchdog

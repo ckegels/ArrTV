@@ -435,8 +435,11 @@ class CastHlsProxySession @Inject constructor(
                 }, log = { msg -> debugLog(context, TAG, msg) }, allowAc3Passthrough = allowAc3Passthrough)
                 var endedCleanly = false
                 try {
+                    // The phone holds this connection, so on a Dispatch More
+                    // server it is the phone's device that is the viewer.
                     val req = Request.Builder().url(url).apply {
-                        headers.forEach { (k, v) -> header(k, v) }
+                        (com.aeriotv.android.core.network.DispatchMore.streamHeaders(url) + headers)
+                            .forEach { (k, v) -> header(k, v) }
                     }.build()
                     val call = client.newCall(req)
                     ingestCall = call

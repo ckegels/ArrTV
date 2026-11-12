@@ -65,12 +65,23 @@ internal class TileLiveCalls {
 
     /** A fresh tracked OkHttp factory for ONE live source. [timeoutMs] is used
      *  for both connect and read, matching the HttpURLConnection factories it
-     *  replaces. The User-Agent header (if any) wins over [fallbackUserAgent]. */
+     *  replaces. The User-Agent header (if any) wins over [fallbackUserAgent].
+     *  On a Dispatch More server the request for [url] also says which device
+     *  and which Multiview it is, so opening a tile closes none of the other
+     *  tiles; [previousUrl] is the tile's old channel when the tile changes
+     *  channel, which is how that one is let go. */
     fun newFactory(
+        url: String,
         headers: Map<String, String>,
         fallbackUserAgent: String,
         timeoutMs: Int,
+        previousUrl: String? = null,
     ): DataSource.Factory {
+        val headers = com.aeriotv.android.core.network.DispatchMore.streamHeaders(
+            url,
+            multiview = com.aeriotv.android.core.network.DispatchMore.multiviewSession,
+            previousUrl = previousUrl,
+        ) + headers
         val tracker = Tracker(clientFor(timeoutMs)).also { trackers.add(it) }
         val headerUa = headers.entries
             .firstOrNull { it.key.equals("User-Agent", ignoreCase = true) }

@@ -69,6 +69,10 @@ class LiveStreamFailover(
 
     @Volatile var hooks: Hooks? = null
 
+    /** A step was refused with 409 (a stream of its own): the holder reopens
+     *  the connection instead of walking. */
+    @Volatile var onOwnStream: (() -> Unit)? = null
+
     /** Called when every member stream has been walked without a byte; the
      *  holder hands over to its standing retry / unavailable ladder. */
     @Volatile var onExhausted: (() -> Unit)? = null
@@ -90,10 +94,47 @@ class LiveStreamFailover(
     @Volatile var onLearnFirstByte: ((channelId: String, ms: Int) -> Unit)? = null
 
     private var deadlineJob: Job? = null
+
+    /** The picture deadline (arrTV optimization "leave a stream that is slow
+     *  to start"): no first frame within the budget walks to the next stream,
+     *  whatever the bytes are doing. */
+    private var pictureJob: Job? = null
+    @Volatile private var firstFrameSeen = false
+
+    /** The server's own faster failover is on for the stream being played
+     *  (capabilities, Dispatch More v212): it leaves a silent stream after
+     *  5 s and one check, so the app waits longer and lets it move first --
+     *  both moving at once would skip a stream. Set by the holder. */
+    @Volatile var serverFastFailover: () -> Boolean = { false }
+
+    /** Whether a picture is to be expected at all: false for Audio Only and
+     *  for a stream found to carry no video (radio), which never render a
+     *  frame and must not be walked for it. Set by the holder; main thread. */
+    @Volatile var pictureExpected: () -> Boolean = { true }
+
+    /** How many other streams the server counted for this channel's stream
+     *  (X-Dispatch-Alternatives), null when it said nothing. Set by the holder. */
+    @Volatile var alternatives: () -> Int? = { null }
+
+    /**
+     * The picture is playing now: the player plays and has rendered frames.
+     * The picture deadline is met by this as well as by a first frame: after
+     * a stream swapped inside the open connection the player reports no new
+     * first frame, and a deadline that waited for one walked on from streams
+     * that played (Chromecast HD, AL JAZEERA: seven switches in a row). And a
+     * step checks it once more right before asking for the next stream: a
+     * picture that came while the step got ready is never switched away.
+     * Set by the holder; main thread.
+     */
+    @Volatile var picturePlaying: () -> Boolean = { false }
     private var stepJob: Job? = null
     private var channelId: String? = null
     private var channelName: String = "?"
     private var firstByteSeen = false
+
+    /** The walk was started by [onUnplayable]: bytes are arriving, so a first
+     *  byte having been seen does not end it. */
+    @Volatile private var unplayableWalk = false
 
     /**
      * Last moment ANY byte was seen on this pipeline (0 = none since arm).
@@ -105,7 +146,7 @@ class LiveStreamFailover(
     @Volatile private var lastByteAtMs = 0L
 
     /** When the CURRENT deadline was armed. */
-    private var armedAtMs = 0L
+    @Volatile private var armedAtMs = 0L
 
     /** When this tune first armed a deadline, so the learned value measures the
      *  whole tap-to-first-byte, not just the last step. */
@@ -113,6 +154,7 @@ class LiveStreamFailover(
 
     /** The budget the current deadline is running with, for the log line. */
     private var budgetMs = FIRST_TUNE_FIRST_BYTE_MS
+    private var pictureBudgetMs = 0L
     /** Streams already walked this tune; the walk never revisits one. */
     private val tried = mutableSetOf<Int>()
     private var activeStreamId: Int? = null
@@ -130,8 +172,10 @@ class LiveStreamFailover(
      */
     fun onLiveTune(channelId: String?, channelName: String?, userInitiated: Boolean) {
         if (channelId == null) {
-            disarm()
-            _statusText.value = null
+            // A tune with no channel to walk: forget the previous channel's,
+            // so nothing walks this one on its behalf.
+            resetWalk()
+            this.channelId = null
             return
         }
         if (userInitiated || channelId != this.channelId) resetWalk()
@@ -214,6 +258,49 @@ class LiveStreamFailover(
         }
     }
 
+    /**
+     * Bytes have been arriving on this ingest for a while and nothing has
+     * become playable: a stream this device cannot decode (a 4K stream on a
+     * 1080p Chromecast HD). The server sees a healthy stream and never fails
+     * it over, and a reconnect gets the same stream again, so walk to the next
+     * one (the same walk the silent-start deadline uses). Called by the
+     * holder's watchdog; see [bytesFlowingForMs].
+     */
+    fun onUnplayable(detail: String) {
+        scope.launch {
+            val id = channelId ?: return@launch
+            val h = hooks
+            if (h == null || !h.canSwitch(id)) {
+                Log.i(TAG, "[FAILOVER] channel=$channelName $detail; no switchable streams")
+                return@launch
+            }
+            if (stepJob?.isActive == true) return@launch
+            unplayableWalk = true
+            serverReason = null
+            Log.i(TAG, "[FAILOVER] channel=$channelName $detail; walking to the next stream")
+            if (walkStartedAtMs == 0L) walkStartedAtMs = SystemClock.elapsedRealtime()
+            stepJob = scope.launch { step(h, id) }
+        }
+    }
+
+    /** How long bytes have been arriving on the current ingest (since it was
+     *  armed, when a byte came after that); 0 when none has. */
+    fun bytesFlowingForMs(): Long {
+        val armed = armedAtMs
+        if (armed == 0L || lastByteAtMs <= armed) return 0L
+        return SystemClock.elapsedRealtime() - armed
+    }
+
+    /** Time since the last byte on the wire (any ingest of this tune);
+     *  Long.MAX_VALUE when none has come since the deadline was armed. */
+    fun msSinceLastByte(): Long {
+        val last = lastByteAtMs
+        return if (last == 0L) Long.MAX_VALUE else SystemClock.elapsedRealtime() - last
+    }
+
+    /** A step is in flight (the holder does not stack another). */
+    val stepping: Boolean get() = stepJob?.isActive == true
+
     /** Publish a status line the holder owns (for example the "Reconnecting..."
      *  shown while a "Channel is stopping" 503 is waited out). */
     fun publishServerStatus(text: String?) {
@@ -225,6 +312,12 @@ class LiveStreamFailover(
         deadlineJob?.cancel()
         deadlineJob = null
         firstByteSeen = false
+        // Nothing is armed, so no bytes are "flowing on this ingest": a stale
+        // arm time made a tune that armed nothing look minutes old to the
+        // unplayable rule, which walked a channel a second after it opened.
+        armedAtMs = 0L
+        pictureJob?.cancel()
+        pictureJob = null
     }
 
     /** Channel change or full teardown: forget everything about the walk. */
@@ -237,6 +330,7 @@ class LiveStreamFailover(
         steps = 0
         walkStartedAtMs = 0L
         serverReason = null
+        unplayableWalk = false
         _statusText.value = null
     }
 
@@ -259,12 +353,23 @@ class LiveStreamFailover(
         if (firstAttempt) tuneStartedAtMs = armedAtMs
         val id = channelId
         val learned = id?.let { cid -> runCatching { learnedFirstByteMs?.invoke(cid) }.getOrNull() }
+        // arrTV optimization "faster failover": IPTV answers within a second or
+        // two (learned first-byte times here are 0.1-3 s), so the budgets sized
+        // for an antenna tuner's lock cost 28 s per dead stream for nothing.
+        val fast = ArrTvOptimizations.fastFailover
+        val serverLeads = fast && runCatching { serverFastFailover() }.getOrDefault(false)
         budgetMs = if (!firstAttempt) {
-            STEP_FIRST_BYTE_MS
+            if (fast) FAST_STEP_FIRST_BYTE_MS else STEP_FIRST_BYTE_MS
         } else {
             val fromLearned = learned?.let { (it * LEARNED_HEADROOM_NUM / LEARNED_HEADROOM_DEN).toLong() } ?: 0L
-            maxOf(FIRST_TUNE_FIRST_BYTE_MS, fromLearned).coerceAtMost(FIRST_BYTE_BUDGET_MAX_MS)
+            if (fast) {
+                maxOf(FAST_FIRST_TUNE_FIRST_BYTE_MS, fromLearned).coerceAtMost(FAST_FIRST_BYTE_BUDGET_MAX_MS)
+            } else {
+                maxOf(FIRST_TUNE_FIRST_BYTE_MS, fromLearned).coerceAtMost(FIRST_BYTE_BUDGET_MAX_MS)
+            }
         }
+        if (serverLeads) budgetMs = maxOf(budgetMs, SERVER_LEADS_MS)
+        armPictureDeadline(serverLeads)
         Log.i(
             TAG,
             "[FAILOVER] channel=$channelName silent-start budget ${budgetMs}ms " +
@@ -283,6 +388,101 @@ class LiveStreamFailover(
                     return@launch
                 }
             }
+        }
+    }
+
+    /**
+     * No first picture in time: the stream is too slow to start (dead, slow to
+     * connect, or trickling in), whatever its bytes are doing, and the channel
+     * walks to its next stream. How long is "in time" follows how many other
+     * streams the server says the channel could switch to now
+     * (ArrTvOptimizations.pictureWaitMs, editable in Settings): less where
+     * there are several, more where one is left, and no walk at all where
+     * there is none. Scaled by the channel's usual start time this session,
+     * so a channel that is always a little slow is not left every time.
+     */
+    private fun armPictureDeadline(serverLeads: Boolean) {
+        firstFrameSeen = false
+        pictureJob?.cancel()
+        pictureJob = null
+        if (!ArrTvOptimizations.slowStart) return
+        val id = channelId ?: return
+        val armedAt = SystemClock.elapsedRealtime()
+        pictureJob = scope.launch {
+            // Re-read every poll: the server's count arrives with the stream's
+            // response, a moment after the tune.
+            while (true) {
+                delay(PICTURE_POLL_MS)
+                if (firstFrameSeen || channelId != id) return@launch
+                if (runCatching { picturePlaying() }.getOrDefault(false)) return@launch
+                // What the server counted for the tune, less the streams this walk left
+                val counted = runCatching { alternatives() }.getOrNull()
+                val left = counted?.let { (it - steps).coerceAtLeast(0) }
+                // The channel's start time this session, else an estimate from its
+                // learned first byte (kept across launches): right after a launch
+                // the bare minimum alone left channels that start in 3-4 s.
+                val usual = learnedFirstFrame[id]
+                    ?: runCatching { learnedFirstByteMs?.invoke(id) }.getOrNull()?.let { it + FIRST_BYTE_TO_FRAME_MS }
+                val budget = ArrTvOptimizations.pictureWaitMs(usual, left)
+                pictureBudgetMs = budget
+                val waited = SystemClock.elapsedRealtime() - armedAt
+                if (waited < budget) continue
+                // Nothing to go to: keep trying this stream (the other nets stay)
+                if (left == 0) return@launch
+                if (!runCatching { pictureExpected() }.getOrDefault(true)) return@launch
+                // A silent stream is the server's to leave when its own faster
+                // failover is on; this deadline takes streams whose data arrives
+                // but gives no picture, so the two never move at once.
+                if (serverLeads && lastByteAtMs <= armedAt) {
+                    if (waited < SERVER_LEADS_MS) continue
+                }
+                val h = hooks
+                if (h == null || !h.canSwitch(id)) {
+                    Log.i(TAG, "[FAILOVER] channel=$channelName no picture after ${waited}ms; no switchable streams")
+                    return@launch
+                }
+                if (stepJob?.isActive == true) return@launch
+                // Bytes may well be arriving: this walk is not ended by them.
+                unplayableWalk = true
+                serverReason = null
+                Log.i(
+                    TAG,
+                    "[FAILOVER] channel=$channelName no picture after ${waited}ms " +
+                        "(wait ${budget}ms, ${left ?: "unknown"} other streams); walking to the next stream",
+                )
+                if (walkStartedAtMs == 0L) walkStartedAtMs = SystemClock.elapsedRealtime()
+                stepJob = scope.launch { step(h, id) }
+                return@launch
+            }
+        }
+    }
+
+    /** The first frame of this ingest rendered: the picture deadline is met.
+     *  A clean start (no walk) teaches the channel's start time. */
+    fun noteFirstFrame() {
+        scope.launch {
+            if (firstFrameSeen) return@launch
+            firstFrameSeen = true
+            pictureJob?.cancel()
+            pictureJob = null
+            val id = channelId
+            if (steps == 0 && id != null && tuneStartedAtMs != 0L) {
+                learnedFirstFrame[id] = SystemClock.elapsedRealtime() - tuneStartedAtMs
+            }
+            // A picture ends the walk. A stream the server swapped in behind
+            // the open connection sends no new "first byte" (the bytes never
+            // stopped), so waiting for one left "Trying another stream..."
+            // on screen over a playing channel for good.
+            if (!firstByteSeen) {
+                firstByteSeen = true
+                deadlineJob?.cancel()
+                deadlineJob = null
+            }
+            unplayableWalk = false
+            if (steps > 0) {
+                Log.i(TAG, "[FAILOVER] channel=$channelName picture on stream id=${activeStreamId ?: "unknown"}")
+            }
+            _statusText.value = null
         }
     }
 
@@ -318,7 +518,10 @@ class LiveStreamFailover(
      */
     private suspend fun step(h: Hooks, id: String) {
         val uuid = id.substringAfterLast(':')
-        val cached = streamCache[id]
+        // Read fresh at the start of every walk: a stream added on the server
+        // (for this device, a 1080p one next to a 4K one) is tried at once,
+        // not after the app restarts. Later steps of the same walk reuse it.
+        val cached = if (steps == 0) null else streamCache[id]
         val ids = cached ?: runCatching { h.listStreamIds(id) }.getOrNull()
             ?.also { if (it.isNotEmpty()) streamCache[id] = it }
         if (ids.isNullOrEmpty()) {
@@ -326,7 +529,7 @@ class LiveStreamFailover(
             Log.i(TAG, "[FAILOVER] channel=$channelName stream list unavailable; staying on the retry path")
             return
         }
-        if (firstByteSeen || channelId != id) return
+        if ((firstByteSeen && !unplayableWalk) || channelId != id) return
         if (ids.size < 2) {
             _statusText.value = "Reconnecting..."
             Log.i(TAG, "[FAILOVER] channel=$channelName single stream; staying on the retry path")
@@ -352,6 +555,13 @@ class LiveStreamFailover(
             onExhausted?.invoke()
             return
         }
+        // The last moment to find the picture came after all: never switch a
+        // playing stream away (the walk would then run through every stream).
+        if (unplayableWalk && runCatching { picturePlaying() }.getOrDefault(false)) {
+            Log.i(TAG, "[FAILOVER] channel=$channelName the picture came; not switching")
+            _statusText.value = null
+            return
+        }
         steps += 1
         tried.add(target)
         val step = steps
@@ -360,9 +570,17 @@ class LiveStreamFailover(
         } catch (t: Throwable) {
             Log.w(TAG, "[FAILOVER] channel=$channelName change_stream to id=$target failed: ${t.message}")
             _statusText.value = "Reconnecting..."
+            // Contract 8.3: 409 = this device plays the channel on a stream of
+            // its own, which the server will not change under the others. Any
+            // other step is refused the same way, so stop walking; a fresh
+            // connection gets the device a stream chosen afresh.
+            if (t.message?.contains("HTTP 409") == true) {
+                Log.i(TAG, "[FAILOVER] channel=$channelName on a stream of its own (409); reopening instead")
+                onOwnStream?.invoke()
+            }
             return
         }
-        if (firstByteSeen || channelId != id) return
+        if ((firstByteSeen && !unplayableWalk) || channelId != id) return
         activeStreamId = target
         // Quote the server when it told us why we are moving; otherwise this was
         // our own first-byte deadline and there is no server text to show.
@@ -372,7 +590,7 @@ class LiveStreamFailover(
         Log.i(
             TAG,
             "[FAILOVER] channel=$channelName stream $step/${ids.size} id=$target " +
-                "reason=${serverReason ?: "no bytes within the ${budgetMs}ms silent-start budget"}",
+                "reason=${serverReason ?: if (unplayableWalk) "no picture (bytes but nothing playable, or too slow to start)" else "no bytes within the ${budgetMs}ms silent-start budget"}",
         )
         armDeadline(firstAttempt = false)
     }
@@ -401,6 +619,28 @@ class LiveStreamFailover(
         /** Hard ceiling on a learned-stretched budget. */
         const val FIRST_BYTE_BUDGET_MAX_MS = 45_000L
 
+        /** With "faster failover" on: the first attempt waits 6 s (or 1.5x the
+         *  channel's learned first byte, at most 12 s), every later step 5 s. */
+        const val FAST_FIRST_TUNE_FIRST_BYTE_MS = 6_000L
+        const val FAST_FIRST_BYTE_BUDGET_MAX_MS = 12_000L
+        const val FAST_STEP_FIRST_BYTE_MS = 5_000L
+
+        /** How often the picture deadline re-reads its wait. */
+        private const val PICTURE_POLL_MS = 250L
+
+        /** From first byte to first picture, where the channel's own first
+         *  picture is not known yet: the start gate plus a keyframe. */
+        private const val FIRST_BYTE_TO_FRAME_MS = 1_500L
+
+        /** With the server's own faster failover on, the app's first moves wait
+         *  at least this long (the server leaves a silent stream after 5 s and a
+         *  check, 5-10 s). */
+        const val SERVER_LEADS_MS = 12_000L
+
+        /** How long each channel took to its first picture on a clean start
+         *  this session, for the picture deadline. */
+        private val learnedFirstFrame = ConcurrentHashMap<String, Long>()
+
         /** A channel learned to start slowly gets 1.5x its learned
          *  time-to-first-byte (never less than the base budget). */
         private const val LEARNED_HEADROOM_NUM = 3
@@ -410,8 +650,8 @@ class LiveStreamFailover(
         private const val SILENCE_POLL_MS = 500L
         private const val STATUS_READ_CAP_MS = 3_000L
 
-        /** Process-lifetime cache of a channel's member-stream pks (priority
-         *  order). An empty answer is never cached. */
+        /** A channel's member-stream pks (priority order) for the steps of one
+         *  walk; refreshed when a walk starts. An empty answer is never cached. */
         private val streamCache = ConcurrentHashMap<String, List<Int>>()
     }
 }

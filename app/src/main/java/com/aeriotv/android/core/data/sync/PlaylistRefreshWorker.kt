@@ -57,13 +57,15 @@ class PlaylistRefreshWorker @AssistedInject constructor(
             Log.i(TAG, "Background refresh disabled in settings; skipping")
             return@runCatching Result.success()
         }
-        if (com.aeriotv.android.core.playback.PlaybackActivityTracker.isPlaybackActive) {
+        if (com.aeriotv.android.core.playback.PlaybackActivityTracker.isMultiStreamActive) {
             // 2026-08-31 Streamer multiview stutter hunt: a refresh's download +
             // gunzip + XMLTV parse at normal priority starves the MediaCodec
             // loops when decoders own every core. Yield and let WorkManager
             // retry after backoff; the cache staying warm is never worth
-            // visible judder on what the user is watching right now.
-            Log.i(TAG, "Playback active; deferring background refresh")
+            // visible judder on what the user is watching right now. A single
+            // stream does not block the refresh: its player instance lives
+            // for the whole session, so waiting on it meant never refreshing.
+            Log.i(TAG, "Multiview active; deferring background refresh")
             return@runCatching Result.retry()
         }
         val playlist = repository.activePlaylist()
@@ -80,6 +82,10 @@ class PlaylistRefreshWorker @AssistedInject constructor(
             Log.w(TAG, "Channel refresh failed", channels.exceptionOrNull())
             return@runCatching Result.retry()
         }
+        // An open app repaints from this instead of waiting for the next launch.
+        repository.announceCacheUpdate(
+            PlaylistRepository.CacheUpdate.Channels(playlist.id, channels.getOrThrow()),
+        )
         // EPG refresh: writes epg_programme. loadEpg already updates the
         // playlist's lastEpgRefreshedAt on success. Pass the candidate-key
         // set (P3 #13) so the XMLTV parser filters dead programmes inline.
@@ -116,6 +122,7 @@ class PlaylistRefreshWorker @AssistedInject constructor(
             channels.getOrThrow(),
         )
         runCatching { repository.saveEpgToCache(playlist.id, bridged) }
+            .onSuccess { repository.announceCacheUpdate(PlaylistRepository.CacheUpdate.Guide(playlist.id)) }
             .onFailure { Log.w(TAG, "saveEpgToCache failed", it) }
         Log.i(
             TAG,

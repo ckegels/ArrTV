@@ -170,6 +170,25 @@ class PlaylistViewModel @Inject constructor(
     data class ActiveRoute(val isLan: Boolean, val url: String)
 
     companion object {
+        /** More than 1/this of the channels changed in a guide window: saved in
+         *  bulk and rebuilt instead of patched channel by channel. */
+        private const val LARGE_WINDOW_CHANGE_DIVISOR = 4
+
+        /** Launch paints the group on screen first when it has at most this
+         *  many channels, over now minus BACK to now plus AHEAD. */
+        private const val GROUP_FIRST_MAX_CHANNELS = 200
+        private const val GROUP_FIRST_BACK_MS = 2L * 3_600_000L
+        private const val GROUP_FIRST_AHEAD_MS = 8L * 3_600_000L
+
+        /** Signature similarity at or above which a changed channel list is
+         *  still the cached guide's list (see identityStale). */
+        private const val IDENTITY_SAME_LIST_SIMILARITY = 0.5
+
+        /** A guide rebuild whose cache read broke tries once more after this
+         *  long, as "<reason>-retry" (not again after that). */
+        private const val CATALOG_RETRY_MS = 15_000L
+        private const val RETRY_SUFFIX = "-retry"
+
         const val ALL_GROUPS = "All"
         /** Pinned Favorites group inside Live TV (Apple parity: Favorites is a
          *  channel group, not a tab). Never a provider group name. */
@@ -359,6 +378,262 @@ class PlaylistViewModel @Inject constructor(
         bootstrap()
         observeMemoryPressure()
         observeUpstreamLayering()
+        observeCacheUpdates()
+    }
+
+    /**
+     * Repaint when fresh data reaches the cache outside this ViewModel's own
+     * load paths (scheduled background refresh, quiet EPG sweep, server
+     * change notifications). Without this the open app kept the old lineup
+     * and guide until the next launch. A channel refresh that returned the
+     * same lineup changes nothing on screen.
+     */
+    private fun observeCacheUpdates() {
+        viewModelScope.launch {
+            repository.cacheUpdates.collect { update ->
+                // A new lineup was saved: move the cache's identity stamp with
+                // it NOW, applied or kept for later. The stamp only moved when
+                // the lineup reached the screen; kept while the guide was open,
+                // the next launch found "saved lineup != stamp", purged the
+                // whole guide cache and refetched it (seen on a Shield: whole
+                // groups on "No info"). The cached rows are stored under each
+                // channel's canonical id, so they stay valid for every channel
+                // that remains.
+                if (update is PlaylistRepository.CacheUpdate.Channels) {
+                    appPreferences.stampEpgIdentity(update.playlistId, update.channels)
+                }
+                // Applied at once, also while the guide is on screen: holding
+                // them until it left meant a guide browsed for a while showed
+                // "No info" and stale programmes the app already had (seen on a
+                // Chromecast HD). A lineup change and a guide window patch only
+                // the channels that changed.
+                applyCacheUpdate(update)
+            }
+        }
+    }
+
+    /**
+     * The guide screen reports whether it is on screen (its tab showing, not
+     * covered by the fullscreen player). While it is, the full 13-day sweep
+     * waits (EpgSweepGate); guide updates themselves apply at once.
+     */
+    fun setGuideOnScreen(owner: Any, onScreen: Boolean) {
+        // Per guide instance: during a screen transition the outgoing guide's
+        // "gone" can arrive after the incoming one's "on screen".
+        if (onScreen) guideScreenOwners.add(owner) else guideScreenOwners.remove(owner)
+        val gate = com.aeriotv.android.core.data.repository.EpgSweepGate
+        val now = guideScreenOwners.isNotEmpty()
+        if (gate.guideOnScreen == now) return
+        gate.guideOnScreen = now
+        Log.i(TAG, "guide ${if (now) "on screen" else "left the screen"}")
+    }
+
+    private val guideScreenOwners = HashSet<Any>()
+
+    private suspend fun applyCacheUpdate(update: PlaylistRepository.CacheUpdate) {
+        val active = runCatching { repository.activePlaylist() }.getOrNull()
+        if (active?.id != update.playlistId) return
+        when (update) {
+            is PlaylistRepository.CacheUpdate.Channels -> {
+                // A foreground load owns the channel state while it runs.
+                if (_state.value.isLoading) {
+                    Log.i(TAG, "cache update: channels skipped (foreground load in progress)")
+                    return
+                }
+                val diff = com.aeriotv.android.core.data.ChannelListDiff.between(
+                    _state.value.channels, update.channels,
+                )
+                if (!diff.hasChanges) {
+                    Log.i(TAG, "cache update: channels unchanged (${update.channels.size})")
+                    return
+                }
+                Log.i(TAG, "cache update: channels $diff -> ${update.channels.size} channels")
+                val before = _state.value.channels
+                val catalog = _state.value.epgByChannel as? com.aeriotv.android.core.guide.GuideCatalog
+                _state.update { it.copy(channels = update.channels) }
+                // The cache's identity stamp moved when the update arrived
+                // (observeCacheUpdates). The guide is patched: only the added
+                // and changed channels are read and built.
+                if (catalog != null && runCatching { patchGuideForLineup(active, catalog, before, update.channels) }.getOrDefault(false)) {
+                    return
+                }
+                runCatching { rebuildGuideCatalog(active, "channels-update") }
+                    .onFailure { Log.w(TAG, "guide rebuild after channel update failed", it) }
+            }
+            is PlaylistRepository.CacheUpdate.Guide -> {
+                Log.i(TAG, "cache update: guide rows written, rebuilding the guide")
+                runCatching { rebuildGuideCatalog(active, "guide-update") }
+                    .onFailure { Log.w(TAG, "guide rebuild after cache update failed", it) }
+            }
+            is PlaylistRepository.CacheUpdate.GuideWindow ->
+                runCatching { applyGuideWindow(active, update) }
+                    .onFailure {
+                        if (it is kotlinx.coroutines.CancellationException) throw it
+                        Log.w(TAG, "guide window update failed", it)
+                    }
+        }
+    }
+
+    /** [GuideCatalog.forLineup] for a lineup update; false when the guide
+     *  changed meanwhile and a full rebuild has to do it. */
+    private suspend fun patchGuideForLineup(
+        playlist: PlaylistEntity,
+        catalog: com.aeriotv.android.core.guide.GuideCatalog,
+        before: List<M3UChannel>,
+        after: List<M3UChannel>,
+    ): Boolean {
+        val startedAt = android.os.SystemClock.elapsedRealtime()
+        val touched = com.aeriotv.android.core.data.ChannelListDiff.addedOrChanged(before, after)
+        val rows = if (touched.isEmpty()) {
+            emptyList()
+        } else {
+            repository.loadCachedEpgForChannels(playlist.id, touched, catalog.windowStartMs, catalog.windowEndMs)
+        }
+        val ids = touched.mapTo(HashSet()) { it.guideChannelId().value }
+        val beforeHash = com.aeriotv.android.core.guide.GuideIdentityHash.of(before)
+        // The launch rebuild can swap the guide while the rows are read. A
+        // guide still built for the old lineup (same window) takes the same
+        // patch; anything else is left to a full rebuild.
+        var applied = false
+        repeat(2) {
+            if (applied) return@repeat
+            val base = (_state.value.epgByChannel as? com.aeriotv.android.core.guide.GuideCatalog)
+                ?.takeIf {
+                    it.identityHash == beforeHash &&
+                        it.windowStartMs == catalog.windowStartMs && it.windowEndMs == catalog.windowEndMs
+                } ?: return@repeat
+            val next = withContext(Dispatchers.Default) { base.forLineup(after, ids, rows) }
+            applied = epgWriteMutex.withLock {
+                val ok = _state.value.epgByChannel === base
+                if (ok) _state.update { it.copy(epgByChannel = next) }
+                ok
+            }
+        }
+        if (applied) {
+            Log.i(
+                TAG,
+                "guide patched for the lineup: ${touched.size} channels built from ${rows.size} rows " +
+                    "in ${android.os.SystemClock.elapsedRealtime() - startedAt}ms",
+            )
+        }
+        return applied
+    }
+
+    /**
+     * Dispatcharr live updates: a server EPG refresh delivered a fresh window.
+     * Compare it per channel with the guide on screen, write only the changed
+     * channels to the cache and swap only those into the guide
+     * (GuideCatalog.patched). Nothing changed: nothing is written. When the
+     * guide was built for a different lineup, fall back to a full rebuild.
+     */
+    private suspend fun applyGuideWindow(
+        playlist: PlaylistEntity,
+        update: PlaylistRepository.CacheUpdate.GuideWindow,
+    ) {
+        val startedAt = android.os.SystemClock.elapsedRealtime()
+        val catalog = _state.value.epgByChannel as? com.aeriotv.android.core.guide.GuideCatalog
+        val channels = _state.value.channels
+        if (catalog == null || channels.isEmpty()) {
+            Log.i(TAG, "guide window: no guide on screen yet, ignored")
+            return
+        }
+        // Compare only where both hold data (a guide built hours ago ends
+        // before the fetched window does, and programmes past its end would
+        // read as changes on every channel) and only what a write can change:
+        // the merge never replaces a programme that has already started (the
+        // catch-up archive), so a server edit to one would read as a change
+        // on every check without ever being applied.
+        val compareFrom = maxOf(update.fromMs, catalog.windowStartMs, System.currentTimeMillis())
+        val compareTo = minOf(update.toMs, catalog.windowEndMs)
+        if (compareTo <= compareFrom) {
+            Log.i(TAG, "guide window: no overlap with the guide on screen, ignored")
+            return
+        }
+        val (fresh, changed) = withContext(Dispatchers.Default) {
+            val bridged = bridgeChannelIds(update.programmes, channels)
+                .filter { it.endMillis - it.startMillis >= 30_000L }
+            // A channel on no real guide gets filler blocks named after it,
+            // cut differently by each of the server's paths (4 h in the live
+            // window, 2 h in the day chunks): every check read them as changed
+            // and rewrote the whole guide for nothing (956 of 1426 channels,
+            // 212 s on the Shield). Filler carries nothing to update.
+            val filler = channels.filterTo(HashSet()) { it.isFillerKeyed() }.mapTo(HashSet()) { it.guideChannelId().value }
+            bridged to catalog.changedChannels(channels, bridged, compareFrom, compareTo).filterNotTo(HashSet()) { it in filler }
+        }
+        val compareMs = android.os.SystemClock.elapsedRealtime() - startedAt
+        if (changed.isEmpty()) {
+            Log.i(TAG, "guide window: ${fresh.size} programmes, no channel changed (compare ${compareMs}ms)")
+            return
+        }
+        // A large share changed (the TV was off, a big server refresh): one bulk
+        // save and one rebuild, not hundreds of per-channel reads. On a
+        // Chromecast HD 680 changed channels took 95 s to patch -- 57 s of it
+        // reading their rows back one channel at a time from a swapping device.
+        if (changed.size * LARGE_WINDOW_CHANGE_DIVISOR > channels.size) {
+            val byIdAll = channels.associateBy { it.guideChannelId().value }
+            val gridKeysAll = changed.flatMapTo(HashSet()) { id ->
+                byIdAll[id]?.let { com.aeriotv.android.core.guide.GuideMatchMaps.rawKeysOf(it, withNumber = false) }.orEmpty()
+            }
+            repository.deleteRawKeyedEpg(playlist.id, gridKeysAll, System.currentTimeMillis(), update.toMs)
+            // Only the channels that changed (and those sharing their grid keys,
+            // which the delete above emptied): the rest of the window is what
+            // the cache holds already, and saving it all again was most of the
+            // 212 s a big update took on the Shield.
+            val rewrittenAll = changed + com.aeriotv.android.core.guide.GuideMatchMaps.build(channels).channelsForGridKeys(gridKeysAll)
+            val rows = fresh.filter { it.channelId in rewrittenAll }
+            repository.saveEpgToCache(playlist.id, com.aeriotv.android.core.guide.GuideCatalog.inStoreOrder(rows))
+            Log.i(
+                TAG,
+                "guide window: ${changed.size} of ${channels.size} channels changed, saved in one go " +
+                    "(${rows.size} of ${fresh.size} rows, ${android.os.SystemClock.elapsedRealtime() - startedAt}ms); rebuilding",
+            )
+            rebuildGuideCatalog(playlist, "guide-window")
+            return
+        }
+        // Authoritative per channel: replaces only the span these rows cover,
+        // only for the channels they carry.
+        catalog.lastExplanations.forEach { Log.i(TAG, "guide window diff: $it") }
+        // Stale copies stored under raw grid keys (the stock day-chunk sweep)
+        // would keep winning over the new rows (dedup keeps the earlier row),
+        // so they go first. Grid keys are shared one-to-many: every channel on
+        // those keys is rewritten from the fresh window too, so none loses rows.
+        val maps = com.aeriotv.android.core.guide.GuideMatchMaps.build(channels)
+        val byId = channels.associateBy { it.guideChannelId().value }
+        val gridKeys = changed.flatMapTo(HashSet()) { id ->
+            byId[id]?.let { com.aeriotv.android.core.guide.GuideMatchMaps.rawKeysOf(it, withNumber = false) }.orEmpty()
+        }
+        val rewritten = changed + maps.channelsForGridKeys(gridKeys)
+        val removedRaw = repository.deleteRawKeyedEpg(playlist.id, gridKeys, System.currentTimeMillis(), update.toMs)
+        // Written in store order: the (channel, start) survivor is then the
+        // one changedChannels compared against (GuideCatalog.asStored).
+        val writtenRows = com.aeriotv.android.core.guide.GuideCatalog.inStoreOrder(fresh.filter { it.channelId in rewritten })
+        repository.saveEpgToCache(playlist.id, writtenRows)
+        val saveMs = android.os.SystemClock.elapsedRealtime() - startedAt - compareMs
+        val affected = channels.filter { it.guideChannelId().value in rewritten }
+        val rows = repository.loadCachedEpgForChannels(
+            playlist.id, affected, catalog.windowStartMs, catalog.windowEndMs,
+        )
+        val loadMs = android.os.SystemClock.elapsedRealtime() - startedAt - compareMs - saveMs
+        val patched = epgWriteMutex.withLock {
+            val current = _state.value.epgByChannel as? com.aeriotv.android.core.guide.GuideCatalog
+            // Only patch the catalog the rows were read for; anything else rebuilt meanwhile.
+            val result = if (current === catalog) current.patched(channels, rewritten, rows) else null
+            if (result != null) _state.update { it.copy(epgByChannel = result) }
+            result != null
+        }
+        val ms = android.os.SystemClock.elapsedRealtime() - startedAt
+        if (patched) {
+            Log.i(
+                TAG,
+                "guide window: ${changed.size} of ${channels.size} channels changed (${rewritten.size} rewritten, " +
+                    "$removedRaw stale raw rows removed), ${writtenRows.size} rows written, " +
+                    "patched in ${ms}ms (compare ${compareMs}, save $saveMs, read $loadMs (${rows.size} rows), " +
+                    "swap ${ms - compareMs - saveMs - loadMs})",
+            )
+        } else {
+            Log.i(TAG, "guide window: ${changed.size} channels changed, guide replaced meanwhile; full rebuild")
+            rebuildGuideCatalog(playlist, "guide-window")
+        }
     }
 
     /**
@@ -909,6 +1184,39 @@ class PlaylistViewModel @Inject constructor(
      * window (the cached paint), so the launch path does not re-query Room for
      * data it is holding.
      */
+    /**
+     * Launch, before the whole guide is read: the programmes of the group on
+     * screen, read channel by channel through the (playlistId, channelId)
+     * index, painted at once. The launch read covers every channel (1426
+     * here, of which a group shows 14) and took 30 s after a boot on a
+     * Chromecast HD with memory full, the guide empty and unscrollable all
+     * that time; one group's rows are a few hundred. The full read that
+     * follows replaces this guide. Only for a provider group of a size a
+     * screen shows; All, Favorites and collections wait for the full read.
+     */
+    private suspend fun paintSelectedGroupFirst(playlist: PlaylistEntity) {
+        val state = _state.value
+        if ((state.epgByChannel as? com.aeriotv.android.core.guide.GuideCatalog)?.isEmpty() == false) return
+        val group = state.selectedGroup
+        if (group == ALL_GROUPS || group == FAVORITES_GROUP) return
+        val channels = state.channels
+        val inGroup = channels.filter { it.groupTitle == group }
+        if (inGroup.isEmpty() || inGroup.size > GROUP_FIRST_MAX_CHANNELS) return
+        val now = System.currentTimeMillis()
+        val (windowFrom, windowTo) = guideWindow(playlist)
+        val fromMs = maxOf(windowFrom, now - GROUP_FIRST_BACK_MS)
+        val toMs = minOf(windowTo, now + GROUP_FIRST_AHEAD_MS)
+        val t0 = android.os.SystemClock.elapsedRealtime()
+        val raw = runCatching { repository.loadCachedEpgForChannels(playlist.id, inGroup, fromMs, toMs) }
+            .onFailure { Log.w(TAG, "group first: read failed", it) }
+            .getOrDefault(emptyList())
+        if (raw.isEmpty()) return
+        val rows = withContext(Dispatchers.Default) { bridgeChannelIds(raw, channels) }
+        val readMs = android.os.SystemClock.elapsedRealtime() - t0
+        rebuildGuideCatalog(playlist, "group-first", preloadedRows = rows)
+        Log.i(TAG, "group first: $group, ${inGroup.size} channels, ${rows.size} programmes (read ${readMs}ms)")
+    }
+
     private suspend fun rebuildGuideCatalog(
         playlist: PlaylistEntity,
         reason: String,
@@ -917,25 +1225,62 @@ class PlaylistViewModel @Inject constructor(
         val channels = _state.value.channels
         if (channels.isEmpty()) return
         val (fromMillis, toMillis) = guideWindow(playlist)
+        val stableOrder = appPreferences.dispatcharrLiveUpdates.first()
         val t0 = android.os.SystemClock.elapsedRealtime()
         val rows = preloadedRows
             ?: runCatching { repository.loadCachedEpg(playlist.id, fromMillis, toMillis) }
-                .onFailure { Log.w(TAG, "rebuildGuideCatalog($reason): cache read failed", it) }
-                .getOrDefault(emptyList())
+                .getOrElse {
+                    if (it is kotlinx.coroutines.CancellationException) throw it
+                    // A read that breaks (the table rewritten under a long
+                    // cursor while a guide update saves) is not an empty
+                    // guide: keep the one on screen, and try once more later.
+                    Log.w(TAG, "rebuildGuideCatalog($reason): cache read failed, the guide on screen stays", it)
+                    if (!reason.endsWith(RETRY_SUFFIX)) {
+                        viewModelScope.launch {
+                            kotlinx.coroutines.delay(CATALOG_RETRY_MS)
+                            rebuildGuideCatalog(playlist, reason + RETRY_SUFFIX)
+                        }
+                    }
+                    return
+                }
         val previous = _state.value.epgByChannel as? com.aeriotv.android.core.guide.GuideCatalog
         val catalog = withContext(Dispatchers.Default) {
             com.aeriotv.android.core.guide.GuideCatalog.build(
                 channels, rows, fromMillis, toMillis, previous = previous,
+                // Deterministic winner for two programmes in one slot while
+                // Dispatcharr live updates compare windows against this guide.
+                stableOrder = stableOrder,
             )
         }
-        epgWriteMutex.withLock {
+        val published = epgWriteMutex.withLock {
+            // Built for a lineup that changed while it ran, when the guide on
+            // screen already follows the new one (patched for it). The patched
+            // guide only has what the screen had -- at launch the quick window
+            // around now -- so keeping it left every other hour "No info" (Shield,
+            // 2026-10-02: a full rebuild dropped, the past empty until relaunch).
+            // The rows read are the same for the new lineup: build again from
+            // them (CPU only, the slow read is done) and publish that.
+            val now = _state.value
+            val current = now.epgByChannel as? com.aeriotv.android.core.guide.GuideCatalog
+            val superseded = now.channels !== channels && current != null &&
+                current.identityHash == com.aeriotv.android.core.guide.GuideIdentityHash.of(now.channels)
+            val publish = if (superseded) {
+                withContext(Dispatchers.Default) {
+                    com.aeriotv.android.core.guide.GuideCatalog.build(
+                        now.channels, rows, fromMillis, toMillis, previous = current,
+                        stableOrder = stableOrder,
+                    )
+                }
+            } else catalog
             val retentionDays = resolveGuideDays(playlist.epgRetentionDays) ?: GUIDE_DAYS_ALL_MAX_BACK
-            _state.update { it.copy(epgByChannel = catalog, epgHistoryHours = retentionDays * 24) }
+            _state.update { it.copy(epgByChannel = publish, epgHistoryHours = retentionDays * 24) }
+            !superseded
         }
         Log.i(
             TAG,
             "guide catalog rebuilt ($reason): ${rows.size} rows -> ${catalog.size} channels " +
-                "in ${android.os.SystemClock.elapsedRealtime() - t0}ms",
+                "in ${android.os.SystemClock.elapsedRealtime() - t0}ms" +
+                if (published) "" else " (built again for the newer lineup)",
         )
     }
 
@@ -1011,6 +1356,7 @@ class PlaylistViewModel @Inject constructor(
         val launchNowMs = System.currentTimeMillis()
         val quickFromMs = maxOf(cacheFromMs, launchNowMs - QUICK_PAINT_BACK_MS)
         val quickToMs = minOf(cacheToMs, launchNowMs + QUICK_PAINT_AHEAD_MS)
+        paintSelectedGroupFirst(playlist)
         val readStartedAt = android.os.SystemClock.elapsedRealtime()
         val cachedRaw = runCatching {
             repository.loadCachedEpg(playlist.id, quickFromMs, quickToMs)
@@ -1045,7 +1391,24 @@ class PlaylistViewModel @Inject constructor(
         // and again mid-session after layering landed.
         val identityHash = com.aeriotv.android.core.guide.GuideIdentityHash.of(channelsForBridge)
         val storedHash = appPreferences.epgIdentityHash(playlist.id).first()
-        val identityStale = hasCache && channelsForBridge.isNotEmpty() && storedHash != identityHash
+        // A few channels more or less is not another channel list: the rows
+        // are stored per channel, so they stay right for every channel that
+        // remains. Purging the whole cache for it -- a lineup of 1432 against
+        // a stamp of 1428 -- refetched the entire guide at launch and kept a
+        // Chromecast HD's disk busy for minutes. Only a list that shares
+        // under half its channels with the stamp's (or one never signed) is
+        // treated as another list.
+        val similarity = if (storedHash == identityHash) 1.0 else
+            com.aeriotv.android.core.guide.GuideIdentityHash.similarity(
+                appPreferences.epgIdentitySignature(playlist.id).first(),
+                com.aeriotv.android.core.guide.GuideIdentityHash.signature(channelsForBridge),
+            )
+        val identityStale = hasCache && channelsForBridge.isNotEmpty() && storedHash != identityHash &&
+            similarity < IDENTITY_SAME_LIST_SIMILARITY
+        if (hasCache && channelsForBridge.isNotEmpty() && storedHash != identityHash && !identityStale) {
+            Log.i(TAG, "loadEpgIfConfigured: channel list moved a little (similarity $similarity); cache kept")
+            runCatching { appPreferences.stampEpgIdentity(playlist.id, channelsForBridge) }
+        }
         // Rows painted from a stale-identity cache before the purge below.
         var identityPainted = 0
         if (identityStale) {
@@ -1192,7 +1555,7 @@ class PlaylistViewModel @Inject constructor(
                 }
                 Log.i(TAG, "EPG loaded: ${programmes.size} programmes")
                 // Stamp the cache with the identity it was built for (see identityStale).
-                runCatching { appPreferences.setEpgIdentityHash(playlist.id, com.aeriotv.android.core.guide.GuideIdentityHash.of(channelsNow)) }
+                runCatching { appPreferences.stampEpgIdentity(playlist.id, channelsNow) }
                 // A fetch that yields ZERO programmes is a FAILED fetch, not an
                 // empty guide, and it must not be allowed to overwrite anything.
                 // Installing it wiped the 6,916 rows the cached paint had just
@@ -1232,7 +1595,7 @@ class PlaylistViewModel @Inject constructor(
                 // same way (one deterministic build, no map surgery).
                 runCatching { repository.saveEpgToCache(playlist.id, programmes) }
                     .also {
-                        rebuildGuideCatalog(playlist, "fetch")
+                        rebuildGuideCatalog(playlist, if (forceRefresh) "fetch-forced" else "fetch")
                         _state.update { it.copy(isEpgLoading = false) }
                     }
                     .onSuccess {
@@ -2138,3 +2501,8 @@ internal fun normalizeSchemedUrl(raw: String): String {
     val scheme = if (isLan) "http://" else "https://"
     return "$scheme$hostPart"
 }
+
+/** A Dispatcharr channel on no real guide: its guide key is its own id, and
+ *  what the server sends for it is filler named after the channel. */
+private fun M3UChannel.isFillerKeyed(): Boolean =
+    id.startsWith("disp:") && tvgID.isNotBlank() && id.length == tvgID.length + 5 && id.endsWith(tvgID)

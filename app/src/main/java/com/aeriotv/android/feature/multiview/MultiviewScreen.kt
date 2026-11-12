@@ -213,6 +213,13 @@ fun MultiviewScreen(
     DisposableEffect(Unit) {
         onDispose { if (exitClearRequested.value) storeHandle.clear() }
     }
+    // One Multiview session for as long as the grid is on screen: every tile's
+    // request carries it, so a Dispatch More server's Force Close does not
+    // take a new tile for a channel change and close the tile before it.
+    DisposableEffect(Unit) {
+        com.aeriotv.android.core.network.DispatchMore.startMultiview()
+        onDispose { com.aeriotv.android.core.network.DispatchMore.endMultiview() }
+    }
 
     val tileMenuGuard = rememberTvMenuGuard()
     // Per-tile track sheets (indices into `selected`). Set from the tile menu;
@@ -1707,7 +1714,7 @@ private fun ExoTile(
                 }
             val dataSourceFactory: () -> androidx.media3.datasource.DataSource.Factory = {
                 vodDataSourceFactory
-                    ?: tracer.wrapDataSourceFactory(liveCalls.newFactory(headers, tileUserAgent, 30_000))
+                    ?: tracer.wrapDataSourceFactory(liveCalls.newFactory(url, headers, tileUserAgent, 30_000))
             }
             // Tiles decode audio to PCM (no passthrough): PCM AudioTracks are
             // mixed by the platform in any number, so every tile can keep its
@@ -2019,6 +2026,8 @@ private fun ExoTile(
             // teardown -- hand the new URL to the same player.
             if (url.isNotBlank() && currentUrlRef.value != url) {
                 Log.i(TAG, "Tile ExoPlayer swap: ${currentUrlRef.value} -> $url")
+                // The channel this tile is leaving, for a Dispatch More server.
+                val previousTileUrl = currentUrlRef.value
                 tileLimit.value = null
                 tileCleanEnd[0] = 0L
                 tileCleanEnd[1] = 0L
@@ -2040,9 +2049,11 @@ private fun ExoTile(
                             } else {
                                 // DefaultHttpDataSource defaults: 8 s connect + read.
                                 liveCalls.newFactory(
+                                    url,
                                     headers,
                                     "AerioTV/${com.aeriotv.android.BuildConfig.VERSION_NAME} (Android; ${android.os.Build.MODEL})",
                                     8_000,
+                                    previousUrl = previousTileUrl,
                                 )
                             },
                         )

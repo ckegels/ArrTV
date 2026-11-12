@@ -296,9 +296,10 @@ class PlaylistRepository @Inject constructor(
          * for "All Channels". Ignored for non-Dispatcharr sources. */
         val dispatcharrProfileId: Int? = null,
         /** Per-playlist On Demand opt-in (iOS ServerConnection.vodEnabled).
-         *  Default true. UI exposes this for Dispatcharr / Xtream sources; M3U
-         *  doesn't carry VOD so the field is ignored downstream for it. */
-        val vodEnabled: Boolean = true,
+         *  Default false for a new playlist. UI exposes this for Dispatcharr /
+         *  Xtream sources; M3U doesn't carry VOD so the field is ignored
+         *  downstream for it. */
+        val vodEnabled: Boolean = false,
         /** Days of already-aired EPG kept for catch-up browsing (task #135). */
         val epgRetentionDays: Int = 1,
     )

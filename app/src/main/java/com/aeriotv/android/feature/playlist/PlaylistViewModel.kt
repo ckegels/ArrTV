@@ -94,7 +94,7 @@ class PlaylistViewModel @Inject constructor(
          *  Bound to the "Fetch On Demand from this playlist" toggle in
          *  ConfigureSourceScreen / EditPlaylistScreen. Default true, threaded
          *  through SaveRequest into PlaylistEntity.vodEnabled. */
-        val vodEnabled: Boolean = true,
+        val vodEnabled: Boolean = NEW_PLAYLIST_VOD_ENABLED,
         /** Task #45 DVR onboarding step (iOS AddServerView Destination
          *  picker): where recordings land by default for Dispatcharr
          *  sources. Persisted to AppPreferences.dvrDefaultDestination only
@@ -199,6 +199,11 @@ class PlaylistViewModel @Inject constructor(
 
         /** Guide Days for a playlist set up from scratch. */
         const val NEW_PLAYLIST_GUIDE_DAYS = 1
+
+        /** Movies & TV Shows for a playlist set up from scratch: off, so the
+         *  first sign-in loads Live TV and the guide only (the library sweep
+         *  is heavy on a TV box); turned on at setup or in Edit Playlist. */
+        const val NEW_PLAYLIST_VOD_ENABLED = false
 
         /** ensureGuideCovers: how close to an edge, and how far one step widens. */
         private const val GUIDE_EDGE_MARGIN_AHEAD_MS = 2L * 3_600_000L
@@ -385,7 +390,7 @@ class PlaylistViewModel @Inject constructor(
                 apiKey = "",
                 username = "",
                 password = "",
-                vodEnabled = true,
+                vodEnabled = NEW_PLAYLIST_VOD_ENABLED,
                 epgRetentionDays = NEW_PLAYLIST_GUIDE_DAYS,
                 draftPlaylistId = null,
                 availableProfiles = emptyList(),
@@ -1665,6 +1670,15 @@ class PlaylistViewModel @Inject constructor(
                 // Rows go to Room first; the guide is then rebuilt from Room so
                 // fetch, cache paint, enrichment and history all install the
                 // same way (one deterministic build, no map surgery).
+                // Nothing on screen yet (a first download): paint straight from
+                // what arrived, the way the cached start paints its quick rows,
+                // then save and rebuild from Room as below. Saving ~51K rows took
+                // a minute on a Chromecast HD and the guide said "Loading…" all
+                // that time (2026-10-14).
+                if (_state.value.isEpgLoading) {
+                    rebuildGuideCatalog(playlist, "fetch-quick", preloadedRows = programmes)
+                    _state.update { it.copy(isEpgLoading = false) }
+                }
                 runCatching { repository.saveEpgToCache(playlist.id, programmes) }
                     .also {
                         rebuildGuideCatalog(playlist, if (forceRefresh) "fetch-forced" else "fetch")

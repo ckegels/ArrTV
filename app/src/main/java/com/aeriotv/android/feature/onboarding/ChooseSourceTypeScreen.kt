@@ -57,6 +57,9 @@ import com.aeriotv.android.R
 fun ChooseSourceTypeScreen(
     onBack: () -> Unit,
     onChoose: (SourceType) -> Unit,
+    /** False on the welcome page's "Other sources": the Dispatcharr login is
+     *  already its main card there, so only the unsupported fallbacks show. */
+    showDispatcharr: Boolean = true,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
@@ -115,26 +118,43 @@ fun ChooseSourceTypeScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = stringResource(R.string.main_choose_source_title),
+                    text = stringResource(if (showDispatcharr) R.string.main_choose_source_title else R.string.main_choose_other_title),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center,
                 )
+                if (showDispatcharr) {
+                    Text(
+                        text = stringResource(R.string.main_choose_source_subtitle),
+                        style = MaterialTheme.typography.bodyMedium.subtext(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+
+                    Spacer(Modifier.height(4.dp))
+
+                    // The main way in: the app is built for Dispatcharr with Dispatch More.
+                    SourceTypeCard(
+                        icon = Icons.Filled.Key,
+                        title = stringResource(R.string.main_source_dispatcharr_title),
+                        subtitle = stringResource(R.string.main_source_dispatcharr_subtitle),
+                        modifier = Modifier.tappable { onChoose(SourceType.DispatcharrUserPass) },
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.main_choose_unsupported_header),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 Text(
-                    text = stringResource(R.string.main_choose_source_subtitle),
-                    style = MaterialTheme.typography.bodyMedium.subtext(),
+                    text = stringResource(R.string.main_choose_unsupported_note, stringResource(R.string.app_name)),
+                    style = MaterialTheme.typography.bodySmall.subtext(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-
-                Spacer(Modifier.height(4.dp))
-
-                SourceTypeCard(
-                    icon = Icons.Filled.Key,
-                    title = stringResource(R.string.main_source_dispatcharr_title),
-                    subtitle = stringResource(R.string.main_source_dispatcharr_subtitle),
-                    modifier = Modifier.tappable { onChoose(SourceType.DispatcharrUserPass) },
+                    modifier = Modifier.fillMaxWidth(),
                 )
                 SourceTypeCard(
                     icon = Icons.Filled.Tv,

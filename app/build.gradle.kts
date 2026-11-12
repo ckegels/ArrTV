@@ -83,6 +83,12 @@ android {
         // -Paerio.showWhatsNew=false.
         val showWhatsNew = providers.gradleProperty("aerio.showWhatsNew").getOrElse("true").toBoolean()
         buildConfigField("boolean", "SHOW_WHATS_NEW", "$showWhatsNew")
+        // Extra subnets the welcome screen's server discovery asks besides the
+        // device's own (comma-separated IPv4 /24s or narrower, e.g.
+        // -Paerio.discoveryExtraSubnets=192.168.2.0/24), for a fork whose
+        // server sits on another subnet than its TVs. Empty: own subnet only.
+        val discoveryExtraSubnets = providers.gradleProperty("aerio.discoveryExtraSubnets").getOrElse("")
+        buildConfigField("String", "DISCOVERY_EXTRA_SUBNETS", "\"$discoveryExtraSubnets\"")
     }
 
     if (hasReleaseSigning) {

@@ -68,9 +68,10 @@ data class DiscoveredServer(
  * /api/core/version/` answers without a login ({"version": "0.31.0",
  * "build": "Dispatch More v198", ...}), so every address in the subnet is
  * asked on [ports] in parallel with a short timeout; anything that answers
- * with a version is a server. Limits: only the device's own subnet (at most
- * 254 addresses: the /24 around the device when the subnet is larger) and
- * only the ports asked.
+ * with a version is a server. Limits: the device's own subnet (at most 254
+ * addresses: the /24 around the device when the subnet is larger) plus the
+ * build's [BuildConfig.DISCOVERY_EXTRA_SUBNETS] (a fork's server subnet, e.g.
+ * 192.168.2.0/24), and only the ports asked.
  */
 object DispatcharrDiscovery {
     const val DEFAULT_PORT = 9191
@@ -85,9 +86,10 @@ object DispatcharrDiscovery {
         ports: List<Int> = listOf(DEFAULT_PORT),
         onFound: (DiscoveredServer) -> Unit,
     ) {
-        val hosts = localSubnetHosts(context)
+        val hosts = (localSubnetHosts(context) + extraSubnetHosts(com.aeriotv.android.BuildConfig.DISCOVERY_EXTRA_SUBNETS))
+            .distinct()
         if (hosts.isEmpty()) {
-            Log.i(TAG, "no IPv4 LAN address; skipping the scan")
+            Log.i(TAG, "no IPv4 LAN address and no extra subnet; skipping the scan")
             return
         }
         val started = android.os.SystemClock.elapsedRealtime()
@@ -134,6 +136,26 @@ object DispatcharrDiscovery {
             conn.disconnect()
         }
     }.getOrNull()
+
+    /**
+     * Host addresses of the build's extra subnets ("a.b.c.d/nn", comma-separated;
+     * prefixes wider than /24 are narrowed to the /24 at the given address, the
+     * same cap as the device's own subnet). Malformed entries are skipped.
+     */
+    internal fun extraSubnetHosts(spec: String): List<String> =
+        spec.split(',').map { it.trim() }.filter { it.isNotEmpty() }.flatMap { cidr ->
+            val parts = cidr.split('/')
+            val octets = parts[0].split('.').mapNotNull { it.toIntOrNull()?.takeIf { v -> v in 0..255 } }
+            val prefix = parts.getOrNull(1)?.toIntOrNull() ?: 24
+            if (octets.size != 4 || prefix !in 0..32) return@flatMap emptyList()
+            val addr = octets.fold(0L) { acc, o -> (acc shl 8) or o.toLong() }
+            val p = prefix.coerceIn(24, 30)
+            val mask = (0xFFFFFFFFL shl (32 - p)) and 0xFFFFFFFFL
+            val network0 = addr and mask
+            val broadcast = network0 or (mask.inv() and 0xFFFFFFFFL)
+            ((network0 + 1) until broadcast)
+                .map { ip -> "${ip shr 24 and 0xFF}.${ip shr 16 and 0xFF}.${ip shr 8 and 0xFF}.${ip and 0xFF}" }
+        }
 
     /** Every other host address in the device's Wi-Fi / Ethernet IPv4 subnet, capped to a /24. */
     private fun localSubnetHosts(context: Context): List<String> {

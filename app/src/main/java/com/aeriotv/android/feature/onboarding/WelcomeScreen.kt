@@ -40,6 +40,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -54,6 +56,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.aeriotv.android.R
+import androidx.compose.ui.focus.focusRequester
+import com.aeriotv.android.ui.settings.dpadFocusRing
 import com.aeriotv.android.feature.onboarding.components.SourceTypeCard
 import androidx.compose.ui.res.stringResource
 
@@ -69,8 +73,11 @@ import androidx.compose.ui.res.stringResource
  */
 @Composable
 fun WelcomeScreen(
+    /** The main way in: Dispatcharr username and password login. */
     onConnectServer: () -> Unit,
     onSkip: () -> Unit,
+    /** Xtream Codes or M3U, picked on the Other options page (unsupported fallbacks). */
+    onChooseSource: (com.aeriotv.android.core.data.SourceType) -> Unit = {},
     /**
      * Optional Sign-in-with-Google handler. When provided, a pill appears
      * between Connect-a-Server and Skip on the welcome screen so the user
@@ -84,6 +91,26 @@ fun WelcomeScreen(
      *  subnet opens its login with the address filled in. Null = no scan. */
     onPickDiscoveredServer: ((DiscoveredServer) -> Unit)? = null,
 ) {
+    // First run: the language comes before anything there is to read.
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var languageDone by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf(languageChosen(context))
+    }
+    if (!languageDone) {
+        LanguageStep(onDone = { languageDone = true })
+        return
+    }
+    // Other options: Google restore and the unsupported sources, one step away
+    // so the welcome page itself is just the Dispatcharr login.
+    var showOther by androidx.compose.runtime.saveable.rememberSaveable {
+        androidx.compose.runtime.mutableStateOf(false)
+    }
+    if (showOther) {
+        androidx.activity.compose.BackHandler { showOther = false }
+        OtherOptionsPage(onSignInWithGoogle, googleSignInInProgress, onChooseSource)
+        return
+    }
+    val onOtherSources = { showOther = true }
     val config = LocalConfiguration.current
     val isTv = com.aeriotv.android.feature.livetv.rememberLiveTvFormFactor().isTv
     // Two-column when the viewport is meaningfully wider than tall (tablet
@@ -99,14 +126,15 @@ fun WelcomeScreen(
     } else {
         {}
     }
-    if (twoColumn) WelcomeTwoColumn(onConnectServer, onSkip, onSignInWithGoogle, googleSignInInProgress, discovered)
-    else WelcomeSingleColumn(onConnectServer, onSkip, onSignInWithGoogle, googleSignInInProgress, discovered)
+    if (twoColumn) WelcomeTwoColumn(onConnectServer, onSkip, onOtherSources, onSignInWithGoogle, googleSignInInProgress, discovered)
+    else WelcomeSingleColumn(onConnectServer, onSkip, onOtherSources, onSignInWithGoogle, googleSignInInProgress, discovered)
 }
 
 @Composable
 private fun WelcomeSingleColumn(
     onConnectServer: () -> Unit,
     onSkip: () -> Unit,
+    onOtherSources: () -> Unit,
     onSignInWithGoogle: (() -> Unit)?,
     googleSignInInProgress: Boolean,
     discovered: @Composable () -> Unit,
@@ -135,16 +163,8 @@ private fun WelcomeSingleColumn(
             verticalArrangement = Arrangement.Center,
         ) {
             BrandBlock()
-            Spacer(Modifier.height(22.dp))
-            SupportedTypesGroup(alignStart = false)
-            Spacer(Modifier.height(22.dp))
-            discovered()
-            Spacer(Modifier.height(12.dp))
-            SyncCard(inProgress = googleSignInInProgress, onClick = onSignInWithGoogle)
-            if (onSignInWithGoogle != null) Spacer(Modifier.height(12.dp))
-            ConnectServerRow(onClick = onConnectServer)
-            Spacer(Modifier.height(4.dp))
-            SkipRow(onSkip = onSkip)
+            Spacer(Modifier.height(16.dp))
+            WelcomeActions(onConnectServer, onSkip, onOtherSources, onSignInWithGoogle, googleSignInInProgress, discovered)
         }
     }
 }
@@ -153,6 +173,7 @@ private fun WelcomeSingleColumn(
 private fun WelcomeTwoColumn(
     onConnectServer: () -> Unit,
     onSkip: () -> Unit,
+    onOtherSources: () -> Unit,
     onSignInWithGoogle: (() -> Unit)?,
     googleSignInInProgress: Boolean,
     discovered: @Composable () -> Unit,
@@ -163,7 +184,7 @@ private fun WelcomeTwoColumn(
             .background(MaterialTheme.colorScheme.background),
     ) {
         WelcomeAmbientOrbs(modifier = Modifier.fillMaxSize())
-        WelcomeTwoColumnRow(onConnectServer, onSkip, onSignInWithGoogle, googleSignInInProgress, discovered)
+        WelcomeTwoColumnRow(onConnectServer, onSkip, onOtherSources, onSignInWithGoogle, googleSignInInProgress, discovered)
     }
 }
 
@@ -171,6 +192,7 @@ private fun WelcomeTwoColumn(
 private fun WelcomeTwoColumnRow(
     onConnectServer: () -> Unit,
     onSkip: () -> Unit,
+    onOtherSources: () -> Unit,
     onSignInWithGoogle: (() -> Unit)?,
     googleSignInInProgress: Boolean,
     discovered: @Composable () -> Unit,
@@ -192,8 +214,6 @@ private fun WelcomeTwoColumnRow(
             horizontalAlignment = Alignment.Start,
         ) {
             BrandBlock(alignStart = true)
-            Spacer(Modifier.height(20.dp))
-            SupportedTypesGroup(alignStart = true)
         }
         // Right column: info cards + CTAs. The Connect button sits in the
         // viewport center on TV so the focus ring lands on it at cold start,
@@ -206,13 +226,7 @@ private fun WelcomeTwoColumnRow(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.Center,
         ) {
-            discovered()
-            Spacer(Modifier.height(12.dp))
-            SyncCard(inProgress = googleSignInInProgress, onClick = onSignInWithGoogle)
-            if (onSignInWithGoogle != null) Spacer(Modifier.height(12.dp))
-            ConnectServerRow(onClick = onConnectServer)
-            Spacer(Modifier.height(4.dp))
-            SkipRow(onSkip = onSkip)
+            WelcomeActions(onConnectServer, onSkip, onOtherSources, onSignInWithGoogle, googleSignInInProgress, discovered)
         }
     }
 }
@@ -246,12 +260,110 @@ private fun BrandBlock(alignStart: Boolean = false) {
     }
 }
 
+/**
+ * The welcome page's choices, in order: Dispatcharr servers found on the
+ * network and the Dispatcharr login (the main way in: the app is built for
+ * Dispatcharr with Dispatch More), then Other options (Google restore and the
+ * unsupported sources) and Skip as quiet links.
+ */
 @Composable
-private fun SupportedTypesGroup(alignStart: Boolean = false) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        SupportedTypeRow(icon = Icons.Filled.Key, label = stringResource(R.string.main_source_dispatcharr_title), alignStart = alignStart)
-        SupportedTypeRow(icon = Icons.Filled.Tv, label = "Xtream Codes", alignStart = alignStart)
-        SupportedTypeRow(icon = Icons.Filled.Description, label = "M3U + EPG", alignStart = alignStart)
+private fun WelcomeActions(
+    onConnectServer: () -> Unit,
+    onSkip: () -> Unit,
+    onOtherSources: () -> Unit,
+    onSignInWithGoogle: (() -> Unit)?,
+    googleSignInInProgress: Boolean,
+    discovered: @Composable () -> Unit,
+) {
+    discovered()
+    Spacer(Modifier.height(12.dp))
+    // Focus starts on the main way in, so a remote's OK goes straight to the login.
+    val connectFocus = androidx.compose.runtime.remember { androidx.compose.ui.focus.FocusRequester() }
+    androidx.compose.runtime.LaunchedEffect(Unit) { runCatching { connectFocus.requestFocus() } }
+    Box(modifier = Modifier.focusRequester(connectFocus)) {
+        ConnectServerRow(onClick = onConnectServer)
+    }
+    Spacer(Modifier.height(8.dp))
+    // The two quiet links share a row so the page fits a 1080p TV (~540dp).
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        LinkRow(text = stringResource(R.string.main_welcome_other_sources), onClick = onOtherSources)
+        SkipRow(onSkip = onSkip)
+    }
+}
+
+/**
+ * Other options, one step from the welcome page: restore from Google, and the
+ * sources the app plays but does not support (Xtream Codes, M3U), with why.
+ */
+@Composable
+private fun OtherOptionsPage(
+    onSignInWithGoogle: (() -> Unit)?,
+    googleSignInInProgress: Boolean,
+    onChooseSource: (com.aeriotv.android.core.data.SourceType) -> Unit,
+) {
+    val firstFocus = androidx.compose.runtime.remember { androidx.compose.ui.focus.FocusRequester() }
+    androidx.compose.runtime.LaunchedEffect(Unit) { runCatching { firstFocus.requestFocus() } }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
+        WelcomeAmbientOrbs(modifier = Modifier.fillMaxSize())
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .widthIn(max = 620.dp)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.main_welcome_other_sources),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
+            val cardModifier = Modifier
+                .clip(RoundedCornerShape(16.dp))
+                .dpadFocusRing(RoundedCornerShape(16.dp), washTint = MaterialTheme.colorScheme.primary)
+            if (onSignInWithGoogle != null) {
+                Box(modifier = Modifier.focusRequester(firstFocus)) {
+                    SyncCard(inProgress = googleSignInInProgress, onClick = onSignInWithGoogle)
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.main_welcome_other_sources_header),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = stringResource(R.string.main_choose_unsupported_note, stringResource(R.string.app_name)),
+                style = MaterialTheme.typography.bodySmall.subtext(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SourceTypeCard(
+                icon = Icons.Filled.Tv,
+                title = "Xtream Codes",
+                subtitle = stringResource(R.string.main_source_xtream_subtitle),
+                modifier = cardModifier
+                    .then(if (onSignInWithGoogle == null) Modifier.focusRequester(firstFocus) else Modifier)
+                    .clickable { onChooseSource(com.aeriotv.android.core.data.SourceType.XtreamCodes) },
+            )
+            SourceTypeCard(
+                icon = Icons.Filled.Description,
+                title = "M3U + EPG",
+                subtitle = stringResource(R.string.main_source_m3u_subtitle),
+                modifier = cardModifier.clickable { onChooseSource(com.aeriotv.android.core.data.SourceType.M3uUrl) },
+            )
+        }
     }
 }
 
@@ -302,9 +414,9 @@ private fun ConnectServerRow(onClick: () -> Unit) {
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
-        icon = Icons.Outlined.Hub,
-        title = stringResource(R.string.main_welcome_connect_server),
-        subtitle = null,
+        icon = Icons.Filled.Key,
+        title = stringResource(R.string.main_welcome_connect_dispatcharr),
+        subtitle = stringResource(R.string.main_welcome_connect_dispatcharr_subtitle),
         trailing = {
             Icon(
                 imageVector = Icons.Filled.ChevronRight,
@@ -313,6 +425,17 @@ private fun ConnectServerRow(onClick: () -> Unit) {
             )
         },
     )
+}
+
+@Composable
+private fun LinkRow(text: String, onClick: () -> Unit) {
+    TextButton(onClick = onClick) {
+        Text(
+            text = text,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
 }
 
 @Composable
@@ -446,28 +569,3 @@ private fun GradientIcon(
     }
 }
 
-@Composable
-private fun SupportedTypeRow(icon: ImageVector, label: String, alignStart: Boolean = false) {
-    val gradient = accentBrush()
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(
-            10.dp,
-            if (alignStart) Alignment.Start else Alignment.CenterHorizontally,
-        ),
-    ) {
-        GradientIcon(
-            imageVector = icon,
-            brush = gradient,
-            modifier = Modifier.size(18.dp),
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-    }
-}

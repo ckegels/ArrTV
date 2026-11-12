@@ -204,8 +204,17 @@ interface EpgProgrammeDao {
         limit: Int = 60,
     ): List<EpgProgrammeEntity>
 
-    /** Most recent fetch time for this source, or null when nothing is cached. */
-    @Query("SELECT MAX(fetchedAt) FROM epg_programme WHERE playlistId = :playlistId")
+    /**
+     * Most recent fetch time for this source, or null when nothing is cached.
+     *
+     * The newest ROW's fetchedAt: every write inserts (REPLACE gives a
+     * replaced row a new id), so the highest id is the latest write, and the
+     * `playlistId` index is ordered by (playlistId, rowid), which makes this
+     * one index seek. `MAX(fetchedAt)` has no index and read every guide row
+     * of the playlist: 79 s on a Chromecast HD while a prune was writing
+     * (2026-10-14), holding a connection the playlist screen was waiting for.
+     */
+    @Query("SELECT fetchedAt FROM epg_programme WHERE playlistId = :playlistId ORDER BY id DESC LIMIT 1")
     suspend fun newestFetchedAt(playlistId: String): Long?
 
     /** Earliest cached start for this source, or null when nothing is cached. */
@@ -238,6 +247,33 @@ interface EpgProgrammeDao {
      *  ignore it. */
     @Query("DELETE FROM epg_programme WHERE playlistId = :playlistId AND endMillis < :before")
     suspend fun deleteEndedBeforeForPlaylist(playlistId: String, before: Long): Int
+
+    /**
+     * [deleteEndedBeforeForPlaylist] in batches of at most [limit] rows, for
+     * callers that loop until fewer than [limit] go. Served by the
+     * (playlistId, endMillis) index. One statement over a whole guide's past
+     * (hundreds of thousands of rows, six indexes each) held the write
+     * connection for minutes and committed for another minute on a Chromecast
+     * HD; small batches keep each transaction short so reads get in between.
+     */
+    @Query(
+        "DELETE FROM epg_programme WHERE id IN (SELECT id FROM epg_programme " +
+            "WHERE playlistId = :playlistId AND endMillis < :before LIMIT :limit)"
+    )
+    suspend fun deleteEndedBeforeForPlaylistBatch(playlistId: String, before: Long, limit: Int): Int
+
+    /** [deleteEndedBeforeForChannels] in batches of at most [limit] rows; see
+     *  [deleteEndedBeforeForPlaylistBatch]. */
+    @Query(
+        "DELETE FROM epg_programme WHERE id IN (SELECT id FROM epg_programme " +
+            "WHERE playlistId = :playlistId AND endMillis < :before AND channelId IN (:channelIds) LIMIT :limit)"
+    )
+    suspend fun deleteEndedBeforeForChannelsBatch(
+        playlistId: String,
+        before: Long,
+        channelIds: List<String>,
+        limit: Int,
+    ): Int
 
     /**
      * Catch-up reach prune (Logan 2026-09-12: "delete EPG from the previous

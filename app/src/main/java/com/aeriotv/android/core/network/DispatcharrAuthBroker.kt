@@ -142,6 +142,10 @@ class DispatcharrAuthBroker @Inject constructor(
             tokenStore.store(playlist.id, pair.access, pair.refresh)
             val newKey = client.fetchCurrentUserApiKey(playlist.urlString, pair.access)
             dao.update(playlist.copy(apiKey = newKey))
+            // The screens hold their own copy of the playlist; without this the
+            // player kept sending the old key and every retry got 401 until the
+            // app was restarted (Chromecast HD, 2026-10-14).
+            renewedKeys.tryEmit(playlist.id to newKey)
             Log.i(TAG, "silentRebootstrap OK for ${playlist.id.take(8)}")
             newKey
         } catch (c: kotlinx.coroutines.CancellationException) {
@@ -156,7 +160,16 @@ class DispatcharrAuthBroker @Inject constructor(
         }
     }
 
-    private companion object {
-        const val TAG = "DispatcharrAuthBroker"
+    companion object {
+        private const val TAG = "DispatcharrAuthBroker"
+
+        private val renewedKeys = kotlinx.coroutines.flow.MutableSharedFlow<Pair<String, String>>(
+            extraBufferCapacity = 8,
+            onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST,
+        )
+
+        /** (playlist id, new api_key) each time a silent re-login replaced a
+         *  rejected key, for whatever holds a copy of the playlist. */
+        val keyRenewed: kotlinx.coroutines.flow.SharedFlow<Pair<String, String>> = renewedKeys
     }
 }

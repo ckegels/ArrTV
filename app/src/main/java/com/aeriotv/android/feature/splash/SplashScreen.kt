@@ -149,7 +149,7 @@ private fun SplashContent(modifier: Modifier = Modifier) {
             )
             Spacer(Modifier.height(logoBottomPad))
             Text(
-                text = "AerioTV",
+                text = stringResource(R.string.app_name),
                 fontSize = titleSize,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,

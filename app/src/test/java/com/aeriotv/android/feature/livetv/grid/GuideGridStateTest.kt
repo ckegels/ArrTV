@@ -46,6 +46,18 @@ class GuideGridStateTest {
     }
 
     @Test
+    fun downPastTheLastChannelGoesBackToTheFirst() {
+        val s = state()
+        s.installRows(rows(espn, fox, programmes = listOf(p(espn, "A", 0, 12 * h), p(fox, "B", 0, 12 * h))))
+        assertTrue(s.moveRows(1))
+        assertFalse(s.moveRows(1))
+        assertTrue(s.wrapToFirstRow())
+        assertEquals(0, s.focusRow)
+        assertEquals("A", s.focusedCell()!!.title)
+        assertFalse(s.wrapToFirstRow())
+    }
+
+    @Test
     fun upAtTheTopEscapesInsteadOfMoving() {
         val s = state()
         s.installRows(rows(espn, programmes = listOf(p(espn, "A", 0, 12 * h))))

@@ -55,6 +55,11 @@ android {
         versionCode = 65
         versionName = "0.5.9"
         vectorDrawables { useSupportLibrary = true }
+        // ArrTV look (Slate, dark, text 1.15, compact modern layout, info bar)
+        // applied once on every install, new or updated. Off in official
+        // builds; ArrTV turns it on with -Paerio.arrTvLookByDefault=true.
+        val arrTvLookByDefault = providers.gradleProperty("aerio.arrTvLookByDefault").getOrElse("false").toBoolean()
+        buildConfigField("boolean", "ARRTV_LOOK_BY_DEFAULT", "$arrTvLookByDefault")
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
         }

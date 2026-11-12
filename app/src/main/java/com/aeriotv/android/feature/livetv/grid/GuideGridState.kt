@@ -63,7 +63,26 @@ class GuideGridState(
     var focusChannelId: String? = null
         private set
 
-    val anchorMs: Long get() = viewportStartMs + leadMs
+    /**
+     * Compact modern layout (TiviMate): the live timeline starts ON the half
+     * hour (11:04 shows from 11:00), so the time labels and the programmes
+     * starting on them begin exactly at the grid's left edge. The anchor is
+     * then "now" while the live slot is on screen, so a vertical move still
+     * lands on the programme airing now, and just inside the left edge after
+     * a pan. Off: now minus [leadMs], anchor at the lead (the locked rules).
+     */
+    var alignToHalfHour: Boolean = false
+
+    /** Where the timeline sits when it shows now. */
+    fun liveViewportStart(nowMs: Long): Long =
+        if (alignToHalfHour) nowMs - Math.floorMod(nowMs, HALF_HOUR_MS) else nowMs - leadMs
+
+    val anchorMs: Long get() = if (alignToHalfHour) {
+        val now = System.currentTimeMillis()
+        if (now >= viewportStartMs && now < viewportStartMs + HALF_HOUR_MS) now else viewportStartMs + ALIGNED_LEAD_MS
+    } else {
+        viewportStartMs + leadMs
+    }
     val viewportEndMs: Long get() = viewportStartMs + viewportDurationMs
     val hasFocus: Boolean get() = focusRow >= 0
 
@@ -107,6 +126,14 @@ class GuideGridState(
         return true
     }
 
+    /** DOWN on the last row: to the first row. False when already there
+     *  (or nothing is listed). */
+    fun wrapToFirstRow(): Boolean {
+        if (rows.isEmpty || focusRow <= 0) return false
+        land(0)
+        return true
+    }
+
     /** LEFT/RIGHT: pan by one step, then retarget on the same row. Returns false when the window edge stops the pan. */
     fun pan(direction: Int): Boolean {
         if (rows.isEmpty) return false
@@ -138,9 +165,9 @@ class GuideGridState(
                 focusChannelId = rows.channel(row).id
                 focusCellStartMs = prev.startMillis
                 // Exact like tvOS (3 min), not the half-hour Back slop.
-                if (abs(viewportStartMs - (nowMs - leadMs)) > 3 * 60_000L) {
+                if (abs(viewportStartMs - liveViewportStart(nowMs)) > 3 * 60_000L) {
                     viewportChangeAnimated = true
-                    viewportStartMs = (nowMs - leadMs).coerceIn(minViewportStart(), maxViewportStart())
+                    viewportStartMs = liveViewportStart(nowMs).coerceIn(minViewportStart(), maxViewportStart())
                 }
                 return true
             }
@@ -254,7 +281,7 @@ class GuideGridState(
     /** Put NOW at the lead offset inside the left edge; keep the row. */
     fun anchorToNow(nowMs: Long) {
         viewportChangeAnimated = true
-        viewportStartMs = (nowMs - leadMs).coerceIn(minViewportStart(), maxViewportStart())
+        viewportStartMs = liveViewportStart(nowMs).coerceIn(minViewportStart(), maxViewportStart())
         if (!rows.isEmpty) land(focusRow.coerceAtLeast(0))
     }
 
@@ -302,4 +329,10 @@ class GuideGridState(
     }
 
     enum class BackStep { RESTORED_NOW_AND_TOP, TOP, NONE }
+
+    private companion object {
+        const val HALF_HOUR_MS = 30 * 60_000L
+        /** Aligned mode, panned away from now: anchor just inside the left edge. */
+        const val ALIGNED_LEAD_MS = 60_000L
+    }
 }

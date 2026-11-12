@@ -79,6 +79,8 @@ private val MINI_WIDTH = MiniPlayerChrome.miniWidth
 private val MINI_HEIGHT = MiniPlayerChrome.miniHeight
 private val MINI_END_INSET = 20.dp
 private val MINI_CORNER = 6.dp
+/** The compact modern guide's video slot corner (TiviGuideBanner). */
+private val VIDEO_SLOT_CORNER = 10.dp
 
 /** Floor for the fit-to-band shrink; below this the mini is not a picture. */
 private val MINI_MIN_HEIGHT = 56.dp
@@ -151,12 +153,23 @@ fun BoxScope.PersistentExoWindow(
         band >= MINI_HEIGHT -> MINI_HEIGHT
         else -> band.coerceAtLeast(MINI_MIN_HEIGHT)
     }
-    val miniFitWidth = MINI_WIDTH * (miniFitHeight / MINI_HEIGHT)
-    val miniFitTop = if (artBottom > 0.dp) {
+    val cornerFitWidth = MINI_WIDTH * (miniFitHeight / MINI_HEIGHT)
+    val cornerFitTop = if (artBottom > 0.dp) {
         (artBottom - miniFitHeight).coerceAtLeast(barBottomInset)
     } else {
         barBottomInset
     }
+    // Compact modern guide (TiviMate): the banner reserves a video slot at its
+    // top left; the mini fills it exactly instead of the corner.
+    val videoSlot by MiniPlayerChrome.videoSlotPx.collectAsStateWithLifecycle()
+    val slotDp = videoSlot?.let { r ->
+        with(localDensity) { androidx.compose.ui.geometry.Rect(r.left.toDp().value, r.top.toDp().value, r.right.toDp().value, r.bottom.toDp().value) }
+    }
+    val miniFitWidth = slotDp?.let { it.width.dp } ?: cornerFitWidth
+    val miniFitHeightFinal = slotDp?.let { it.height.dp } ?: miniFitHeight
+    val miniFitTop = slotDp?.let { it.top.dp } ?: cornerFitTop
+    val miniFitEnd = slotDp?.let { (screenW - it.right.dp).coerceAtLeast(0.dp) } ?: MINI_END_INSET
+    val miniFitCorner = if (slotDp != null) VIDEO_SLOT_CORNER else MINI_CORNER
 
     val miniWidth by animateDpAsState(
         targetValue = if (miniTarget) miniFitWidth else screenW,
@@ -164,7 +177,7 @@ fun BoxScope.PersistentExoWindow(
         label = "miniWidth",
     )
     val miniHeight by animateDpAsState(
-        targetValue = if (miniTarget) miniFitHeight else screenH,
+        targetValue = if (miniTarget) miniFitHeightFinal else screenH,
         animationSpec = miniSpec,
         label = "miniHeight",
     )
@@ -174,12 +187,12 @@ fun BoxScope.PersistentExoWindow(
         label = "miniTopInset",
     )
     val miniEndInset by animateDpAsState(
-        targetValue = if (miniTarget) MINI_END_INSET else 0.dp,
+        targetValue = if (miniTarget) miniFitEnd else 0.dp,
         animationSpec = miniSpec,
         label = "miniEndInset",
     )
     val miniCorner by animateDpAsState(
-        targetValue = if (miniTarget) MINI_CORNER else 0.dp,
+        targetValue = if (miniTarget) miniFitCorner else 0.dp,
         animationSpec = miniSpec,
         label = "miniCorner",
     )
@@ -199,7 +212,7 @@ fun BoxScope.PersistentExoWindow(
     }
     val stashOffset by animateDpAsState(
         targetValue = if (stashTarget) {
-            miniFitWidth + MINI_END_INSET - MiniPlayerChrome.stashSliver
+            miniFitWidth + miniFitEnd - MiniPlayerChrome.stashSliver
         } else 0.dp,
         animationSpec = if (reduceMotion) snap() else miniSpec,
         label = "miniStashOffset",

@@ -3142,8 +3142,13 @@ private fun CatchupUnavailableCard(
             it.contains("404") || it.contains("Not Found", ignoreCase = true) ||
                 it.contains("BAD_HTTP_STATUS")
         }
+        // 503: the archive's provider has no free connection (another TV on it, a look back
+        // the server could not make room for) -- not a missing archive
+        val busy = lastErrorText.orEmpty().contains("503")
         Text(
-            text = if (noArchive) {
+            text = if (busy) {
+                "The provider keeping this programme's archive is in use on another device. Try again when it is free."
+            } else if (noArchive) {
                 "Your provider doesn't have an archive for this programme."
             } else {
                 "Playback of this programme's archive failed."

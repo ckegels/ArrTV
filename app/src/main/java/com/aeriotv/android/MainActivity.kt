@@ -1134,6 +1134,8 @@ class MainActivity : ComponentActivity() {
                                 deepLinkTarget = deepLinkTarget.value,
                                 onDeepLinkConsumed = { deepLinkTarget.value = null },
                             )
+                            // Look-back priority: the server's steps while it makes room
+                            com.aeriotv.android.feature.player.CatchupRoomOverlay(exoHolder)
                             // Issue #16: long-press BACK on Android TV opens this
                             // confirm (onKeyLongPress flips showExitConfirm). Rendered
                             // as a sibling of the NavHost so it overlays every screen.

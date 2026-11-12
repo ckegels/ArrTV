@@ -49,11 +49,6 @@
     <string name="main_not_now">Not now</string>
 
     <!-- LiveRewindPrompt.kt -->
-    <string name="main_live_rewind_prompt_title">New: Live Rewind</string>
-    <string name="main_live_rewind_prompt_body">Pause and rewind live TV. While you watch a channel fullscreen, AerioTV keeps a rolling buffer on this device so you can skip back, scrub the timeline, or pause and pick up where you left off.</string>
-    <string name="main_live_rewind_prompt_footer">Buffered video is deleted automatically. You can change this anytime in Settings > App Behaviors > Live Rewind.</string>
-    <string name="main_live_rewind_prompt_enable">Enable</string>
-    <string name="main_not_now_caps">Not Now</string>
 
     <!-- WhatsNewSheet.kt -->
     <string name="main_whats_new_title">What\'s New in v%1$s</string>

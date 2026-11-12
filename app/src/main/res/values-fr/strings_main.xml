@@ -49,11 +49,6 @@
     <string name="main_not_now">Plus tard</string>
 
     <!-- LiveRewindPrompt.kt -->
-    <string name="main_live_rewind_prompt_title">Nouveau : Retour en arrière</string>
-    <string name="main_live_rewind_prompt_body">Mettez en pause et revenez en arrière sur la TV en direct. Quand vous regardez une chaîne en plein écran, AerioTV garde une mémoire tampon glissante sur cet appareil : vous pouvez reculer, parcourir la timeline, ou mettre en pause et reprendre là où vous en étiez.</string>
-    <string name="main_live_rewind_prompt_footer">La vidéo en mémoire tampon est supprimée automatiquement. Vous pouvez modifier ce choix à tout moment dans Paramètres > Comportement de l\'app > Retour en arrière.</string>
-    <string name="main_live_rewind_prompt_enable">Activer</string>
-    <string name="main_not_now_caps">Plus tard</string>
 
     <!-- WhatsNewSheet.kt -->
     <string name="main_whats_new_title">Nouveautés de la v%1$s</string>

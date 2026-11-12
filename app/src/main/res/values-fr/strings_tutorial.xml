@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tutorial_offer_title">Découvrir votre télécommande ?</string>
+    <string name="tutorial_offer_text">Une courte visite de ce que fait chaque touche dans le guide et pendant la lecture. Vous pourrez la revoir dans Paramètres › Télécommande.</string>
+    <string name="tutorial_offer_start">Commencer le tutoriel</string>
+    <string name="tutorial_offer_later">Plus tard</string>
+    <string name="tutorial_next">Suivant</string>
+    <string name="tutorial_done">Terminer</string>
+    <string name="tutorial_skip">Passer</string>
+    <string name="tutorial_page_of">%1$d / %2$d</string>
+    <string name="tutorial_hold">Maintenir</string>
+    <string name="tutorial_twice">Deux fois</string>
+    <string name="tutorial_basics_title">Votre télécommande</string>
+    <string name="tutorial_basics_intro">Toute l’application se pilote avec ces quelques touches. « Maintenir » veut dire garder la touche enfoncée environ une seconde.</string>
+    <string name="tutorial_basics_arrows">Se déplacer à l’écran</string>
+    <string name="tutorial_basics_ok">Choisir, valider, lire</string>
+    <string name="tutorial_basics_ok_hold">Plus d’options pour l’élément sélectionné</string>
+    <string name="tutorial_basics_back">Revenir en arrière</string>
+    <string name="tutorial_basics_home">Quitter l’application (accueil de la TV)</string>
+    <string name="tutorial_guide_title">Dans le guide</string>
+    <string name="tutorial_guide_intro">Le guide montre chaque chaîne avec ce qui passe maintenant et ensuite.</string>
+    <string name="tutorial_guide_updown">Passer d’une chaîne à l’autre</string>
+    <string name="tutorial_guide_leftright_time">Avancer ou reculer dans le temps</string>
+    <string name="tutorial_guide_back">Revenir à la première chaîne</string>
+    <string name="tutorial_watch_title">Pendant la lecture</string>
+    <string name="tutorial_watch_intro">La chaîne est en plein écran ; ces touches fonctionnent sans rien afficher.</string>
+    <string name="tutorial_watch_back">Réduire en petit lecteur dans un coin pour naviguer</string>
+    <string name="tutorial_watch_back_twice">Arrêter la lecture</string>
+    <string name="tutorial_controls_title">Commandes du lecteur</string>
+    <string name="tutorial_controls_intro">Appuyez sur OK pendant la lecture pour afficher les détails du programme et les commandes.</string>
+    <string name="tutorial_controls_leftright">Parcourir la rangée : guide TV, historique et les autres chaînes</string>
+    <string name="tutorial_controls_ok">Activer le bouton sélectionné</string>
+    <string name="tutorial_controls_down">Rangée avec le guide TV, l’historique et les chaînes suivantes</string>
+    <string name="tutorial_controls_ok_hold">Options : sous-titres, audio, enregistrer, minuterie…</string>
+    <string name="tutorial_controls_back">Masquer les commandes</string>
+    <string name="tutorial_end_title">Vous êtes prêt</string>
+    <string name="tutorial_end_text">Bon visionnage ! Vous pouvez revoir cette visite dans Paramètres › Télécommande, où vous pouvez aussi changer le rôle des touches.</string>
+    <string name="tutorial_settings_header">Tutoriel</string>
+    <string name="tutorial_settings_open">Afficher le tutoriel de la télécommande</string>
+    <string name="tutorial_settings_open_subtitle">L’appli montre chaque touche dans le guide et pendant la lecture</string>
+    <!-- Visite en direct : l’appli se pilote seule, une télécommande sur le côté montre chaque touche -->
+    <string name="tutorial_demo_title">Visite de la télécommande</string>
+    <string name="tutorial_demo_stop">Retour : arrêter la visite</string>
+    <string name="tutorial_demo_close">Le refermer</string>
+    <string name="tutorial_demo_now">Revenir à ce qui passe maintenant</string>
+    <string name="tutorial_demo_guide_back">Quitter le plein écran : la chaîne continue pendant que vous parcourez le guide</string>
+    <string name="tutorial_demo_mini_back">Revenir en plein écran</string>
+    <string name="tutorial_demo_catchup_note">Les émissions avec ce symbole peuvent être revues depuis le début, mais ce n’est pas toujours fiable.</string>
+    <string name="tutorial_demo_your_turn">À vous ! Appuyez sur Retour ou OK pour terminer.</string>
+</resources>

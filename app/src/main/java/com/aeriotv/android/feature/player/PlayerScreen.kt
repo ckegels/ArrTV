@@ -344,7 +344,11 @@ fun PlayerScreen(
             // programme, not whatever happens to be airing live on the
             // channel right now (task #148 milestone B polish).
             if (isCatchupMode) {
-                EPGProgramme(
+                // The guide's own entry when it still has it (description, episode), else one
+                // made from the replay's title and times
+                currentChannel?.let { ch ->
+                    epgByChannel[ch.guideMatchKey]?.firstOrNull { it.startMillis == catchupStartMillis && !it.isPlaceholder }
+                } ?: EPGProgramme(
                     channelId = currentChannel?.guideMatchKey.orEmpty(),
                     title = catchupTitle.ifBlank { currentChannel?.name.orEmpty() },
                     description = "",
@@ -2783,7 +2787,8 @@ private fun LiveRewindChromeSection(
     )
     // Info bar style (TV): the next channels in guide order for the card row,
     // their current programmes, and what follows the current programme.
-    val infoBar = if (infoBarStyle && isTvForm && !isCatchupMode) {
+    // A look-back replay too: PlayerChromeOverlay shows it trimmed (InfoBarReplay)
+    val infoBar = if (infoBarStyle && isTvForm) {
         var currentIndex by currentIndexState
         val idx = currentIndex
         val upcoming = remember(channels, idx) {

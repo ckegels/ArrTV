@@ -2358,6 +2358,11 @@ class AerioExoPlayerHolder @Inject constructor(
             timeshift.get().onGoLive()
         }
         isCatchup = true
+        // The live channel's first-byte watch (LiveStreamFailover) stays off for a replay: it
+        // kept waiting for the channel tuned before, and put "Reconnecting..." with a byte count
+        // over a replay that played fine (Shield, 2026-10-02)
+        liveFailover.resetWalk()
+        liveFailover.publishServerStatus(null)
         timeshiftErrorRetries = 0
         lastGapKey = null
         gapHops = 0

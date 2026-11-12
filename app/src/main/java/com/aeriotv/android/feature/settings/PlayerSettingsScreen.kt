@@ -79,6 +79,7 @@ fun PlayerSettingsScreen(
     val bufferSize by viewModel.streamBufferSize.collectAsStateWithLifecycle(initialValue = "default")
     val autoRecoverFrozenStreams by viewModel.autoRecoverFrozenStreams
         .collectAsStateWithLifecycle(initialValue = true)
+    val teletextSubtitles by viewModel.teletextSubtitles.collectAsStateWithLifecycle(initialValue = true)
     val audioPassthrough by viewModel.audioPassthroughEnabled.collectAsStateWithLifecycle(initialValue = false)
 
     val appleTVChannelFlip by viewModel.appleTVChannelFlip.collectAsStateWithLifecycle(initialValue = true)
@@ -291,6 +292,12 @@ fun PlayerSettingsScreen(
                         subtitle = "Reload a live stream that stops sending video. Off keeps the stream as-is through commercial-break stutters.",
                         checked = autoRecoverFrozenStreams,
                         onCheckedChange = viewModel::setAutoRecoverFrozenStreams,
+                    )
+                    SettingsToggleRow(
+                        title = "Teletext Subtitles",
+                        subtitle = "Offer the teletext subtitles many European channels send (page 888, 777, 150) under Subtitles. Takes effect on the next channel.",
+                        checked = teletextSubtitles,
+                        onCheckedChange = viewModel::setTeletextSubtitles,
                     )
                 }
 

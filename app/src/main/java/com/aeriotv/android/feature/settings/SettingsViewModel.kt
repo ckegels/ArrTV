@@ -407,6 +407,11 @@ class SettingsViewModel @Inject constructor(
     }
 
     // iOS appBehaviorsAutoRecoverFrozenStreams (#37). Default true; device-local.
+    val teletextSubtitles: Flow<Boolean> = prefs.teletextSubtitles
+    fun setTeletextSubtitles(value: Boolean) {
+        viewModelScope.launch { prefs.setTeletextSubtitles(value) }
+    }
+
     val autoRecoverFrozenStreams: Flow<Boolean> = prefs.autoRecoverFrozenStreams
     fun setAutoRecoverFrozenStreams(value: Boolean) {
         viewModelScope.launch { prefs.setAutoRecoverFrozenStreams(value) }

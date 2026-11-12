@@ -680,6 +680,13 @@ class AppPreferences @Inject constructor(
      * regardless, iOS keeps that lifeline. Default true. Device-local, NOT
      * synced. Read per-tune by AerioExoPlayerHolder.
      */
+    /** Read teletext subtitles (page 888, 777, 150...) from the stream; Media3 has no decoder for
+     *  them. On by default; off plays the stream with Media3's own TS extractor, as before. */
+    val teletextSubtitles: Flow<Boolean> = store.data.map { it[KEY_TELETEXT_SUBTITLES] ?: true }
+    suspend fun setTeletextSubtitles(value: Boolean) {
+        store.edit { it[KEY_TELETEXT_SUBTITLES] = value }
+    }
+
     val autoRecoverFrozenStreams: Flow<Boolean> =
         store.data.map { it[KEY_AUTO_RECOVER_FROZEN_STREAMS] ?: true }
     suspend fun setAutoRecoverFrozenStreams(value: Boolean) {
@@ -2154,6 +2161,7 @@ class AppPreferences @Inject constructor(
         val KEY_SERIES_SORT_ORDER = stringPreferencesKey("series_sort_order")
         val KEY_DVR_SORT_ORDER = stringPreferencesKey("dvr_sort_order")
         val KEY_MATCH_CONTENT_RESOLUTION = booleanPreferencesKey("match_content_resolution")
+        val KEY_TELETEXT_SUBTITLES = booleanPreferencesKey("teletext_subtitles")
         val KEY_AUTO_RECOVER_FROZEN_STREAMS =
             booleanPreferencesKey("app_behaviors_auto_recover_frozen_streams")
         // TV player overlay style (info bar); device-local.

@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -38,6 +39,7 @@ import com.aeriotv.android.ui.settings.SettingsDetailTopBar
 import com.aeriotv.android.ui.settings.SettingsInfoRow
 import com.aeriotv.android.ui.settings.SettingsRowContainer
 import com.aeriotv.android.ui.settings.SettingsSection
+import com.aeriotv.android.ui.settings.SettingsToggleRow
 import com.aeriotv.android.ui.adaptive.LocalTabBarBottomInset
 
 /**
@@ -56,6 +58,8 @@ fun AppUpdatesScreen(
     viewModel: UpdateViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val checking by viewModel.checking.collectAsStateWithLifecycle()
+    val autoCheck by viewModel.autoCheck.collectAsStateWithLifecycle(initialValue = true)
 
     Column(modifier = Modifier.fillMaxSize()) {
         SettingsDetailTopBar(title = "App Updates", onBack = onBack)
@@ -77,15 +81,41 @@ fun AppUpdatesScreen(
                 ) {
                     SettingsInfoRow(label = "Version", value = BuildConfig.VERSION_NAME)
                     SettingsInfoRow(label = "Channel", value = "GitHub releases")
+                    // The result shows on the row itself, so every tap gives
+                    // visible feedback even when the answer did not change.
+                    val s = state
                     SettingsActionRow(
                         label = "Check for updates",
                         leadingIcon = Icons.Filled.Refresh,
                         onClick = { viewModel.manualCheck() },
+                        running = checking,
+                        statusLine = when {
+                            checking -> "Checking GitHub..."
+                            s is UpdateState.UpToDate ->
+                                "You're on the latest version (checked ${timeOf(s.checkedAtMs)})."
+                            s is UpdateState.Available -> "Version ${s.info.versionName} is available below."
+                            s is UpdateState.Error && s.info == null -> "The check failed. See below."
+                            else -> null
+                        },
+                        statusIsError = !checking && s is UpdateState.Error && s.info == null,
+                    )
+                }
+
+                SettingsSection(
+                    header = "Automatic checks",
+                    footer = "When on, AerioTV looks for a new version when you open it " +
+                        "and offers it. Off: nothing is checked " +
+                        "until you tap Check for updates.",
+                ) {
+                    SettingsToggleRow(
+                        title = "Check for updates automatically",
+                        checked = autoCheck,
+                        onCheckedChange = { viewModel.setAutoCheck(it) },
                     )
                 }
 
                 when (val s = state) {
-                    is UpdateState.UpToDate -> StatusText("You're on the latest version.")
+                    is UpdateState.UpToDate -> Unit // shown on the Check for updates row
                     is UpdateState.Available -> SettingsSection(
                         header = "Update available",
                         footer = s.info.notes.ifBlank { null },
@@ -160,6 +190,11 @@ fun AppUpdatesScreen(
         }
     }
 }
+
+/** Local time of day, e.g. "14:05", for the last check. */
+@Composable
+private fun timeOf(ms: Long): String =
+    android.text.format.DateFormat.getTimeFormat(LocalContext.current).format(java.util.Date(ms))
 
 @Composable
 private fun StatusText(text: String) {

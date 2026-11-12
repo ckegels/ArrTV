@@ -1032,7 +1032,7 @@ class MainActivity : ComponentActivity() {
         // via a top-level effect, navigates, then clears it.
         if (!castLaunch) captureDeepLinkFrom(intent)
         setContent {
-            val theme by appPreferences.selectedTheme.collectAsState(initial = AppTheme.Aerio)
+            val theme by appPreferences.selectedTheme.collectAsState(initial = AppTheme.Default)
             // DEFAULT MUST be Dark: the initial (pre-first-emission) value AND
             // the persisted-absence value both resolve to Dark, so an existing
             // install sees zero visual change on upgrade.

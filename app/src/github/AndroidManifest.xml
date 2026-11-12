@@ -11,6 +11,10 @@
          system package installer. The user still confirms every install and
          grants the per-app "Install unknown apps" toggle the first time. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Android 12+: an update somebody started by pressing Update installs
+         without the system's second confirm, where Android allows it (this
+         app installed the current version). -->
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
 
     <application>
         <!-- PackageInstaller session status sink. Manifest-declared (not

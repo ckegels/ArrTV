@@ -110,8 +110,8 @@ class AppPreferences @Inject constructor(
     private val store get() = context.appDataStore
 
     val selectedTheme: Flow<AppTheme> = store.data.map { prefs ->
-        val raw = prefs[KEY_SELECTED_THEME] ?: AppTheme.Aerio.name
-        AppTheme.entries.firstOrNull { it.name == raw } ?: AppTheme.Aerio
+        val raw = prefs[KEY_SELECTED_THEME] ?: AppTheme.Default.name
+        AppTheme.entries.firstOrNull { it.name == raw } ?: AppTheme.Default
     }
 
     suspend fun setSelectedTheme(theme: AppTheme) {
@@ -1662,6 +1662,15 @@ class AppPreferences @Inject constructor(
     }
     suspend fun updateLastCheckAtOnce(): Long = store.data.first()[KEY_UPDATE_LAST_CHECK_AT] ?: 0L
 
+    /** Updater (github flavor): check GitHub for a new release when the app
+     *  is opened. On by default (never switched on, it read as off after
+     *  every update); "Check for updates" in Settings always works. */
+    val updateAutoCheck: Flow<Boolean> = store.data.map { it[KEY_UPDATE_AUTO_CHECK] ?: true }
+    suspend fun updateAutoCheckOnce(): Boolean = updateAutoCheck.first()
+    suspend fun setUpdateAutoCheck(value: Boolean) {
+        store.edit { it[KEY_UPDATE_AUTO_CHECK] = value }
+    }
+
     /** versionName the user chose "Later" on; the launch prompt skips it.
      *  Manual checks in Settings ignore the skip. */
     val updateSkippedVersion: Flow<String> = store.data.map { it[KEY_UPDATE_SKIPPED_VERSION] ?: "" }
@@ -2125,6 +2134,7 @@ class AppPreferences @Inject constructor(
         val KEY_SYNC_INITIAL_PULL_DONE = booleanPreferencesKey("sync_initial_pull_done")
         // In-app updater (github flavor); device-local, never synced.
         val KEY_UPDATE_LAST_CHECK_AT = longPreferencesKey("update_last_check_at")
+        val KEY_UPDATE_AUTO_CHECK = booleanPreferencesKey("update_auto_check")
         val KEY_UPDATE_SKIPPED_VERSION = stringPreferencesKey("update_skipped_version")
         val KEY_UPDATE_PENDING = stringPreferencesKey("update_pending")
         val KEY_UPDATE_COMPLETED_VERSION = stringPreferencesKey("update_completed_version")

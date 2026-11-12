@@ -192,9 +192,10 @@ private fun UpdatePromptBody(
         is UpdateState.Available -> {
             titleText = "Update available"
             val mb = state.info.apkSizeBytes / (1024 * 1024)
-            bodyText = "AerioTV ${state.info.versionName} is ready to download (${mb} MB)."
+            bodyText = "AerioTV ${state.info.versionName} is available (${mb} MB). Update " +
+                "downloads and installs it in one go."
             notes = state.info.notes
-            primaryLabel = "Download"
+            primaryLabel = "Update"
         }
         is UpdateState.Downloading -> {
             titleText = "Downloading update"

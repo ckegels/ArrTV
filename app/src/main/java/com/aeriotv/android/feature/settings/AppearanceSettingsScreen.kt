@@ -124,7 +124,7 @@ fun AppearanceSettingsScreen(
     onBack: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
-    val currentTheme by viewModel.selectedTheme.collectAsStateWithLifecycle(initialValue = AppTheme.Aerio)
+    val currentTheme by viewModel.selectedTheme.collectAsStateWithLifecycle(initialValue = AppTheme.Default)
     val appearanceMode by viewModel.appearanceMode.collectAsStateWithLifecycle(initialValue = AppearanceMode.Dark)
     val textScale by viewModel.textScale.collectAsStateWithLifecycle(initialValue = 1.0f)
     val subtextScale by viewModel.subtextScale.collectAsStateWithLifecycle(initialValue = 1.0f)
@@ -461,8 +461,11 @@ internal fun ThemeRow(
     }
 }
 
-private fun themeSubtitle(theme: AppTheme): String = when (theme) {
-    AppTheme.Aerio -> "Cyan on deep navy (default)"
+private fun themeSubtitle(theme: AppTheme): String = themeDescription(theme) +
+    if (theme == AppTheme.Default) " (default)" else ""
+
+private fun themeDescription(theme: AppTheme): String = when (theme) {
+    AppTheme.Aerio -> "Cyan on deep navy"
     AppTheme.Midnight -> "Cool blue on near-black"
     AppTheme.Sunset -> "Warm orange on near-black"
     AppTheme.Forest -> "Green on near-black"

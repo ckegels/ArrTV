@@ -73,6 +73,16 @@ android {
             "CAST_RECEIVER_APP_ID",
             "\"$castReceiverAppId\"",
         )
+        // Theme a fresh install starts with (an AppTheme name). A fork can
+        // change it with -Paerio.defaultTheme=Monochrome; an unknown name
+        // falls back to Aerio. A theme the user picked always wins.
+        val defaultTheme = providers.gradleProperty("aerio.defaultTheme").getOrElse("Aerio")
+        buildConfigField("String", "DEFAULT_THEME", "\"$defaultTheme\"")
+        // What's New after an update (the upstream release notes). A fork
+        // whose changes those notes do not describe turns it off with
+        // -Paerio.showWhatsNew=false.
+        val showWhatsNew = providers.gradleProperty("aerio.showWhatsNew").getOrElse("true").toBoolean()
+        buildConfigField("boolean", "SHOW_WHATS_NEW", "$showWhatsNew")
     }
 
     if (hasReleaseSigning) {
@@ -127,6 +137,18 @@ android {
         create("github") {
             dimension = "distribution"
             buildConfigField("boolean", "UPDATER_ENABLED", "true")
+            // Where the in-app updater looks for releases and which signing
+            // certificate it trusts. Defaults are the official releases; a
+            // fork that ships its own APKs overrides both, e.g. in
+            // ~/.gradle/gradle.properties or with -P:
+            //   aerio.updateRepo=owner/repo
+            //   aerio.updateKeySha256=<SHA-256 of the release certificate>
+            val updateRepo = providers.gradleProperty("aerio.updateRepo")
+                .getOrElse("jonzey231/AerioTV-Android")
+            val updateKeySha256 = providers.gradleProperty("aerio.updateKeySha256")
+                .getOrElse("ab94078f621e6b65b75d1bf1f49a1b2fd657cc6629eb4729cae5e74d280df005")
+            buildConfigField("String", "UPDATE_REPO", "\"$updateRepo\"")
+            buildConfigField("String", "UPDATE_KEY_SHA256", "\"${updateKeySha256.lowercase()}\"")
         }
         create("play") {
             dimension = "distribution"

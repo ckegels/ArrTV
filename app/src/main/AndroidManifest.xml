@@ -15,6 +15,9 @@
          these two normal-protection permissions the phone finds zero cast
          devices and the Cast button never appears. Neither is a location or
          hardware-feature permission, so Android TV eligibility is unaffected. -->
+    <!-- Local network discovery of Dispatcharr servers (welcome screen) reads
+         the device's subnet from ConnectivityManager / LinkProperties. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <!-- LAN URL switching probes the server over HTTP (LanReachability); no

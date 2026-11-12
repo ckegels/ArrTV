@@ -77,7 +77,14 @@ internal fun RecentChannelsOverlay(
     }
     val firstFocus = remember { FocusRequester() }
     LaunchedEffect(entries.isNotEmpty()) {
-        if (entries.isNotEmpty()) runCatching { firstFocus.requestFocus() }
+        if (entries.isEmpty()) return@LaunchedEffect
+        // Opened from the info bar's History card, the card row is still
+        // fading out and the list's first row may not be laid out yet: ask
+        // again for a moment until the focus actually lands.
+        repeat(FIRST_FOCUS_TRIES) {
+            if (runCatching { firstFocus.requestFocus() }.getOrDefault(false)) return@LaunchedEffect
+            kotlinx.coroutines.delay(FIRST_FOCUS_RETRY_MS)
+        }
     }
 
     Box(
@@ -279,3 +286,7 @@ internal fun ChannelPickRow(
 /** The picker row's own corner radius. The row background, its focus border and
  *  the channel logo all read this one value. */
 private val PICKER_ROW_CORNER = 10.dp
+
+/** How often, and how far apart, the list asks for the focus of its first row. */
+private const val FIRST_FOCUS_TRIES = 10
+private const val FIRST_FOCUS_RETRY_MS = 50L

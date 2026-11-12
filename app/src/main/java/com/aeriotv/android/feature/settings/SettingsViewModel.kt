@@ -412,6 +412,12 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { prefs.setAutoRecoverFrozenStreams(value) }
     }
 
+    // TV player overlay style: full-width info bar (off by default).
+    val playerInfoBarStyle: Flow<Boolean> = prefs.playerInfoBarStyle
+    fun setPlayerInfoBarStyle(value: Boolean) {
+        viewModelScope.launch { prefs.setPlayerInfoBarStyle(value) }
+    }
+
     // Player Info Card elements (App Behaviors, Apple parity). All default true;
     // they gate ONLY the in-player program info card.
     val playerCardShowChannelLogo: Flow<Boolean> = prefs.playerCardShowChannelLogo

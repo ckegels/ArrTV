@@ -52,6 +52,7 @@ fun PlayerSettingsScreen(
 ) {
     val isTv = rememberIsTvDevice()
 
+    val infoBarStyle by viewModel.playerInfoBarStyle.collectAsStateWithLifecycle(initialValue = false)
     val cardChannelLogo by viewModel.playerCardShowChannelLogo
         .collectAsStateWithLifecycle(initialValue = true)
     val cardChannelName by viewModel.playerCardShowChannelName
@@ -109,6 +110,24 @@ fun PlayerSettingsScreen(
                     ),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
+                // MARK: Overlay style (TV)
+                if (isTv) {
+                    SettingsSection(
+                        header = "Overlay Style",
+                        footer = "Info bar: changing channel shows a full-width bar along the " +
+                            "bottom with the channel logo and program details. OK adds a row " +
+                            "with TV guide, History and the next channels; hold OK for the " +
+                            "options menu (record, audio, subtitles and more).",
+                    ) {
+                        SettingsToggleRow(
+                            title = "Info bar",
+                            subtitle = "Replaces the info card and control buttons",
+                            checked = infoBarStyle,
+                            onCheckedChange = viewModel::setPlayerInfoBarStyle,
+                        )
+                    }
+                }
+
                 // MARK: Info Card
                 SettingsSection(
                     header = "Info Card",

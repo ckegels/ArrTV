@@ -689,6 +689,19 @@ class AppPreferences @Inject constructor(
         store.data.first()[KEY_AUTO_RECOVER_FROZEN_STREAMS] ?: true
 
     /**
+     * TV player overlay style. Off (default): the standard info card and the
+     * row of control circles. On: a full-width info bar along the bottom
+     * (channel logo on the left, programme details beside it) when zapping,
+     * and the same bar with a row of guide / history / channel cards on OK;
+     * holding OK opens the options menu. Device-local, not synced.
+     */
+    val playerInfoBarStyle: Flow<Boolean> =
+        store.data.map { it[KEY_PLAYER_INFO_BAR_STYLE] ?: false }
+    suspend fun setPlayerInfoBarStyle(value: Boolean) {
+        store.edit { it[KEY_PLAYER_INFO_BAR_STYLE] = value }
+    }
+
+    /**
      * Player Info Card (App Behaviors, Apple-app parity): which elements the
      * in-player program info card draws while the chrome is showing. These
      * affect ONLY that card -- never the guide, channel list, mini player,
@@ -2112,6 +2125,8 @@ class AppPreferences @Inject constructor(
         val KEY_MATCH_CONTENT_RESOLUTION = booleanPreferencesKey("match_content_resolution")
         val KEY_AUTO_RECOVER_FROZEN_STREAMS =
             booleanPreferencesKey("app_behaviors_auto_recover_frozen_streams")
+        // TV player overlay style (info bar); device-local.
+        val KEY_PLAYER_INFO_BAR_STYLE = booleanPreferencesKey("player_info_bar_style")
         // Player Info Card element toggles (App Behaviors); device-local.
         val KEY_PLAYER_CARD_CHANNEL_LOGO =
             booleanPreferencesKey("player_card_show_channel_logo")

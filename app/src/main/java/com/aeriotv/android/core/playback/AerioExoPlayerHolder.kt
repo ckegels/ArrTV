@@ -1544,14 +1544,31 @@ class AerioExoPlayerHolder @Inject constructor(
                 val transientDecode =
                     error.errorCode == PlaybackException.ERROR_CODE_DECODING_RESOURCES_RECLAIMED ||
                         error.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED
+                // Two server answers that pass if asked again (Shield, 2026-10-01):
+                // 416 -- the provider's archive length shifted between the open and
+                // ExoPlayer's read of its last bytes for the duration; opening the same
+                // session again gets the length afresh. 503 "Stream slot busy" -- the
+                // previous programme still holds the provider's connection for a moment.
+                val httpCode = generateSequence(error.cause) { it.cause }
+                    .filterIsInstance<androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException>()
+                    .firstOrNull()?.responseCode
+                val transientHttp = httpCode == 416 || httpCode == 503
                 val cu = lastCatchupUrl
-                if (transientDecode && cu != null && catchupDecodeRetries < 2) {
+                if ((transientDecode || transientHttp) && cu != null &&
+                    catchupDecodeRetries < (if (transientHttp) 4 else 2)
+                ) {
                     catchupDecodeRetries += 1
-                    Log.w(TAG, "[CATCHUP] ${error.errorCodeName} at tune-in; re-tuning (retry $catchupDecodeRetries)")
+                    Log.w(TAG, "[CATCHUP] ${error.errorCodeName}${httpCode?.let { " ($it)" } ?: ""} at tune-in; re-tuning (retry $catchupDecodeRetries)")
                     watchdogScope.launch {
-                        delay(600)
+                        delay(if (httpCode == 503) 2_000L else 600L)
                         withContext(Dispatchers.Main) {
-                            if (isCatchup) {
+                            // A jump re-minted the session meanwhile (and deleted this one on
+                            // the server): replaying the old address got a 400 and the
+                            // "Catch-up Unavailable" card over the new session that was
+                            // playing (Shield, 2026-10-02). The newer tune stands.
+                            if (lastCatchupUrl != cu) {
+                                Log.i(TAG, "[CATCHUP] retry dropped: a newer session replaced the one that failed")
+                            } else if (isCatchup) {
                                 catchupRetryPass = true
                                 playCatchup(cu, lastCatchupTitle, lastCatchupSubtitle, lastCatchupArtworkUri)
                                 catchupRetryPass = false
@@ -2329,8 +2346,9 @@ class AerioExoPlayerHolder @Inject constructor(
             .build()
         tracer.markTuneStart(title, "catchup")
         val staleCalls = takeLiveCallTrackers()
+        // Archives stitched with timestamp jumps play through (TsTimestampSmoothingDataSource)
         val source = ProgressiveMediaSource.Factory(
-            tracer.wrapDataSourceFactory(httpDataSourceFactory(isLive = true)),
+            TsTimestampSmoothingDataSource.Factory(tracer.wrapDataSourceFactory(httpDataSourceFactory(isLive = true))),
             tsOnlyExtractorsFactory(),
         )
             // A Dispatcharr connection-limit refusal is shown, never re-GET.
